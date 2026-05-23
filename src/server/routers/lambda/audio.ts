@@ -6,9 +6,11 @@ import { GenerationModel } from '@/database/models/generation';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import {
+  enforceContentTextPolicy,
   enforceGovernancePolicy,
   getManagedApiKey,
   getManagedEnvVar,
+  writeGovernanceEnforcementAudit,
 } from '@/server/services/admin/runtimeGovernance';
 import { type AudioGenerationParams, KieAiAudioService } from '@/server/services/audio';
 import { AsyncTaskStatus } from '@/types/asyncTask';
@@ -51,9 +53,80 @@ export const audioRouter = router({
         });
 
         if (!audioPolicy.allowed) {
+          await writeGovernanceEnforcementAudit(ctx.serverDB, {
+            action:
+              audioPolicy.mode === 'throttle'
+                ? 'governance.policy_throttle'
+                : 'governance.policy_block',
+            metadata: {
+              domain: 'audio',
+              mode: audioPolicy.mode,
+              policyId: audioPolicy.policyId,
+              requestTarget: 'provider:kie-ai:model:music-generation-v5.5',
+              resolvedTarget: audioPolicy.target,
+            },
+            reason: audioPolicy.reason,
+            targetId: audioPolicy.policyId,
+            userId: ctx.userId,
+          });
           throw new TRPCError({
             code: 'FORBIDDEN',
             message: audioPolicy.reason || 'Audio generation blocked by governance policy',
+          });
+        }
+
+        const pricingPolicy = await enforceGovernancePolicy(ctx.serverDB, {
+          domain: 'pricing',
+          target: 'feature:audio_generation',
+          userId: ctx.userId,
+        });
+
+        if (!pricingPolicy.allowed) {
+          await writeGovernanceEnforcementAudit(ctx.serverDB, {
+            action:
+              pricingPolicy.mode === 'throttle'
+                ? 'governance.policy_throttle'
+                : 'governance.policy_block',
+            metadata: {
+              domain: 'pricing',
+              mode: pricingPolicy.mode,
+              policyId: pricingPolicy.policyId,
+              requestTarget: 'feature:audio_generation',
+              resolvedTarget: pricingPolicy.target,
+            },
+            reason: pricingPolicy.reason,
+            targetId: pricingPolicy.policyId,
+            userId: ctx.userId,
+          });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: pricingPolicy.reason || 'Audio generation is not available for current policy',
+          });
+        }
+
+        const contentPolicy = await enforceContentTextPolicy(ctx.serverDB, {
+          contextTarget: 'audio:prompt',
+          domain: 'audio',
+          text: `${input.parameters.title || ''}\n${input.parameters.style || ''}\n${input.parameters.prompt || ''}`,
+          userId: ctx.userId,
+        });
+
+        if (!contentPolicy.allowed) {
+          await writeGovernanceEnforcementAudit(ctx.serverDB, {
+            action: 'governance.content_block',
+            metadata: {
+              domain: 'content',
+              policyId: contentPolicy.policyId,
+              requestTarget: 'audio:prompt',
+              resolvedTarget: contentPolicy.target,
+            },
+            reason: contentPolicy.reason,
+            targetId: contentPolicy.policyId,
+            userId: ctx.userId,
+          });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: contentPolicy.reason || 'Audio content blocked by policy',
           });
         }
 

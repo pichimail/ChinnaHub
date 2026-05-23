@@ -1,12 +1,24 @@
 import { and, asc, eq } from 'drizzle-orm';
 
-import { adminApiKeys, adminEnvVars, adminGovernancePolicies } from '@/database/schemas/admin';
+import {
+  adminApiKeys,
+  adminAuditLogs,
+  adminEnvVars,
+  adminGovernancePolicies,
+} from '@/database/schemas/admin';
 import { getRedisConfig } from '@/envs/redis';
 import { initializeRedis } from '@/libs/redis';
 
 interface GovernanceInput {
   domain: 'audio' | 'content' | 'image' | 'marketplace' | 'pricing' | 'video';
   target: string;
+  userId?: string;
+}
+
+interface ContentPolicyCheckInput {
+  contextTarget: string;
+  domain?: 'audio' | 'chat' | 'image' | 'video';
+  text: string;
   userId?: string;
 }
 
@@ -23,7 +35,13 @@ const getThrottleBucket = (windowSeconds: number) =>
 export const enforceGovernancePolicy = async (
   db: any,
   input: GovernanceInput,
-): Promise<{ allowed: boolean; reason?: string }> => {
+): Promise<{
+  allowed: boolean;
+  mode?: string;
+  policyId?: string;
+  reason?: string;
+  target?: string;
+}> => {
   const policies = await db
     .select()
     .from(adminGovernancePolicies)
@@ -41,9 +59,12 @@ export const enforceGovernancePolicy = async (
     if (policy.mode === 'deny' || policy.mode === 'review') {
       return {
         allowed: false,
+        mode: policy.mode,
+        policyId: policy.id,
         reason:
           policy.notes ||
           `Blocked by governance policy (${policy.domain}:${policy.target}, mode=${policy.mode})`,
+        target: policy.target,
       };
     }
 
@@ -66,12 +87,104 @@ export const enforceGovernancePolicy = async (
           if (used > maxRequests) {
             return {
               allowed: false,
+              mode: policy.mode,
+              policyId: policy.id,
               reason:
                 policy.notes ||
                 `Rate limited by governance policy (${policy.domain}:${policy.target})`,
+              target: policy.target,
             };
           }
         }
+      }
+    }
+  }
+
+  return { allowed: true };
+};
+
+export const writeGovernanceEnforcementAudit = async (
+  db: any,
+  payload: {
+    action: 'governance.content_block' | 'governance.policy_block' | 'governance.policy_throttle';
+    metadata?: Record<string, unknown>;
+    reason?: string;
+    targetId?: string;
+    userId: string;
+  },
+) => {
+  await db.insert(adminAuditLogs).values({
+    action: payload.action,
+    adminEmail: null,
+    adminId: payload.userId,
+    metadata: {
+      reason: payload.reason,
+      ...payload.metadata,
+    },
+    targetId: payload.targetId,
+    targetType: 'governance_enforcement',
+  });
+};
+
+const containsMatch = (text: string, needle: string) =>
+  text.toLowerCase().includes(needle.toLowerCase());
+
+export const enforceContentTextPolicy = async (
+  db: any,
+  input: ContentPolicyCheckInput,
+): Promise<{ allowed: boolean; policyId?: string; reason?: string; target?: string }> => {
+  const contentPolicies = await db
+    .select()
+    .from(adminGovernancePolicies)
+    .where(
+      and(
+        eq(adminGovernancePolicies.domain, 'content'),
+        eq(adminGovernancePolicies.isActive, true),
+      ),
+    )
+    .orderBy(asc(adminGovernancePolicies.priority));
+
+  for (const policy of contentPolicies) {
+    if (!targetMatches(policy.target, input.contextTarget) && !targetMatches(policy.target, '*'))
+      continue;
+
+    const config = (policy.config || {}) as Record<string, unknown>;
+    const blockedPhrases = (config.blockedPhrases || []) as string[];
+    const blockedRegexes = (config.blockedRegexes || []) as string[];
+    const maxPromptLength = Number(config.maxPromptLength || 0);
+
+    if (maxPromptLength > 0 && input.text.length > maxPromptLength) {
+      return {
+        allowed: false,
+        policyId: policy.id,
+        reason: policy.notes || `Content exceeded max length (${maxPromptLength})`,
+        target: policy.target,
+      };
+    }
+
+    if (blockedPhrases.some((phrase) => phrase && containsMatch(input.text, phrase))) {
+      return {
+        allowed: false,
+        policyId: policy.id,
+        reason: policy.notes || 'Content blocked by policy phrase match',
+        target: policy.target,
+      };
+    }
+
+    for (const pattern of blockedRegexes) {
+      if (!pattern) continue;
+      try {
+        const regex = new RegExp(pattern, 'i');
+        if (regex.test(input.text)) {
+          return {
+            allowed: false,
+            policyId: policy.id,
+            reason: policy.notes || 'Content blocked by policy regex match',
+            target: policy.target,
+          };
+        }
+      } catch {
+        // ignore malformed policy regex instead of failing all requests
       }
     }
   }

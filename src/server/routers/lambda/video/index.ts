@@ -30,7 +30,11 @@ import { appEnv } from '@/envs/app';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
-import { enforceGovernancePolicy } from '@/server/services/admin/runtimeGovernance';
+import {
+  enforceContentTextPolicy,
+  enforceGovernancePolicy,
+  writeGovernanceEnforcementAudit,
+} from '@/server/services/admin/runtimeGovernance';
 import { FileService } from '@/server/services/file';
 import { processBackgroundVideoPolling } from '@/server/services/generation/videoBackgroundPolling';
 import { AsyncTaskStatus, AsyncTaskType } from '@/types/asyncTask';
@@ -84,9 +88,80 @@ export const videoRouter = router({
     });
 
     if (!videoPolicy.allowed) {
+      await writeGovernanceEnforcementAudit(serverDB, {
+        action:
+          videoPolicy.mode === 'throttle'
+            ? 'governance.policy_throttle'
+            : 'governance.policy_block',
+        metadata: {
+          domain: 'video',
+          mode: videoPolicy.mode,
+          policyId: videoPolicy.policyId,
+          requestTarget: `provider:${provider}:model:${resolvedModelId}`,
+          resolvedTarget: videoPolicy.target,
+        },
+        reason: videoPolicy.reason,
+        targetId: videoPolicy.policyId,
+        userId,
+      });
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: videoPolicy.reason || 'Video generation blocked by governance policy',
+      });
+    }
+
+    const pricingPolicy = await enforceGovernancePolicy(serverDB, {
+      domain: 'pricing',
+      target: 'feature:video_generation',
+      userId,
+    });
+
+    if (!pricingPolicy.allowed) {
+      await writeGovernanceEnforcementAudit(serverDB, {
+        action:
+          pricingPolicy.mode === 'throttle'
+            ? 'governance.policy_throttle'
+            : 'governance.policy_block',
+        metadata: {
+          domain: 'pricing',
+          mode: pricingPolicy.mode,
+          policyId: pricingPolicy.policyId,
+          requestTarget: 'feature:video_generation',
+          resolvedTarget: pricingPolicy.target,
+        },
+        reason: pricingPolicy.reason,
+        targetId: pricingPolicy.policyId,
+        userId,
+      });
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: pricingPolicy.reason || 'Video generation is not available for current policy',
+      });
+    }
+
+    const contentPolicy = await enforceContentTextPolicy(serverDB, {
+      contextTarget: `video:provider:${provider}`,
+      domain: 'video',
+      text: params.prompt || '',
+      userId,
+    });
+
+    if (!contentPolicy.allowed) {
+      await writeGovernanceEnforcementAudit(serverDB, {
+        action: 'governance.content_block',
+        metadata: {
+          domain: 'content',
+          policyId: contentPolicy.policyId,
+          requestTarget: `video:provider:${provider}`,
+          resolvedTarget: contentPolicy.target,
+        },
+        reason: contentPolicy.reason,
+        targetId: contentPolicy.policyId,
+        userId,
+      });
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: contentPolicy.reason || 'Video prompt blocked by content policy',
       });
     }
 

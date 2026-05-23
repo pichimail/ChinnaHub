@@ -6,7 +6,10 @@ import { z } from 'zod';
 
 import { publicProcedure, router } from '@/libs/trpc/lambda';
 import { marketUserInfo, serverDatabase } from '@/libs/trpc/lambda/middleware';
-import { enforceGovernancePolicy } from '@/server/services/admin/runtimeGovernance';
+import {
+  enforceGovernancePolicy,
+  writeGovernanceEnforcementAudit,
+} from '@/server/services/admin/runtimeGovernance';
 import { DiscoverService } from '@/server/services/discover';
 import { MarketService } from '@/server/services/market';
 import {
@@ -30,6 +33,7 @@ import { userRouter } from './user';
 const log = debug('lambda-router:market');
 
 const marketSourceSchema = z.enum(['legacy', 'new']);
+const getMarketActorId = (ctx: any) => String(ctx?.marketUserInfo?.id || 'anonymous');
 
 // Public procedure with optional user info for trusted client token
 const marketProcedure = publicProcedure
@@ -39,10 +43,26 @@ const marketProcedure = publicProcedure
     const marketPolicy = await enforceGovernancePolicy(ctx.serverDB, {
       domain: 'marketplace',
       target: 'discover:*',
-      userId: ctx.marketUserInfo?.id,
+      userId: getMarketActorId(ctx),
     });
 
     if (!marketPolicy.allowed) {
+      await writeGovernanceEnforcementAudit(ctx.serverDB, {
+        action:
+          marketPolicy.mode === 'throttle'
+            ? 'governance.policy_throttle'
+            : 'governance.policy_block',
+        metadata: {
+          domain: 'marketplace',
+          mode: marketPolicy.mode,
+          policyId: marketPolicy.policyId,
+          requestTarget: 'discover:*',
+          resolvedTarget: marketPolicy.target,
+        },
+        reason: marketPolicy.reason,
+        targetId: marketPolicy.policyId,
+        userId: getMarketActorId(ctx),
+      });
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: marketPolicy.reason || 'Marketplace access blocked by governance policy',

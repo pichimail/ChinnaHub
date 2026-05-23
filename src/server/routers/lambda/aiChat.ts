@@ -1,5 +1,6 @@
 import { type CreateMessageParams, type SendMessageServerResponse } from '@lobechat/types';
 import { AiSendMessageServerSchema, RequestTrigger, StructureOutputSchema } from '@lobechat/types';
+import { TRPCError } from '@trpc/server';
 import debug from 'debug';
 
 import { LOADING_FLAT } from '@/const/message';
@@ -11,6 +12,11 @@ import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
 import { resolveContext } from '@/server/routers/lambda/_helpers/resolveContext';
+import {
+  enforceContentTextPolicy,
+  enforceGovernancePolicy,
+  writeGovernanceEnforcementAudit,
+} from '@/server/services/admin/runtimeGovernance';
 import { AiChatService } from '@/server/services/aiChat';
 import { FileService } from '@/server/services/file';
 
@@ -33,6 +39,61 @@ const aiChatProcedure = authedProcedure.use(serverDatabase).use(async (opts) => 
 
 export const aiChatRouter = router({
   outputJSON: aiChatProcedure.input(StructureOutputSchema).mutation(async ({ input, ctx }) => {
+    const pricingPolicy = await enforceGovernancePolicy(ctx.serverDB, {
+      domain: 'pricing',
+      target: 'feature:chat_generation',
+      userId: ctx.userId,
+    });
+
+    if (!pricingPolicy.allowed) {
+      await writeGovernanceEnforcementAudit(ctx.serverDB, {
+        action:
+          pricingPolicy.mode === 'throttle'
+            ? 'governance.policy_throttle'
+            : 'governance.policy_block',
+        metadata: {
+          domain: 'pricing',
+          mode: pricingPolicy.mode,
+          policyId: pricingPolicy.policyId,
+          requestTarget: 'feature:chat_generation',
+          resolvedTarget: pricingPolicy.target,
+        },
+        reason: pricingPolicy.reason,
+        targetId: pricingPolicy.policyId,
+        userId: ctx.userId,
+      });
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: pricingPolicy.reason || 'Chat generation not available for current policy',
+      });
+    }
+
+    const contentPolicy = await enforceContentTextPolicy(ctx.serverDB, {
+      contextTarget: `chat:provider:${input.provider}:model:${input.model}`,
+      domain: 'chat',
+      text: input.messages.map((m) => m.content).join('\n'),
+      userId: ctx.userId,
+    });
+
+    if (!contentPolicy.allowed) {
+      await writeGovernanceEnforcementAudit(ctx.serverDB, {
+        action: 'governance.content_block',
+        metadata: {
+          domain: 'content',
+          policyId: contentPolicy.policyId,
+          requestTarget: `chat:provider:${input.provider}:model:${input.model}`,
+          resolvedTarget: contentPolicy.target,
+        },
+        reason: contentPolicy.reason,
+        targetId: contentPolicy.policyId,
+        userId: ctx.userId,
+      });
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: contentPolicy.reason || 'Chat request blocked by content policy',
+      });
+    }
+
     log('outputJSON called with provider: %s, model: %s', input.provider, input.model);
     log('messages count: %d', input.messages.length);
     log('schema: %O', input.schema);
@@ -59,6 +120,61 @@ export const aiChatRouter = router({
   sendMessageInServer: aiChatProcedure
     .input(AiSendMessageServerSchema)
     .mutation(async ({ input, ctx }) => {
+      const pricingPolicy = await enforceGovernancePolicy(ctx.serverDB, {
+        domain: 'pricing',
+        target: 'feature:chat_generation',
+        userId: ctx.userId,
+      });
+
+      if (!pricingPolicy.allowed) {
+        await writeGovernanceEnforcementAudit(ctx.serverDB, {
+          action:
+            pricingPolicy.mode === 'throttle'
+              ? 'governance.policy_throttle'
+              : 'governance.policy_block',
+          metadata: {
+            domain: 'pricing',
+            mode: pricingPolicy.mode,
+            policyId: pricingPolicy.policyId,
+            requestTarget: 'feature:chat_generation',
+            resolvedTarget: pricingPolicy.target,
+          },
+          reason: pricingPolicy.reason,
+          targetId: pricingPolicy.policyId,
+          userId: ctx.userId,
+        });
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: pricingPolicy.reason || 'Chat generation not available for current policy',
+        });
+      }
+
+      const contentPolicy = await enforceContentTextPolicy(ctx.serverDB, {
+        contextTarget: `chat:agent:${input.agentId || 'unknown'}`,
+        domain: 'chat',
+        text: input.newUserMessage.content,
+        userId: ctx.userId,
+      });
+
+      if (!contentPolicy.allowed) {
+        await writeGovernanceEnforcementAudit(ctx.serverDB, {
+          action: 'governance.content_block',
+          metadata: {
+            domain: 'content',
+            policyId: contentPolicy.policyId,
+            requestTarget: `chat:agent:${input.agentId || 'unknown'}`,
+            resolvedTarget: contentPolicy.target,
+          },
+          reason: contentPolicy.reason,
+          targetId: contentPolicy.policyId,
+          userId: ctx.userId,
+        });
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: contentPolicy.reason || 'User message blocked by content policy',
+        });
+      }
+
       log('sendMessageInServer called for agentId: %s', input.agentId);
       log(
         'topicId: %s, newTopic: %O, newThread: %O',

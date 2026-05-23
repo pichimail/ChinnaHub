@@ -14,7 +14,11 @@ import { asyncTasks, generationBatches, generations } from '@/database/schemas';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { createAsyncCaller } from '@/server/routers/async/caller';
-import { enforceGovernancePolicy } from '@/server/services/admin/runtimeGovernance';
+import {
+  enforceContentTextPolicy,
+  enforceGovernancePolicy,
+  writeGovernanceEnforcementAudit,
+} from '@/server/services/admin/runtimeGovernance';
 import { FileService } from '@/server/services/file';
 import {
   AsyncTaskError,
@@ -74,9 +78,80 @@ export const imageRouter = router({
     });
 
     if (!imagePolicy.allowed) {
+      await writeGovernanceEnforcementAudit(serverDB, {
+        action:
+          imagePolicy.mode === 'throttle'
+            ? 'governance.policy_throttle'
+            : 'governance.policy_block',
+        metadata: {
+          domain: 'image',
+          mode: imagePolicy.mode,
+          policyId: imagePolicy.policyId,
+          requestTarget: `provider:${provider}:model:${resolvedModelId}`,
+          resolvedTarget: imagePolicy.target,
+        },
+        reason: imagePolicy.reason,
+        targetId: imagePolicy.policyId,
+        userId,
+      });
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: imagePolicy.reason || 'Image generation blocked by governance policy',
+      });
+    }
+
+    const pricingPolicy = await enforceGovernancePolicy(serverDB, {
+      domain: 'pricing',
+      target: 'feature:image_generation',
+      userId,
+    });
+
+    if (!pricingPolicy.allowed) {
+      await writeGovernanceEnforcementAudit(serverDB, {
+        action:
+          pricingPolicy.mode === 'throttle'
+            ? 'governance.policy_throttle'
+            : 'governance.policy_block',
+        metadata: {
+          domain: 'pricing',
+          mode: pricingPolicy.mode,
+          policyId: pricingPolicy.policyId,
+          requestTarget: 'feature:image_generation',
+          resolvedTarget: pricingPolicy.target,
+        },
+        reason: pricingPolicy.reason,
+        targetId: pricingPolicy.policyId,
+        userId,
+      });
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: pricingPolicy.reason || 'Image generation is not available for current policy',
+      });
+    }
+
+    const contentPolicy = await enforceContentTextPolicy(serverDB, {
+      contextTarget: `image:provider:${provider}`,
+      domain: 'image',
+      text: params.prompt || '',
+      userId,
+    });
+
+    if (!contentPolicy.allowed) {
+      await writeGovernanceEnforcementAudit(serverDB, {
+        action: 'governance.content_block',
+        metadata: {
+          domain: 'content',
+          policyId: contentPolicy.policyId,
+          requestTarget: `image:provider:${provider}`,
+          resolvedTarget: contentPolicy.target,
+        },
+        reason: contentPolicy.reason,
+        targetId: contentPolicy.policyId,
+        userId,
+      });
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: contentPolicy.reason || 'Image prompt blocked by content policy',
       });
     }
 
