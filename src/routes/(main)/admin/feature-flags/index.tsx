@@ -3,7 +3,7 @@
 import { Button, Form, Input, message, Modal, Space, Spin, Switch, Table } from 'antd';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery, useSWRConfig } from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
 
@@ -13,7 +13,7 @@ const AdminFeatureFlags = () => {
   const [form] = Form.useForm();
   const [isCreating, setIsCreating] = useState(false);
 
-  const { data: flagsData, isLoading } = useQuery(
+  const { data: flagsData, isLoading } = useSWR(
     'admin:feature-flags',
     async () => {
       const result = await lambdaClient.admin.getFeatureFlags.query();

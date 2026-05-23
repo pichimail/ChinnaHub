@@ -2,13 +2,13 @@
 
 import { Card, Col, Row, Spin, Statistic } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from 'swr';
+import useSWR from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
 
 const AdminOverview = () => {
   const { t } = useTranslation();
-  const { data: statsData, isLoading } = useQuery(
+  const { data: statsData, isLoading } = useSWR(
     'admin:system-stats',
     async () => {
       const result = await lambdaClient.admin.getSystemStats.query();

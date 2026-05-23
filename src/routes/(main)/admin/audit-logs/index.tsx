@@ -2,14 +2,14 @@
 
 import { Spin, Table } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from 'swr';
+import useSWR from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
 
 const AdminAuditLogs = () => {
   const { t } = useTranslation();
 
-  const { data: logsData, isLoading } = useQuery(
+  const { data: logsData, isLoading } = useSWR(
     'admin:audit-logs',
     async () => {
       const result = await lambdaClient.admin.getAuditLogs.query({ limit: 100 });

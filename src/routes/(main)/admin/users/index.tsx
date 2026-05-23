@@ -3,7 +3,7 @@
 import { Button, Input, message, Modal, Popconfirm, Space, Spin, Table } from 'antd';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery, useSWRConfig } from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
 
@@ -13,7 +13,7 @@ const AdminUsers = () => {
   const [banReason, setBanReason] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-  const { data: userData, isLoading } = useQuery(
+  const { data: userData, isLoading } = useSWR(
     'admin:users',
     async () => {
       const result = await lambdaClient.admin.getUsers.query({ limit: 100 });
