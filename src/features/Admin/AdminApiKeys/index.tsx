@@ -1,21 +1,23 @@
 'use client';
 
 import { Flexbox } from '@lobehub/ui';
-import { App, Badge, Button, Form, Input, Modal, Switch, Table, Tag, Tooltip } from 'antd';
+import { App, Button, Form, Input, Modal, Switch, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { createStaticStyles } from 'antd-style';
-import { EyeIcon, EyeOffIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { type CSSProperties, memo, useState } from 'react';
 
 import { lambdaQuery } from '@/libs/trpc/client';
 
-const useStyles = createStaticStyles(({ css, token }) => ({
+const useStyles = createStaticStyles(({ css, cssVar }) => ({
   tableWrap: css`
-    background: ${token.colorBgContainer};
-    border-radius: 12px;
-    border: 1px solid ${token.colorBorderSecondary};
     overflow: hidden;
-    margin-top: 16px;
+
+    margin-block-start: 16px;
+    border: 1px solid ${cssVar.colorBorderSecondary};
+    border-radius: 12px;
+
+    background: ${cssVar.colorBgContainer};
   `,
 }));
 
@@ -74,7 +76,12 @@ const AdminApiKeys = memo(() => {
 
   const openEdit = (key: KeyRow) => {
     setEditing(key);
-    form.setFieldsValue({ service: key.service, label: key.label, keyValue: '', isActive: key.isActive });
+    form.setFieldsValue({
+      service: key.service,
+      label: key.label,
+      keyValue: '',
+      isActive: key.isActive,
+    });
     setShowKey(false);
     setModalOpen(true);
   };
@@ -117,7 +124,7 @@ const AdminApiKeys = memo(() => {
     {
       key: 'actions',
       render: (_, row) => (
-        <Flexbox gap={8} horizontal>
+        <Flexbox horizontal gap={8}>
           <Button
             icon={<PencilIcon size={14} />}
             size="small"
@@ -154,7 +161,7 @@ const AdminApiKeys = memo(() => {
 
   return (
     <div>
-      <Flexbox align="center" horizontal justify="space-between">
+      <Flexbox horizontal align="center" justify="space-between">
         <div>
           <div style={headingStyle}>API Key Management</div>
           <div style={{ fontSize: 13, color: 'var(--lobe-color-text-tertiary)', marginTop: 4 }}>
@@ -181,11 +188,11 @@ const AdminApiKeys = memo(() => {
         confirmLoading={upsertMutation.isPending}
         open={modalOpen}
         title={editing ? 'Edit API Key' : 'Add API Key'}
+        onOk={handleSubmit}
         onCancel={() => {
           setModalOpen(false);
           setEditing(null);
         }}
-        onOk={handleSubmit}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item

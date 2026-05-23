@@ -1,6 +1,7 @@
 'use client';
 
 import { Flexbox, Icon } from '@lobehub/ui';
+import { createStaticStyles } from 'antd-style';
 import {
   BarChart3Icon,
   FileTextIcon,
@@ -11,83 +12,103 @@ import {
   ShieldIcon,
   UsersIcon,
 } from 'lucide-react';
-import { createStaticStyles } from 'antd-style';
 import { type FC, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-const useStyles = createStaticStyles(({ css, token }) => ({
+const useStyles = createStaticStyles(({ css, cssVar }) => ({
   container: css`
-    height: 100%;
     display: flex;
-    background: ${token.colorBgLayout};
+    height: 100%;
+    background: ${cssVar.colorBgLayout};
   `,
   sidebar: css`
-    width: 220px;
-    min-width: 220px;
-    height: 100%;
-    border-right: 1px solid ${token.colorBorderSecondary};
-    background: ${token.colorBgContainer};
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+
+    width: 220px;
+    min-width: 220px;
+    height: 100%;
+    border-inline-end: 1px solid ${cssVar.colorBorderSecondary};
+
+    background: ${cssVar.colorBgContainer};
   `,
   header: css`
-    padding: 20px 16px 12px;
-    border-bottom: 1px solid ${token.colorBorderSecondary};
+    padding-block: 20px 12px;
+    padding-inline: 16px;
+    border-block-end: 1px solid ${cssVar.colorBorderSecondary};
   `,
   headerTitle: css`
     font-size: 11px;
     font-weight: 700;
-    color: ${token.colorTextQuaternary};
-    letter-spacing: 0.1em;
+    color: ${cssVar.colorTextQuaternary};
     text-transform: uppercase;
+    letter-spacing: 0.1em;
   `,
   menuItem: css`
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 16px;
-    border-radius: 8px;
-    margin: 2px 8px;
     cursor: pointer;
-    font-size: 14px;
-    color: ${token.colorTextSecondary};
-    transition: all 0.15s ease;
     user-select: none;
+
+    display: flex;
+    gap: 10px;
+    align-items: center;
+
+    margin-block: 2px;
+    margin-inline: 8px;
+    padding-block: 9px;
+    padding-inline: 16px;
+    border-radius: 8px;
+
+    font-size: 14px;
+    color: ${cssVar.colorTextSecondary};
+
+    transition: all 0.15s ease;
+
     &:hover {
-      background: ${token.colorFillSecondary};
-      color: ${token.colorText};
+      color: ${cssVar.colorText};
+      background: ${cssVar.colorFillSecondary};
     }
   `,
   activeMenuItem: css`
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 16px;
-    border-radius: 8px;
-    margin: 2px 8px;
     cursor: pointer;
+    user-select: none;
+
+    display: flex;
+    gap: 10px;
+    align-items: center;
+
+    margin-block: 2px;
+    margin-inline: 8px;
+    padding-block: 9px;
+    padding-inline: 16px;
+    border-radius: 8px;
+
     font-size: 14px;
     font-weight: 600;
-    color: ${token.colorPrimary};
-    background: ${token.colorPrimaryBg};
+    color: ${cssVar.colorPrimary};
+
+    background: ${cssVar.colorPrimaryBg};
+
     transition: all 0.15s ease;
-    user-select: none;
   `,
   sectionLabel: css`
-    padding: 16px 16px 4px;
+    padding-block: 16px 4px;
+    padding-inline: 16px;
+
     font-size: 11px;
     font-weight: 700;
-    color: ${token.colorTextQuaternary};
-    letter-spacing: 0.08em;
+    color: ${cssVar.colorTextQuaternary};
     text-transform: uppercase;
+    letter-spacing: 0.08em;
   `,
   content: css`
-    flex: 1;
-    height: 100%;
     overflow-y: auto;
+    flex: 1;
+
+    height: 100%;
     padding: 24px;
-    background: ${token.colorBgLayout};
+
+    background: ${cssVar.colorBgLayout};
   `,
 }));
 
@@ -129,7 +150,7 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
     <div className={styles.container}>
       <div className={styles.sidebar}>
         <div className={styles.header}>
-          <Flexbox align="center" gap={8} horizontal>
+          <Flexbox horizontal align="center" gap={8}>
             <Icon icon={ShieldIcon} size={16} />
             <span className={styles.headerTitle}>Admin Console</span>
           </Flexbox>
@@ -139,8 +160,8 @@ const AdminLayout: FC<AdminLayoutProps> = ({ children }) => {
             <div className={styles.sectionLabel}>{label}</div>
             {items.map(({ icon, label: itemLabel, path }) => (
               <div
-                key={path}
                 className={pathname === path ? styles.activeMenuItem : styles.menuItem}
+                key={path}
                 onClick={() => navigate(path)}
               >
                 <Icon icon={icon} size={15} />

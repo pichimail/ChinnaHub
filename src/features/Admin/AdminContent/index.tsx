@@ -1,23 +1,26 @@
 'use client';
 
-import { Flexbox, Text } from '@lobehub/ui';
+import { Text } from '@lobehub/ui';
 import { createStaticStyles } from 'antd-style';
 import { FileTextIcon } from 'lucide-react';
 import { memo } from 'react';
 
-const useStyles = createStaticStyles(({ css, token }) => ({
+const useStyles = createStaticStyles(({ css, cssVar }) => ({
   empty: css`
     display: flex;
     flex-direction: column;
+    gap: 12px;
     align-items: center;
     justify-content: center;
+
     min-height: 240px;
-    gap: 12px;
-    color: ${token.colorTextQuaternary};
-    background: ${token.colorBgContainer};
+    margin-block-start: 16px;
+    border: 1px solid ${cssVar.colorBorderSecondary};
     border-radius: 12px;
-    border: 1px solid ${token.colorBorderSecondary};
-    margin-top: 16px;
+
+    color: ${cssVar.colorTextQuaternary};
+
+    background: ${cssVar.colorBgContainer};
   `,
 }));
 

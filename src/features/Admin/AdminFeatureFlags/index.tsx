@@ -1,7 +1,7 @@
 'use client';
 
 import { Flexbox } from '@lobehub/ui';
-import { App, Badge, Button, Form, Input, Modal, Switch, Table, Tag, Tooltip } from 'antd';
+import { App, Button, Form, Input, Modal, Switch, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { createStaticStyles } from 'antd-style';
 import { InfoIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
@@ -9,13 +9,15 @@ import { type CSSProperties, memo, useState } from 'react';
 
 import { lambdaQuery } from '@/libs/trpc/client';
 
-const useStyles = createStaticStyles(({ css, token }) => ({
+const useStyles = createStaticStyles(({ css, cssVar }) => ({
   tableWrap: css`
-    background: ${token.colorBgContainer};
-    border-radius: 12px;
-    border: 1px solid ${token.colorBorderSecondary};
     overflow: hidden;
-    margin-top: 16px;
+
+    margin-block-start: 16px;
+    border: 1px solid ${cssVar.colorBorderSecondary};
+    border-radius: 12px;
+
+    background: ${cssVar.colorBgContainer};
   `,
 }));
 
@@ -111,7 +113,7 @@ const AdminFeatureFlags = memo(() => {
     {
       key: 'overrides',
       render: (_, row) => (
-        <Flexbox gap={4} horizontal>
+        <Flexbox horizontal gap={4}>
           {row.enabledUserIds?.length > 0 && (
             <Tag color="green">+{row.enabledUserIds.length} enabled</Tag>
           )}
@@ -126,7 +128,7 @@ const AdminFeatureFlags = memo(() => {
     {
       key: 'actions',
       render: (_, row) => (
-        <Flexbox gap={8} horizontal>
+        <Flexbox horizontal gap={8}>
           <Button
             icon={<PencilIcon size={14} />}
             size="small"
@@ -163,7 +165,7 @@ const AdminFeatureFlags = memo(() => {
 
   return (
     <div>
-      <Flexbox align="center" horizontal justify="space-between">
+      <Flexbox horizontal align="center" justify="space-between">
         <div style={headingStyle}>Feature Flags</div>
         <Button icon={<PlusIcon size={14} />} type="primary" onClick={openCreate}>
           New Flag
@@ -185,11 +187,11 @@ const AdminFeatureFlags = memo(() => {
         confirmLoading={upsertMutation.isPending}
         open={modalOpen}
         title={editing ? 'Edit Feature Flag' : 'New Feature Flag'}
+        onOk={handleSubmit}
         onCancel={() => {
           setModalOpen(false);
           setEditing(null);
         }}
-        onOk={handleSubmit}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item

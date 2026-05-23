@@ -1,28 +1,31 @@
 'use client';
 
 import { Flexbox } from '@lobehub/ui';
-import { Button, DatePicker, Input, Select, Space, Table, Tag, Tooltip } from 'antd';
+import { Button, Input, Space, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { DownloadIcon, SearchIcon } from 'lucide-react';
 import { createStaticStyles } from 'antd-style';
+import { DownloadIcon, SearchIcon } from 'lucide-react';
 import { type CSSProperties, memo, useState } from 'react';
 
 import { lambdaQuery } from '@/libs/trpc/client';
 
-const useStyles = createStaticStyles(({ css, token }) => ({
+const useStyles = createStaticStyles(({ css, cssVar }) => ({
   tableWrap: css`
-    background: ${token.colorBgContainer};
-    border-radius: 12px;
-    border: 1px solid ${token.colorBorderSecondary};
     overflow: hidden;
-    margin-top: 16px;
+
+    margin-block-start: 16px;
+    border: 1px solid ${cssVar.colorBorderSecondary};
+    border-radius: 12px;
+
+    background: ${cssVar.colorBgContainer};
   `,
   filters: css`
-    margin-bottom: 16px;
+    margin-block-end: 16px;
     padding: 16px;
-    background: ${token.colorBgContainer};
+    border: 1px solid ${cssVar.colorBorderSecondary};
     border-radius: 12px;
-    border: 1px solid ${token.colorBorderSecondary};
+
+    background: ${cssVar.colorBgContainer};
   `,
 }));
 
@@ -115,7 +118,10 @@ const AdminAuditLog = memo(() => {
       dataIndex: 'action',
       key: 'action',
       render: (action) => (
-        <Tag color={ACTION_COLORS[action] || 'default'} style={{ fontFamily: 'monospace', fontSize: 11 }}>
+        <Tag
+          color={ACTION_COLORS[action] || 'default'}
+          style={{ fontFamily: 'monospace', fontSize: 11 }}
+        >
           {action}
         </Tag>
       ),
@@ -142,7 +148,9 @@ const AdminAuditLog = memo(() => {
       render: (meta) =>
         meta ? (
           <Tooltip title={<pre style={{ fontSize: 11 }}>{JSON.stringify(meta, null, 2)}</pre>}>
-            <span style={{ cursor: 'help', fontSize: 12, color: 'var(--lobe-color-text-tertiary)' }}>
+            <span
+              style={{ cursor: 'help', fontSize: 12, color: 'var(--lobe-color-text-tertiary)' }}
+            >
               View
             </span>
           </Tooltip>
@@ -160,7 +168,7 @@ const AdminAuditLog = memo(() => {
 
   return (
     <div>
-      <Flexbox align="center" horizontal justify="space-between">
+      <Flexbox horizontal align="center" justify="space-between">
         <div style={headingStyle}>Audit Log</div>
         <Button icon={<DownloadIcon size={14} />} onClick={handleExport}>
           Export CSV
@@ -197,6 +205,8 @@ const AdminAuditLog = memo(() => {
           columns={columns}
           dataSource={(data?.items ?? []) as LogRow[]}
           loading={isLoading}
+          rowKey="id"
+          size="small"
           pagination={{
             current: page,
             onChange: setPage,
@@ -204,8 +214,6 @@ const AdminAuditLog = memo(() => {
             showSizeChanger: false,
             total: data?.total ?? 0,
           }}
-          rowKey="id"
-          size="small"
         />
       </div>
     </div>
