@@ -31,6 +31,8 @@ services:
       - 'REDIS_URL=redis://redis:6379'
       - 'REDIS_PREFIX=lobechat'
       - 'REDIS_TLS=0'
+      - 'KIE_AI_API_KEY=${KIE_AI_API_KEY}'
+      - 'SUNO_API_BASE_URL=${SUNO_API_BASE_URL:-https://api.kie.ai/v1}'
     env_file:
       - .env
     restart: always
