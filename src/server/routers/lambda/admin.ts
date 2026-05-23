@@ -1,19 +1,20 @@
-import { adminApiKeys, adminAuditLogs, featureFlags, users } from '@/database/schemas';
 import { TRPCError } from '@trpc/server';
 import { and, count, desc, eq, gte, ilike, lte, or } from 'drizzle-orm';
 import { z } from 'zod';
 
+import { adminApiKeys, adminAuditLogs, featureFlags, users } from '@/database/schemas';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
+import { isStrictAdminEmail } from '@/utils/adminAccess';
 
 const adminProcedure = authedProcedure.use(serverDatabase).use(async ({ ctx, next }) => {
   const [user] = await ctx.serverDB
-    .select({ email: users.email, role: users.role })
+    .select({ email: users.email })
     .from(users)
     .where(eq(users.id, ctx.userId))
     .limit(1);
 
-  if (!user || user.role !== 'admin') {
+  if (!user || !isStrictAdminEmail(user.email)) {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
   }
 
@@ -64,7 +65,8 @@ export const adminRouter = router({
       }
       if (role) conditions.push(eq(users.role, role));
       if (banned !== undefined) conditions.push(eq(users.banned, banned));
-      const whereClause = conditions.length > 0 ? and(...(conditions as [any, ...any[]])) : undefined;
+      const whereClause =
+        conditions.length > 0 ? and(...(conditions as [any, ...any[]])) : undefined;
 
       const [items, [{ value: total }]] = await Promise.all([
         ctx.serverDB
@@ -97,12 +99,17 @@ export const adminRouter = router({
         .where(eq(users.id, input.userId))
         .limit(1);
 
-      await ctx.serverDB
-        .update(users)
-        .set({ role: input.role })
-        .where(eq(users.id, input.userId));
+      await ctx.serverDB.update(users).set({ role: input.role }).where(eq(users.id, input.userId));
 
-      await writeAuditLog(ctx.serverDB, ctx.userId, ctx.adminEmail, 'user.role_update', 'user', input.userId, { from: prev?.role, to: input.role });
+      await writeAuditLog(
+        ctx.serverDB,
+        ctx.userId,
+        ctx.adminEmail,
+        'user.role_update',
+        'user',
+        input.userId,
+        { from: prev?.role, to: input.role },
+      );
     }),
 
   banUser: adminProcedure
@@ -113,7 +120,14 @@ export const adminRouter = router({
         .set({ banned: input.banned })
         .where(eq(users.id, input.userId));
 
-      await writeAuditLog(ctx.serverDB, ctx.userId, ctx.adminEmail, input.banned ? 'user.ban' : 'user.unban', 'user', input.userId);
+      await writeAuditLog(
+        ctx.serverDB,
+        ctx.userId,
+        ctx.adminEmail,
+        input.banned ? 'user.ban' : 'user.unban',
+        'user',
+        input.userId,
+      );
     }),
 
   getSystemStats: adminProcedure.query(async ({ ctx }) => {
@@ -150,19 +164,44 @@ export const adminRouter = router({
     .mutation(async ({ ctx, input }) => {
       await ctx.serverDB
         .insert(featureFlags)
-        .values({ key: input.key, label: input.label, description: input.description, defaultEnabled: input.defaultEnabled })
+        .values({
+          key: input.key,
+          label: input.label,
+          description: input.description,
+          defaultEnabled: input.defaultEnabled,
+        })
         .onConflictDoUpdate({
           target: featureFlags.key,
-          set: { label: input.label, description: input.description, defaultEnabled: input.defaultEnabled, updatedAt: new Date() },
+          set: {
+            label: input.label,
+            description: input.description,
+            defaultEnabled: input.defaultEnabled,
+            updatedAt: new Date(),
+          },
         });
-      await writeAuditLog(ctx.serverDB, ctx.userId, ctx.adminEmail, 'flag.upsert', 'flag', input.key, input as any);
+      await writeAuditLog(
+        ctx.serverDB,
+        ctx.userId,
+        ctx.adminEmail,
+        'flag.upsert',
+        'flag',
+        input.key,
+        input as any,
+      );
     }),
 
   deleteFeatureFlag: adminProcedure
     .input(z.object({ key: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.serverDB.delete(featureFlags).where(eq(featureFlags.key, input.key));
-      await writeAuditLog(ctx.serverDB, ctx.userId, ctx.adminEmail, 'flag.delete', 'flag', input.key);
+      await writeAuditLog(
+        ctx.serverDB,
+        ctx.userId,
+        ctx.adminEmail,
+        'flag.delete',
+        'flag',
+        input.key,
+      );
     }),
 
   setUserFlagOverride: adminProcedure
@@ -182,8 +221,12 @@ export const adminRouter = router({
 
       if (!flag) throw new TRPCError({ code: 'NOT_FOUND' });
 
-      const enabledIds = ((flag.enabledUserIds as string[]) ?? []).filter((id) => id !== input.userId);
-      const disabledIds = ((flag.disabledUserIds as string[]) ?? []).filter((id) => id !== input.userId);
+      const enabledIds = ((flag.enabledUserIds as string[]) ?? []).filter(
+        (id) => id !== input.userId,
+      );
+      const disabledIds = ((flag.disabledUserIds as string[]) ?? []).filter(
+        (id) => id !== input.userId,
+      );
 
       await ctx.serverDB
         .update(featureFlags)
@@ -194,7 +237,15 @@ export const adminRouter = router({
         })
         .where(eq(featureFlags.key, input.flagKey));
 
-      await writeAuditLog(ctx.serverDB, ctx.userId, ctx.adminEmail, 'flag.user_override', 'flag', input.flagKey, { userId: input.userId, enabled: input.enabled });
+      await writeAuditLog(
+        ctx.serverDB,
+        ctx.userId,
+        ctx.adminEmail,
+        'flag.user_override',
+        'flag',
+        input.flagKey,
+        { userId: input.userId, enabled: input.enabled },
+      );
     }),
 
   // ─── Audit Logs ───────────────────────────────────────────────────────────
@@ -221,7 +272,8 @@ export const adminRouter = router({
       if (targetId) conditions.push(eq(adminAuditLogs.targetId, targetId));
       if (from) conditions.push(gte(adminAuditLogs.createdAt, new Date(from)));
       if (to) conditions.push(lte(adminAuditLogs.createdAt, new Date(to)));
-      const whereClause = conditions.length > 0 ? and(...(conditions as [any, ...any[]])) : undefined;
+      const whereClause =
+        conditions.length > 0 ? and(...(conditions as [any, ...any[]])) : undefined;
 
       const [items, [{ value: total }]] = await Promise.all([
         ctx.serverDB
@@ -260,12 +312,32 @@ export const adminRouter = router({
     .mutation(async ({ ctx, input }) => {
       await ctx.serverDB
         .insert(adminApiKeys)
-        .values({ service: input.service, label: input.label, keyValue: input.keyValue, isActive: input.isActive, config: input.config })
+        .values({
+          service: input.service,
+          label: input.label,
+          keyValue: input.keyValue,
+          isActive: input.isActive,
+          config: input.config,
+        })
         .onConflictDoUpdate({
           target: adminApiKeys.service,
-          set: { label: input.label, keyValue: input.keyValue, isActive: input.isActive, config: input.config, updatedAt: new Date() },
+          set: {
+            label: input.label,
+            keyValue: input.keyValue,
+            isActive: input.isActive,
+            config: input.config,
+            updatedAt: new Date(),
+          },
         });
-      await writeAuditLog(ctx.serverDB, ctx.userId, ctx.adminEmail, 'apikey.upsert', 'apikey', input.service, { service: input.service, label: input.label });
+      await writeAuditLog(
+        ctx.serverDB,
+        ctx.userId,
+        ctx.adminEmail,
+        'apikey.upsert',
+        'apikey',
+        input.service,
+        { service: input.service, label: input.label },
+      );
     }),
 
   toggleApiKey: adminProcedure
@@ -275,18 +347,37 @@ export const adminRouter = router({
         .update(adminApiKeys)
         .set({ isActive: input.isActive, updatedAt: new Date() })
         .where(eq(adminApiKeys.service, input.service));
-      await writeAuditLog(ctx.serverDB, ctx.userId, ctx.adminEmail, input.isActive ? 'apikey.enable' : 'apikey.disable', 'apikey', input.service);
+      await writeAuditLog(
+        ctx.serverDB,
+        ctx.userId,
+        ctx.adminEmail,
+        input.isActive ? 'apikey.enable' : 'apikey.disable',
+        'apikey',
+        input.service,
+      );
     }),
 
   deleteApiKey: adminProcedure
     .input(z.object({ service: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.serverDB.delete(adminApiKeys).where(eq(adminApiKeys.service, input.service));
-      await writeAuditLog(ctx.serverDB, ctx.userId, ctx.adminEmail, 'apikey.delete', 'apikey', input.service);
+      await writeAuditLog(
+        ctx.serverDB,
+        ctx.userId,
+        ctx.adminEmail,
+        'apikey.delete',
+        'apikey',
+        input.service,
+      );
     }),
 
   listContent: adminProcedure
-    .input(z.object({ page: z.number().int().min(1).default(1), pageSize: z.number().int().min(1).max(100).default(20) }))
+    .input(
+      z.object({
+        page: z.number().int().min(1).default(1),
+        pageSize: z.number().int().min(1).max(100).default(20),
+      }),
+    )
     .query(async () => ({ items: [], total: 0 })),
 });
 

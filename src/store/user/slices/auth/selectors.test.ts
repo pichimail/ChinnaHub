@@ -131,6 +131,24 @@ describe('userProfileSelectors', () => {
 });
 
 describe('authSelectors', () => {
+  describe('isAdmin', () => {
+    it('should return true for strict admin email', () => {
+      const store: UserStore = {
+        user: { email: 'pichimail24@gmail.com' },
+      } as UserStore;
+
+      expect(authSelectors.isAdmin(store)).toBe(true);
+    });
+
+    it('should return false for any other email', () => {
+      const store: UserStore = {
+        user: { email: 'another-user@gmail.com' },
+      } as UserStore;
+
+      expect(authSelectors.isAdmin(store)).toBe(false);
+    });
+  });
+
   describe('isLogin', () => {
     it('should return true when signed in', () => {
       const store: UserStore = {
