@@ -5,6 +5,7 @@ import {
   Image,
   LibraryBigIcon,
   ListTodoIcon,
+  Music2,
   Settings,
   ShapesIcon,
   Video,
@@ -45,6 +46,16 @@ export const NAVIGATION_ROUTES: NavigationRoute[] = [
     keywordsKey: 'cmdk.keywords.community',
     path: '/community',
     pathPrefix: '/community',
+  },
+  {
+    cmdkKey: 'cmdk.audio',
+    electronKey: 'navigation.audio',
+    icon: Music2,
+    id: 'audio',
+    keywords: ['audio', 'music', 'song', 'generate'],
+    keywordsKey: 'cmdk.keywords.audio',
+    path: '/audio',
+    pathPrefix: '/audio',
   },
   {
     cmdkKey: 'cmdk.video',
@@ -130,5 +141,5 @@ export const getRouteById = (id: string): NavigationRoute | undefined =>
  */
 export const getNavigableRoutes = (): NavigationRoute[] =>
   NAVIGATION_ROUTES.filter((r) =>
-    ['community', 'video', 'image', 'resource', 'page', 'memory'].includes(r.id),
+    ['audio', 'community', 'video', 'image', 'resource', 'page', 'memory'].includes(r.id),
   );

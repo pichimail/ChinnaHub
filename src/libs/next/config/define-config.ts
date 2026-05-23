@@ -10,6 +10,7 @@ interface CustomNextConfig {
   redirects?: Redirect[];
   serverExternalPackages?: NextConfig['serverExternalPackages'];
   turbopack?: NextConfig['turbopack'];
+  webpack?: NextConfig['webpack'];
 }
 
 export function defineConfig(config: CustomNextConfig) {
@@ -367,6 +368,11 @@ export function defineConfig(config: CustomNextConfig) {
       '@napi-rs/canvas',
       '@lobehub/editor',
       'discord.js',
+      'zlib-sync',
+      '@grpc/grpc-js',
+      '@opentelemetry/sdk-node',
+      '@opentelemetry/otlp-grpc-exporter-base',
+      '@opentelemetry/exporter-logs-otlp-grpc',
       'ffmpeg-static',
       'pdfjs-dist',
       'ajv',
@@ -374,6 +380,20 @@ export function defineConfig(config: CustomNextConfig) {
     ],
 
     transpilePackages: ['mermaid', 'better-auth-harmony'],
+    webpack: (webpackConfig, context) => {
+      webpackConfig.resolve ??= {};
+      webpackConfig.resolve.alias = {
+        ...webpackConfig.resolve.alias,
+        // Optional dependency in @discordjs/ws. It is lazily imported and safely
+        // handled when unavailable, but webpack still tries to resolve it.
+        'zlib-sync': false,
+        // OTEL SDK dependency graph references gRPC transport packages that are
+        // not required for this app's HTTP OTLP setup.
+        '@grpc/grpc-js': false,
+      };
+
+      return config.webpack ? config.webpack(webpackConfig, context) : webpackConfig;
+    },
     turbopack: {
       rules: {
         ...(isTest || isProd

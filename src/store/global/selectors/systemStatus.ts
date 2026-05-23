@@ -56,6 +56,7 @@ export const DEFAULT_SIDEBAR_ITEMS: string[] = [
   'recents',
   'agent',
   'image',
+  'audio',
   'community',
   'resource',
   'memory',
@@ -200,12 +201,17 @@ const filePanelWidth = (s: GlobalState) => s.status.filePanelWidth;
 const groupAgentBuilderPanelWidth = (s: GlobalState) => s.status.groupAgentBuilderPanelWidth || 360;
 const imagePanelWidth = (s: GlobalState) => s.status.imagePanelWidth;
 const imageTopicViewMode = (s: GlobalState) => s.status.imageTopicViewMode || 'grid';
+const audioTopicViewMode = (s: GlobalState) => s.status.audioTopicViewMode || 'grid';
 const imageTopicPanelWidth = (s: GlobalState) => s.status.imageTopicPanelWidth;
 const videoPanelWidth = (s: GlobalState) => s.status.videoPanelWidth;
 const videoTopicViewMode = (s: GlobalState) => s.status.videoTopicViewMode || 'grid';
 const videoTopicPanelWidth = (s: GlobalState) => s.status.videoTopicPanelWidth;
 const showVideoPanel = (s: GlobalState) => s.status.showVideoPanel;
 const showVideoTopicPanel = (s: GlobalState) => s.status.showVideoTopicPanel;
+const showAudioPanel = (s: GlobalState) => s.status.showAudioPanel;
+const showAudioTopicPanel = (s: GlobalState) => s.status.showAudioTopicPanel;
+const lastSelectedGenerationMode = (s: GlobalState) =>
+  s.status.lastSelectedGenerationMode || 'image';
 const wideScreen = (s: GlobalState) => !s.status.noWideScreen;
 const chatInputHeight = (s: GlobalState) => s.status.chatInputHeight || 64;
 const expandInputActionbar = (s: GlobalState) => s.status.expandInputActionbar;
@@ -255,6 +261,7 @@ export const systemStatusSelectors = {
   homeSelectedAgentId,
   imagePanelWidth,
   imageTopicViewMode,
+  audioTopicViewMode,
   imageTopicPanelWidth,
   inZenMode,
   isBannerDismissed,
@@ -290,6 +297,9 @@ export const systemStatusSelectors = {
   showTaskAgentPanel,
   showVideoPanel,
   showVideoTopicPanel,
+  showAudioPanel,
+  showAudioTopicPanel,
+  lastSelectedGenerationMode,
   systemStatus,
   tokenDisplayFormatShort,
   topicGroupKeys,

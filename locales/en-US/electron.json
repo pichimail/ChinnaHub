@@ -8,6 +8,7 @@
   "gateway.statusConnecting": "Connecting to Gateway...",
   "gateway.statusDisconnected": "Not connected to Gateway",
   "gateway.title": "Device Gateway",
+  "navigation.audio": "Audio",
   "navigation.chat": "Chat",
   "navigation.discover": "Discover",
   "navigation.discoverAssistants": "Discover Assistants",

@@ -8,10 +8,12 @@ import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { useGlobalStore } from '@/store/global';
+
 export interface GenerationMediaModeSegmentProps {
   /** `hero`: large inline headline select (cyan, borderless). `toolbar`: compact control in the input bar. */
   layout?: 'hero' | 'toolbar';
-  mode: 'image' | 'video';
+  mode: 'audio' | 'image' | 'video';
 }
 
 const styles = createStaticStyles(({ css, cssVar }) => ({
@@ -34,6 +36,7 @@ const GenerationMediaModeSegment = memo<GenerationMediaModeSegmentProps>(
   ({ mode, layout = 'toolbar' }) => {
     const { t } = useTranslation('common');
     const navigate = useNavigate();
+    const updateSystemStatus = useGlobalStore((s) => s.updateSystemStatus);
     const isHero = layout === 'hero';
 
     const options = useMemo<SelectProps['options']>(
@@ -51,6 +54,15 @@ const GenerationMediaModeSegment = memo<GenerationMediaModeSegmentProps>(
           label: (
             <Flexbox horizontal align="center" gap={8}>
               {!isHero && <Icon icon={Video} />}
+              <span className={isHero ? styles.heroText : undefined}>{t('tab.audio')}</span>
+            </Flexbox>
+          ),
+          value: 'audio',
+        },
+        {
+          label: (
+            <Flexbox horizontal align="center" gap={8}>
+              {!isHero && <Icon icon={Video} />}
               <span className={isHero ? styles.heroText : undefined}>{t('tab.video')}</span>
             </Flexbox>
           ),
@@ -63,8 +75,8 @@ const GenerationMediaModeSegment = memo<GenerationMediaModeSegmentProps>(
     const labelRender: SelectProps['labelRender'] = useCallback(
       (props: any) => {
         const v = String((props as { value?: string }).value ?? '');
-        const isVideo = v === 'video';
-        const text = isVideo ? t('tab.video') : t('tab.image');
+        const text =
+          v === 'audio' ? t('tab.audio') : v === 'video' ? t('tab.video') : t('tab.image');
         if (isHero) {
           return (
             <span
@@ -80,7 +92,7 @@ const GenerationMediaModeSegment = memo<GenerationMediaModeSegmentProps>(
         }
         return (
           <Flexbox horizontal align="center" gap={6}>
-            <Icon icon={isVideo ? Video : ImageIcon} size={16} />
+            <Icon icon={v === 'image' ? ImageIcon : Video} size={16} />
             <span style={{ whiteSpace: 'nowrap' }}>{text}</span>
           </Flexbox>
         );
@@ -91,9 +103,10 @@ const GenerationMediaModeSegment = memo<GenerationMediaModeSegmentProps>(
     const handleChange = useCallback(
       (value: string) => {
         if (value === mode) return;
-        navigate(value === 'video' ? '/video' : '/image');
+        updateSystemStatus({ lastSelectedGenerationMode: value as 'audio' | 'image' | 'video' });
+        navigate(value === 'video' ? '/video' : value === 'audio' ? '/audio' : '/image');
       },
-      [mode, navigate],
+      [mode, navigate, updateSystemStatus],
     );
 
     return (

@@ -1,4 +1,5 @@
 export enum AsyncTaskType {
+  AudioGeneration = 'audio_generation',
   Chunking = 'chunk',
   Embedding = 'embedding',
   ImageGeneration = 'image_generation',

@@ -4,11 +4,13 @@ import { type UpdateTopicValue } from '@/server/routers/lambda/generationTopic';
 import { type ImageGenerationTopic } from '@/types/generation';
 
 export class ServerService {
-  async getAllGenerationTopics(type?: 'image' | 'video'): Promise<ImageGenerationTopic[]> {
+  async getAllGenerationTopics(
+    type?: 'audio' | 'image' | 'video',
+  ): Promise<ImageGenerationTopic[]> {
     return lambdaClient.generationTopic.getAllGenerationTopics.query(type ? { type } : undefined);
   }
 
-  async createTopic(type?: 'image' | 'video'): Promise<string> {
+  async createTopic(type?: 'audio' | 'image' | 'video'): Promise<string> {
     return lambdaClient.generationTopic.createTopic.mutate(type ? { type } : undefined);
   }
 

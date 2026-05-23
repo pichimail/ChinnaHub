@@ -35,6 +35,7 @@ export interface NavLayout {
 export const useNavLayout = (): NavLayout => {
   const { t } = useTranslation('common');
   const toggleCommandMenu = useGlobalStore((s) => s.toggleCommandMenu);
+  const lastSelectedGenerationMode = useGlobalStore((s) => s.status.lastSelectedGenerationMode);
   const { showMarket, hideGitHub } = useServerConfigStore(featureFlagsSelectors);
 
   const topNavItems = useMemo(
@@ -75,7 +76,7 @@ export const useNavLayout = (): NavLayout => {
           icon: getRouteById('image')!.icon,
           key: SidebarTabKey.Image,
           title: t('tab.generation'),
-          url: '/image',
+          url: `/${lastSelectedGenerationMode || 'image'}`,
         },
         {
           hidden: !showMarket,
@@ -97,7 +98,7 @@ export const useNavLayout = (): NavLayout => {
           url: '/memory',
         },
       ] as NavItem[],
-    [t, showMarket],
+    [lastSelectedGenerationMode, t, showMarket],
   );
 
   const footer = useMemo(

@@ -282,6 +282,8 @@ export default {
   'cmdk.themeLight': 'Light',
   'cmdk.toOpen': 'Open',
   'cmdk.toSelect': 'Select',
+  'cmdk.audio': 'AI Audio',
+  'cmdk.keywords.audio': 'audio,music,song,generate',
 
   'cmdk.video': 'AI Video',
 

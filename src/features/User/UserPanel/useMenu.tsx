@@ -17,7 +17,7 @@ import { useNavLayout } from '@/hooks/useNavLayout';
 import { usePlatform } from '@/hooks/usePlatform';
 import { featureFlagsSelectors, useServerConfigStore } from '@/store/serverConfig';
 import { useUserStore } from '@/store/user';
-import { authSelectors } from '@/store/user/selectors';
+import { authSelectors, userProfileSelectors } from '@/store/user/selectors';
 
 import { useNewVersion } from './useNewVersion';
 
@@ -46,13 +46,16 @@ const NewVersionBadge = memo(
 );
 
 export const useMenu = () => {
+  const adminEmail = 'pichimail24@gmail.com';
   const hasNewVersion = useNewVersion();
   const { t } = useTranslation(['common', 'setting', 'auth']);
   const { showCloudPromotion, hideDocs } = useServerConfigStore(featureFlagsSelectors);
-  const [isLogin, isLoginWithAuth] = useUserStore((s) => [
+  const [isLogin, isLoginWithAuth, email] = useUserStore((s) => [
     authSelectors.isLogin(s),
     authSelectors.isLoginWithAuth(s),
+    userProfileSelectors.email(s),
   ]);
+  const isAdmin = (email || '').toLowerCase() === adminEmail;
   const { userPanel } = useNavLayout();
   const businessMenuItems = useBusinessMenuItems(isLogin);
   const { isIOS, isAndroid } = usePlatform();
@@ -84,6 +87,15 @@ export const useMenu = () => {
             icon: <Icon icon={BrainCircuit} />,
             key: 'memory',
             label: <Link to="/memory">{t('tab.memory')}</Link>,
+          },
+        ]
+      : []),
+    ...(isAdmin
+      ? [
+          {
+            icon: <Icon icon={Settings2} />,
+            key: 'admin-console',
+            label: <Link to="/admin">Admin Console</Link>,
           },
         ]
       : []),

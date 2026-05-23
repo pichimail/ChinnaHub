@@ -1,6 +1,7 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import dotenv from 'dotenv';
 import net from 'node:net';
+
+import dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ const NEXT_PORT = resolveNextPort();
 const NEXT_ROOT_URL = `http://${NEXT_HOST}:${NEXT_PORT}/`;
 const NEXT_READY_TIMEOUT_MS = 180_000;
 const NEXT_READY_RETRY_MS = 400;
+const NEXT_DEV_BUNDLER = (process.env.NEXT_DEV_BUNDLER || 'webpack').toLowerCase();
 
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
@@ -118,7 +120,13 @@ const main = async () => {
   process.once('SIGINT', () => shutdownAll('SIGINT'));
   process.once('SIGTERM', () => shutdownAll('SIGTERM'));
 
-  nextProcess = spawn('npx', ['next', 'dev', '-p', String(NEXT_PORT)], {
+  const nextDevArgs = ['next', 'dev', '-p', String(NEXT_PORT)];
+
+  // Turbopack can panic on large HMR graphs in some environments.
+  // Default to webpack for local stability; set NEXT_DEV_BUNDLER=turbopack to opt in.
+  if (NEXT_DEV_BUNDLER === 'webpack') nextDevArgs.push('--webpack');
+
+  nextProcess = spawn('npx', nextDevArgs, {
     env: process.env,
     stdio: 'inherit',
     shell: process.platform === 'win32',

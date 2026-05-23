@@ -8,6 +8,7 @@ export default {
   'navigation.group': 'Group',
   'navigation.groupChat': 'Group Chat',
   'navigation.home': 'Home',
+  'navigation.audio': 'Audio',
   'navigation.image': 'Image',
   'navigation.knowledgeBase': 'Knowledge Base',
   'navigation.lobehub': 'ChinnaHub',

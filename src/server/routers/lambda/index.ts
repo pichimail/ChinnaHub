@@ -9,6 +9,7 @@ import { taskTemplateRouter } from '@/business/server/lambda-routers/taskTemplat
 import { topUpRouter } from '@/business/server/lambda-routers/topUp';
 import { publicProcedure, router } from '@/libs/trpc/lambda';
 
+import { adminRouter } from './admin';
 import { agentRouter } from './agent';
 import { agentBotProviderRouter } from './agentBotProvider';
 import { agentDocumentRouter } from './agentDocument';
@@ -23,6 +24,7 @@ import { aiChatRouter } from './aiChat';
 import { aiModelRouter } from './aiModel';
 import { aiProviderRouter } from './aiProvider';
 import { apiKeyRouter } from './apiKey';
+import { audioRouter } from './audio';
 import { botMessageRouter } from './botMessage';
 import { briefRouter } from './brief';
 import { changelogRouter } from './changelog';
@@ -80,6 +82,7 @@ export const lambdaRouter = router({
   changelog: changelogRouter,
   brief: briefRouter,
   aiAgent: aiAgentRouter,
+  audio: audioRouter,
   aiChat: aiChatRouter,
   aiModel: aiModelRouter,
   aiProvider: aiProviderRouter,
@@ -125,6 +128,7 @@ export const lambdaRouter = router({
   userMemory: userMemoryRouter,
   video: videoRouter,
   accountDeletion: accountDeletionRouter,
+  admin: adminRouter,
   referral: referralRouter,
   spend: spendRouter,
   subscription: subscriptionRouter,

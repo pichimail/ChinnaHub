@@ -7,6 +7,7 @@ import { SessionDefaultGroup } from '@/types/session';
 import { AsyncLocalStorage } from '@/utils/localStorage';
 
 export enum SidebarTabKey {
+  Audio = 'audio',
   Chat = 'chat',
   Community = 'community',
   Home = 'home',
@@ -115,6 +116,7 @@ export interface SystemStatus {
    * number of agents (defaultList) to display
    */
   agentPageSize?: number;
+  audioTopicViewMode?: 'grid' | 'list';
   chatInputHeight?: number;
   disabledModelProvidersSortType?: string;
   disabledModelsSortType?: string;
@@ -156,6 +158,7 @@ export interface SystemStatus {
   isShowCredit?: boolean;
   knowledgeBaseModalViewMode?: 'list' | 'masonry';
   language?: LocaleMode;
+  lastSelectedGenerationMode?: 'audio' | 'image' | 'video';
   /**
    * Remember user's last selected image generation model
    */
@@ -204,6 +207,8 @@ export interface SystemStatus {
     name: number;
     size: number;
   };
+  showAudioPanel?: boolean;
+  showAudioTopicPanel?: boolean;
   showCommandMenu?: boolean;
   showFilePanel?: boolean;
   showHotkeyHelper?: boolean;
@@ -346,6 +351,7 @@ export const INITIAL_STATUS = {
   hideTopicSharePrivacyWarning: false,
   imagePanelWidth: 320,
   imageTopicViewMode: 'grid' as const,
+  audioTopicViewMode: 'grid' as const,
   imageTopicPanelWidth: 80,
   knowledgeBaseModalViewMode: 'list' as const,
   leftPanelWidth: 320,
@@ -375,6 +381,9 @@ export const INITIAL_STATUS = {
   showTaskAgentPanel: false,
   showVideoPanel: true,
   showVideoTopicPanel: true,
+  showAudioPanel: true,
+  showAudioTopicPanel: true,
+  lastSelectedGenerationMode: 'image',
   sidebarExpandedKeys: [...DEFAULT_HOME_SIDEBAR_EXPANDED_KEYS],
   systemRoleExpandedMap: {},
   tokenDisplayFormatShort: true,

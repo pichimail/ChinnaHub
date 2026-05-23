@@ -8,6 +8,7 @@
   "gateway.statusConnecting": "గేట్‌వేకి కనెక్ట్ చేస్తోంది...",
   "gateway.statusDisconnected": "గేట్‌వేకి కనెక్ట్ కాలేదు",
   "gateway.title": "పరికర గేట్‌వే",
+  "navigation.audio": "ఆడియో",
   "navigation.chat": "చాట్ చేయండి",
   "navigation.discover": "కనుగొనండి",
   "navigation.discoverAssistants": "సహాయకులను కనుగొనండి",

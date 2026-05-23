@@ -1,5 +1,6 @@
 import { asyncRouter as router, publicProcedure } from '@/libs/trpc/async';
 
+import { audioRouter } from './audio';
 import { documentRouter } from './document';
 import { fileRouter } from './file';
 import { imageRouter } from './image';
@@ -7,6 +8,7 @@ import { ragEvalRouter } from './ragEval';
 import { videoRouter } from './video';
 
 export const asyncRouter = router({
+  audio: audioRouter,
   document: documentRouter,
   file: fileRouter,
   healthcheck: publicProcedure.query(() => "i'm live!"),

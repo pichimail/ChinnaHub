@@ -94,10 +94,11 @@ const agentGroupProcedure = authedProcedure
     let marketOidcAccessToken: string | undefined;
     try {
       const userState = await userModel.getUserState(async () => ({}));
-      marketOidcAccessToken = userState.settings?.market?.accessToken;
+      marketOidcAccessToken = userState.settings?.market?.accessToken || ctx.marketAccessToken;
       log('marketOidcAccessToken from DB exists=%s', !!marketOidcAccessToken);
     } catch (error) {
       log('Failed to get marketOidcAccessToken from DB: %O', error);
+      marketOidcAccessToken = ctx.marketAccessToken;
     }
 
     return next({
@@ -162,7 +163,10 @@ export const agentGroupRouter = router({
         }
 
         const userInfo = ctx.marketUserInfo as TrustedClientUserInfo | undefined;
-        const accessToken = (ctx as { marketOidcAccessToken?: string }).marketOidcAccessToken;
+        const accessToken =
+          (ctx as { marketAccessToken?: string; marketOidcAccessToken?: string })
+            .marketOidcAccessToken ||
+          (ctx as { marketAccessToken?: string; marketOidcAccessToken?: string }).marketAccessToken;
         let currentAccountId: number | null = null;
 
         const marketUserInfoResult = await fetchMarketUserInfo({ accessToken, userInfo });
@@ -218,7 +222,10 @@ export const agentGroupRouter = router({
         };
 
         const userInfo = ctx.marketUserInfo as TrustedClientUserInfo | undefined;
-        const accessToken = (ctx as { marketOidcAccessToken?: string }).marketOidcAccessToken;
+        const accessToken =
+          (ctx as { marketAccessToken?: string; marketOidcAccessToken?: string })
+            .marketOidcAccessToken ||
+          (ctx as { marketAccessToken?: string; marketOidcAccessToken?: string }).marketAccessToken;
 
         if (userInfo) {
           const trustedClientToken = generateTrustedClientToken(userInfo);
@@ -287,7 +294,10 @@ export const agentGroupRouter = router({
 
         // Use trustedClientToken or accessToken for authentication
         const userInfo = ctx.marketUserInfo as TrustedClientUserInfo | undefined;
-        const accessToken = (ctx as { marketOidcAccessToken?: string }).marketOidcAccessToken;
+        const accessToken =
+          (ctx as { marketAccessToken?: string; marketOidcAccessToken?: string })
+            .marketOidcAccessToken ||
+          (ctx as { marketAccessToken?: string; marketOidcAccessToken?: string }).marketAccessToken;
 
         if (userInfo) {
           const trustedClientToken = generateTrustedClientToken(userInfo);
@@ -375,7 +385,10 @@ export const agentGroupRouter = router({
         };
 
         const userInfo = ctx.marketUserInfo as TrustedClientUserInfo | undefined;
-        const accessToken = (ctx as { marketOidcAccessToken?: string }).marketOidcAccessToken;
+        const accessToken =
+          (ctx as { marketAccessToken?: string; marketOidcAccessToken?: string })
+            .marketOidcAccessToken ||
+          (ctx as { marketAccessToken?: string; marketOidcAccessToken?: string }).marketAccessToken;
 
         if (userInfo) {
           const trustedClientToken = generateTrustedClientToken(userInfo);
@@ -433,7 +446,10 @@ export const agentGroupRouter = router({
         };
 
         const userInfo = ctx.marketUserInfo as TrustedClientUserInfo | undefined;
-        const accessToken = (ctx as { marketOidcAccessToken?: string }).marketOidcAccessToken;
+        const accessToken =
+          (ctx as { marketAccessToken?: string; marketOidcAccessToken?: string })
+            .marketOidcAccessToken ||
+          (ctx as { marketAccessToken?: string; marketOidcAccessToken?: string }).marketAccessToken;
 
         if (userInfo) {
           const trustedClientToken = generateTrustedClientToken(userInfo);

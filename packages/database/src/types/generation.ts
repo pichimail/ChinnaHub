@@ -1,1 +1,1 @@
-export type GenerationTopicType = 'image' | 'video';
+export type GenerationTopicType = 'audio' | 'image' | 'video';

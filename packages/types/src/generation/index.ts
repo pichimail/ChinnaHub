@@ -45,19 +45,34 @@ export interface VideoGenerationAsset extends BaseGenerationAsset {
   width?: number;
 }
 
-export type GenerationAsset = ImageGenerationAsset | VideoGenerationAsset;
+export interface AudioGenerationAsset extends BaseGenerationAsset {
+  duration?: number;
+  height?: number;
+  mimeType?: string;
+  originalUrl?: string;
+  thumbnailUrl?: string;
+  url?: string;
+  width?: number;
+}
+
+export type GenerationAsset = AudioGenerationAsset | ImageGenerationAsset | VideoGenerationAsset;
 
 export interface GenerationConfig {
   aspectRatio?: string;
   cfg?: number;
+  customMode?: boolean;
   endImageUrl?: string | null;
   height?: number;
   imageUrl?: string | null;
   imageUrls?: string[];
+  instrumental?: boolean;
+  negativeTags?: string;
   prompt: string;
   resolution?: string;
   size?: string;
   steps?: number;
+  style?: string;
+  title?: string;
   width?: number;
 }
 

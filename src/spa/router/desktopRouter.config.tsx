@@ -395,6 +395,16 @@ export const desktopRoutes: RouteObject[] = [
         errorElement: <ErrorBoundary />,
         path: 'settings',
       },
+      {
+        children: [
+          {
+            element: dynamicElement(() => import('@/routes/(main)/admin'), 'Desktop > Admin'),
+            index: true,
+          },
+        ],
+        errorElement: <ErrorBoundary />,
+        path: 'admin',
+      },
 
       // Memory routes
       {
@@ -467,6 +477,24 @@ export const desktopRoutes: RouteObject[] = [
         ),
         errorElement: <ErrorBoundary />,
         path: 'video',
+      },
+      // Audio routes
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/(create)/audio'),
+              'Desktop > Audio',
+            ),
+            index: true,
+          },
+        ],
+        element: dynamicLayout(
+          () => import('@/routes/(main)/(create)/audio/_layout'),
+          'Desktop > Audio > Layout',
+        ),
+        errorElement: <ErrorBoundary />,
+        path: 'audio',
       },
 
       // Image routes
