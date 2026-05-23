@@ -396,60 +396,6 @@ export const desktopRoutes: RouteObject[] = [
         path: 'settings',
       },
 
-      // Admin routes
-      {
-        children: [
-          {
-            element: dynamicElement(
-              () => import('@/routes/(main)/admin'),
-              'Desktop > Admin > Overview',
-            ),
-            index: true,
-          },
-          {
-            element: dynamicElement(
-              () => import('@/routes/(main)/admin/users'),
-              'Desktop > Admin > Users',
-            ),
-            path: 'users',
-          },
-          {
-            element: dynamicElement(
-              () => import('@/routes/(main)/admin/feature-flags'),
-              'Desktop > Admin > Feature Flags',
-            ),
-            path: 'feature-flags',
-          },
-          {
-            element: dynamicElement(
-              () => import('@/routes/(main)/admin/audit-log'),
-              'Desktop > Admin > Audit Log',
-            ),
-            path: 'audit-log',
-          },
-          {
-            element: dynamicElement(
-              () => import('@/routes/(main)/admin/api-keys'),
-              'Desktop > Admin > API Keys',
-            ),
-            path: 'api-keys',
-          },
-          {
-            element: dynamicElement(
-              () => import('@/routes/(main)/admin/content'),
-              'Desktop > Admin > Content',
-            ),
-            path: 'content',
-          },
-        ],
-        element: dynamicLayout(
-          () => import('@/routes/(main)/admin/_layout'),
-          'Desktop > Admin > Layout',
-        ),
-        errorElement: <ErrorBoundary />,
-        path: 'admin',
-      },
-
       // Memory routes
       {
         children: [
@@ -556,24 +502,6 @@ export const desktopRoutes: RouteObject[] = [
         errorElement: <ErrorBoundary />,
         path: 'video',
       },
-      {
-        children: [
-          {
-            element: dynamicElement(
-              () => import('@/routes/(main)/(create)/audio'),
-              'Desktop > Audio',
-            ),
-            index: true,
-          },
-        ],
-        element: dynamicLayout(
-          () => import('@/routes/(main)/(create)/audio/_layout'),
-          'Desktop > Audio > Layout',
-        ),
-        errorElement: <ErrorBoundary />,
-        path: 'audio',
-      },
-
       // Create (generation) routes - Video, Image, Audio
       {
         children: [
@@ -619,24 +547,6 @@ export const desktopRoutes: RouteObject[] = [
             ),
             errorElement: <ErrorBoundary />,
             path: 'image',
-          },
-          {
-            // Audio routes
-            children: [
-              {
-                element: dynamicElement(
-                  () => import('@/routes/(main)/(create)/audio'),
-                  'Desktop > Create > Audio',
-                ),
-                index: true,
-              },
-            ],
-            element: dynamicLayout(
-              () => import('@/routes/(main)/(create)/audio/_layout'),
-              'Desktop > Create > Audio > Layout',
-            ),
-            errorElement: <ErrorBoundary />,
-            path: 'audio',
           },
         ],
         element: dynamicLayout(

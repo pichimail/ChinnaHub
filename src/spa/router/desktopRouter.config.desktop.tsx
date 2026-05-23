@@ -11,20 +11,11 @@ import DesktopOnboarding from '@/routes/(desktop)/desktop-onboarding';
 import DesktopMainLayout from '@/routes/(main)/_layout';
 import CreateIndexRedirect from '@/routes/(main)/(create)';
 import DesktopCreateLayout from '@/routes/(main)/(create)/_layout';
-import AudioPage from '@/routes/(main)/(create)/audio';
-import DesktopAudioLayout from '@/routes/(main)/(create)/audio/_layout';
 import ImagePage from '@/routes/(main)/(create)/image';
 import DesktopImageLayout from '@/routes/(main)/(create)/image/_layout';
 import VideoPage from '@/routes/(main)/(create)/video';
 import DesktopVideoLayout from '@/routes/(main)/(create)/video/_layout';
 import TaskWorkspaceLayout from '@/routes/(main)/(task-workspace)/_layout';
-import AdminOverviewPage from '@/routes/(main)/admin';
-import AdminLayout from '@/routes/(main)/admin/_layout';
-import AdminApiKeysPage from '@/routes/(main)/admin/api-keys';
-import AdminAuditLogPage from '@/routes/(main)/admin/audit-log';
-import AdminContentPage from '@/routes/(main)/admin/content';
-import AdminFeatureFlagsPage from '@/routes/(main)/admin/feature-flags';
-import AdminUsersPage from '@/routes/(main)/admin/users';
 // Pages — sync import
 import AgentPage from '@/routes/(main)/agent';
 import DesktopChatLayout from '@/routes/(main)/agent/_layout';
@@ -354,39 +345,6 @@ export const desktopRoutes: RouteObject[] = [
         path: 'settings',
       },
 
-      // Admin routes
-      {
-        children: [
-          {
-            element: <AdminOverviewPage />,
-            index: true,
-          },
-          {
-            element: <AdminUsersPage />,
-            path: 'users',
-          },
-          {
-            element: <AdminFeatureFlagsPage />,
-            path: 'feature-flags',
-          },
-          {
-            element: <AdminAuditLogPage />,
-            path: 'audit-log',
-          },
-          {
-            element: <AdminApiKeysPage />,
-            path: 'api-keys',
-          },
-          {
-            element: <AdminContentPage />,
-            path: 'content',
-          },
-        ],
-        element: <AdminLayout />,
-        errorElement: <ErrorBoundary />,
-        path: 'admin',
-      },
-
       // Memory routes
       {
         children: [
@@ -454,18 +412,6 @@ export const desktopRoutes: RouteObject[] = [
         errorElement: <ErrorBoundary />,
         path: 'video',
       },
-      {
-        children: [
-          {
-            element: <AudioPage />,
-            index: true,
-          },
-        ],
-        element: <DesktopAudioLayout />,
-        errorElement: <ErrorBoundary />,
-        path: 'audio',
-      },
-
       // Create (generation) routes - Video, Image, Audio
       {
         children: [
@@ -496,18 +442,6 @@ export const desktopRoutes: RouteObject[] = [
             element: <DesktopImageLayout />,
             errorElement: <ErrorBoundary />,
             path: 'image',
-          },
-          {
-            // Audio routes
-            children: [
-              {
-                element: <AudioPage />,
-                index: true,
-              },
-            ],
-            element: <DesktopAudioLayout />,
-            errorElement: <ErrorBoundary />,
-            path: 'audio',
           },
         ],
         element: <DesktopCreateLayout />,
