@@ -1,0 +1,23 @@
+{
+  "config.customMode.label": "అడ్వాన్స్్డ్ మోడ్",
+  "config.header.title": "ఆడియో",
+  "config.instrumental.label": "ఇన్‌స్ట్రుమెంటల్",
+  "config.mode.advanced": "అడ్వాన్స్్డ్",
+  "config.mode.simple": "సింపుల్",
+  "config.negativeTags.placeholder": "తప్పించాల్సిన శైలులు లేదా అంశాలు (ఐచ్ఛికం)",
+  "config.prompt.placeholder": "మీరు సృష్టించాలనుకునే పాటను వివరించండి",
+  "config.style.placeholder": "శైలి మరియు మూడ్ మార్గదర్శకము",
+  "config.title.placeholder": "పాట శీర్షిక",
+  "generation.actions.copyPrompt": "ప్రాంప్ట్ కాపీ చేయండి",
+  "generation.actions.deleteBatch": "తొలగించు",
+  "generation.actions.generate": "సృష్టించు",
+  "generation.actions.promptCopied": "ప్రాంప్ట్ కాపీ అయింది",
+  "generation.actions.promptCopyFailed": "ప్రాంప్ట్ కాపీ కాలేదు",
+  "generation.player.title": "ప్లే",
+  "generation.status.generating": "సృష్టిస్తోంది...",
+  "topic.createNew": "కొత్త టాపిక్ సృష్టించు",
+  "topic.deleteConfirm": "ఆడియో టాపిక్ తొలగించు",
+  "topic.deleteConfirmDesc": "మీరు ఈ ఆడియో టాపిక్‌ను తొలగించబోతున్నారు. ఈ చర్యను రద్దు చేయలేరు.",
+  "topic.title": "ఆడియో టాపిక్‌లు",
+  "topic.untitled": "డిఫాల్ట్ టాపిక్"
+}
