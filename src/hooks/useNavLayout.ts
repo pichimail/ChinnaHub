@@ -84,12 +84,6 @@ export const useNavLayout = (): NavLayout => {
           url: '/create/video',
         },
         {
-          icon: getRouteById('audio')!.icon,
-          key: SidebarTabKey.Audio,
-          title: t('tab.audio'),
-          url: '/create/audio',
-        },
-        {
           hidden: !showMarket,
           icon: getRouteById('community')!.icon,
           key: SidebarTabKey.Community,

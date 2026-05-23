@@ -2,7 +2,6 @@ import { type LobeUser, type SSOProvider } from '@lobechat/types';
 import { t } from 'i18next';
 
 import { type UserStore } from '@/store/user';
-import { isStrictAdminEmail } from '@/utils/adminAccess';
 
 const nickName = (s: UserStore) => {
   const defaultNickName = s.user?.fullName || s.user?.username;
@@ -32,7 +31,7 @@ export const userProfileSelectors = {
 export const authSelectors = {
   authProviders: (s: UserStore): SSOProvider[] => s.authProviders || [],
   hasPasswordAccount: (s: UserStore) => s.hasPasswordAccount ?? false,
-  isAdmin: (s: UserStore) => isStrictAdminEmail(s.user?.email),
+  isAdmin: () => false,
   isFreePlan: (s: UserStore) => s.isFreePlan,
   isLoaded: (s: UserStore) => s.isLoaded,
   isLoadedAuthProviders: (s: UserStore) => s.isLoadedAuthProviders ?? false,
