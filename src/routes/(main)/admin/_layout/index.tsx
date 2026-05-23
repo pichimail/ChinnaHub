@@ -1,10 +1,50 @@
 'use client';
 
 import { Tabs } from 'antd';
+import { createStaticStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useUserStore } from '@/store/user';
+
+const styles = createStaticStyles(({ css, cssVar }) => ({
+  container: css`
+    overflow: auto;
+    height: 100%;
+    background: ${cssVar.colorBgLayout};
+  `,
+  panel: css`
+    margin: 16px;
+    border: 1px solid ${cssVar.colorBorderSecondary};
+    border-radius: 12px;
+    background: ${cssVar.colorBgContainer};
+  `,
+  header: css`
+    padding-block: 16px;
+    padding-inline: 24px;
+    border-block-end: 1px solid ${cssVar.colorBorderSecondary};
+  `,
+  title: css`
+    margin: 0;
+
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: ${cssVar.colorText};
+  `,
+  tabs: css`
+    padding-block: 0;
+    padding-inline: 12px;
+  `,
+  content: css`
+    padding: 16px;
+  `,
+  unauthorized: css`
+    padding: 32px;
+    color: ${cssVar.colorText};
+    text-align: center;
+  `,
+}));
 
 const AdminLayout = () => {
   const { t } = useTranslation();
@@ -17,28 +57,28 @@ const AdminLayout = () => {
 
   if (!isAdmin) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center' }}>
-        <h1>{t('admin.notAuthorized', { ns: 'admin' })}</h1>
+      <div className={styles.unauthorized}>
+        <h1>{t('notAuthorized', { ns: 'admin' })}</h1>
       </div>
     );
   }
 
   const items = [
-    { key: 'overview', label: t('admin.overview', { ns: 'admin' }), path: '/admin' },
-    { key: 'users', label: t('admin.users', { ns: 'admin' }), path: '/admin/users' },
-    { key: 'roles', label: t('admin.roleManagement', { ns: 'admin' }), path: '/admin/roles' },
-    { key: 'api-keys', label: t('admin.apiKeys', { ns: 'admin' }), path: '/admin/api-keys' },
+    { key: 'overview', label: t('overview', { ns: 'admin' }), path: '/admin' },
+    { key: 'users', label: t('users', { ns: 'admin' }), path: '/admin/users' },
+    { key: 'roles', label: t('roleManagement', { ns: 'admin' }), path: '/admin/roles' },
+    { key: 'api-keys', label: t('apiKeys', { ns: 'admin' }), path: '/admin/api-keys' },
     {
       key: 'providers',
-      label: t('admin.providerManagement', { ns: 'admin' }),
+      label: t('providerManagement', { ns: 'admin' }),
       path: '/admin/providers',
     },
     {
       key: 'feature-flags',
-      label: t('admin.featureFlags', { ns: 'admin' }),
+      label: t('featureFlags', { ns: 'admin' }),
       path: '/admin/feature-flags',
     },
-    { key: 'audit-logs', label: t('admin.auditLogs', { ns: 'admin' }), path: '/admin/audit-logs' },
+    { key: 'audit-logs', label: t('auditLogs', { ns: 'admin' }), path: '/admin/audit-logs' },
   ];
 
   const currentTab =
@@ -47,32 +87,28 @@ const AdminLayout = () => {
     )?.key || 'overview';
 
   return (
-    <div style={{ height: '100vh', backgroundColor: '#f5f5f5' }}>
-      <div
-        style={{
-          backgroundColor: 'white',
-          padding: '16px 24px',
-          borderBottom: '1px solid #e0e0e0',
-        }}
-      >
-        <h1 style={{ margin: 0 }}>{t('admin.adminConsole', { ns: 'admin' })}</h1>
-      </div>
+    <div className={styles.container}>
+      <div className={styles.panel}>
+        <div className={styles.header}>
+          <h1 className={styles.title}>{t('adminConsole', { ns: 'admin' })}</h1>
+        </div>
 
-      <Tabs
-        activeKey={currentTab}
-        style={{ padding: '16px 24px' }}
-        items={items.map((item) => ({
-          key: item.key,
-          label: item.label,
-        }))}
-        onChange={(key) => {
-          const item = items.find((i) => i.key === key);
-          if (item) navigate(item.path);
-        }}
-      />
+        <Tabs
+          activeKey={currentTab}
+          className={styles.tabs}
+          items={items.map((item) => ({
+            key: item.key,
+            label: item.label,
+          }))}
+          onChange={(key) => {
+            const item = items.find((i) => i.key === key);
+            if (item) navigate(item.path);
+          }}
+        />
 
-      <div style={{ padding: '24px', backgroundColor: 'white', margin: '16px' }}>
-        <Outlet />
+        <div className={styles.content}>
+          <Outlet />
+        </div>
       </div>
     </div>
   );

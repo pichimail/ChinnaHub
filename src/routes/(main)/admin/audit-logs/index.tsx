@@ -27,27 +27,27 @@ const AdminAuditLogs = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date: string) => new Date(date).toLocaleString(),
-      title: t('admin.timestamp', { ns: 'admin' }),
+      title: t('timestamp', { ns: 'admin' }),
     },
     {
       dataIndex: 'adminEmail',
       key: 'adminEmail',
-      title: t('admin.admin', { ns: 'admin' }),
+      title: t('admin', { ns: 'admin' }),
     },
     {
       dataIndex: 'action',
       key: 'action',
-      title: t('admin.action', { ns: 'admin' }),
+      title: t('action', { ns: 'admin' }),
     },
     {
       dataIndex: 'targetType',
       key: 'targetType',
-      title: t('admin.targetType', { ns: 'admin' }),
+      title: t('targetType', { ns: 'admin' }),
     },
     {
       dataIndex: 'targetId',
       key: 'targetId',
-      title: t('admin.targetId', { ns: 'admin' }),
+      title: t('targetId', { ns: 'admin' }),
       render: (id: string) => (
         <span style={{ fontSize: '12px', color: 'var(--colorTextSecondary)' }}>
           {id?.slice(0, 8)}...
@@ -58,7 +58,7 @@ const AdminAuditLogs = () => {
 
   return (
     <div>
-      <h2>{t('admin.auditLogs', { ns: 'admin' })}</h2>
+      <h2>{t('auditLogs', { ns: 'admin' })}</h2>
       <Table
         columns={columns}
         dataSource={logsData || []}

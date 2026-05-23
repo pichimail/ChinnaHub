@@ -18,22 +18,22 @@ const AdminProvidersPage = () => {
 
   return (
     <div>
-      <h2>{t('admin.providerManagement', { ns: 'admin' })}</h2>
+      <h2>{t('providerManagement', { ns: 'admin' })}</h2>
       <Table
         dataSource={data}
         rowKey={(row) => `${row.id}:${row.userId}`}
         columns={[
           { dataIndex: 'id', key: 'id', title: 'Provider ID' },
-          { dataIndex: 'name', key: 'name', title: t('admin.label', { ns: 'admin' }) },
+          { dataIndex: 'name', key: 'name', title: t('label', { ns: 'admin' }) },
           {
             dataIndex: 'enabled',
             key: 'enabled',
             title: 'Enabled',
             render: (enabled: boolean) =>
               enabled ? (
-                <Badge status="success" text={t('admin.yes', { ns: 'admin' })} />
+                <Badge status="success" text={t('yes', { ns: 'admin' })} />
               ) : (
-                <Badge status="default" text={t('admin.no', { ns: 'admin' })} />
+                <Badge status="default" text={t('no', { ns: 'admin' })} />
               ),
           },
           {

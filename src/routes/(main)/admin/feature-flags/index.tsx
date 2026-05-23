@@ -25,22 +25,22 @@ const AdminFeatureFlags = () => {
   const handleCreateFlag = async (values: any) => {
     try {
       await lambdaClient.admin.createFeatureFlag.mutate(values);
-      message.success(t('admin.flagCreated', { ns: 'admin' }));
+      message.success(t('flagCreated', { ns: 'admin' }));
       form.resetFields();
       setIsCreating(false);
       mutate('admin:feature-flags');
     } catch {
-      message.error(t('admin.createFailed', { ns: 'admin' }));
+      message.error(t('createFailed', { ns: 'admin' }));
     }
   };
 
   const handleDeleteFlag = async (flagId: string) => {
     try {
       await lambdaClient.admin.deleteFeatureFlag.mutate({ flagId });
-      message.success(t('admin.flagDeleted', { ns: 'admin' }));
+      message.success(t('flagDeleted', { ns: 'admin' }));
       mutate('admin:feature-flags');
     } catch {
-      message.error(t('admin.deleteFailed', { ns: 'admin' }));
+      message.error(t('deleteFailed', { ns: 'admin' }));
     }
   };
 
@@ -52,33 +52,33 @@ const AdminFeatureFlags = () => {
     {
       dataIndex: 'key',
       key: 'key',
-      title: t('admin.flagKey', { ns: 'admin' }),
+      title: t('flagKey', { ns: 'admin' }),
     },
     {
       dataIndex: 'label',
       key: 'label',
-      title: t('admin.label', { ns: 'admin' }),
+      title: t('label', { ns: 'admin' }),
     },
     {
       dataIndex: 'defaultEnabled',
       key: 'defaultEnabled',
       render: (enabled: boolean) =>
-        enabled ? t('admin.yes', { ns: 'admin' }) : t('admin.no', { ns: 'admin' }),
-      title: t('admin.defaultEnabled', { ns: 'admin' }),
+        enabled ? t('yes', { ns: 'admin' }) : t('no', { ns: 'admin' }),
+      title: t('defaultEnabled', { ns: 'admin' }),
     },
     {
       key: 'actions',
       render: (_: unknown, record: any) => (
         <Space>
           <Button size="small" type="link">
-            {t('admin.edit', { ns: 'admin' })}
+            {t('edit', { ns: 'admin' })}
           </Button>
           <Button danger size="small" type="link" onClick={() => handleDeleteFlag(record.id)}>
-            {t('admin.delete', { ns: 'admin' })}
+            {t('delete', { ns: 'admin' })}
           </Button>
         </Space>
       ),
-      title: t('admin.actions', { ns: 'admin' }),
+      title: t('actions', { ns: 'admin' }),
     },
   ];
 
@@ -86,7 +86,7 @@ const AdminFeatureFlags = () => {
     <div>
       <div style={{ marginBottom: '16px' }}>
         <Button type="primary" onClick={() => setIsCreating(true)}>
-          {t('admin.createFlag', { ns: 'admin' })}
+          {t('createFlag', { ns: 'admin' })}
         </Button>
       </div>
 
@@ -94,7 +94,7 @@ const AdminFeatureFlags = () => {
 
       <Modal
         open={isCreating}
-        title={t('admin.createFlag', { ns: 'admin' })}
+        title={t('createFlag', { ns: 'admin' })}
         onOk={() => form.submit()}
         onCancel={() => {
           setIsCreating(false);
@@ -102,28 +102,20 @@ const AdminFeatureFlags = () => {
         }}
       >
         <Form form={form} layout="vertical" onFinish={handleCreateFlag}>
-          <Form.Item
-            label={t('admin.flagKey', { ns: 'admin' })}
-            name="key"
-            rules={[{ required: true }]}
-          >
+          <Form.Item label={t('flagKey', { ns: 'admin' })} name="key" rules={[{ required: true }]}>
             <Input placeholder="enable_feature_x" />
           </Form.Item>
 
-          <Form.Item
-            label={t('admin.label', { ns: 'admin' })}
-            name="label"
-            rules={[{ required: true }]}
-          >
+          <Form.Item label={t('label', { ns: 'admin' })} name="label" rules={[{ required: true }]}>
             <Input placeholder="Feature X" />
           </Form.Item>
 
-          <Form.Item label={t('admin.description', { ns: 'admin' })} name="description">
+          <Form.Item label={t('description', { ns: 'admin' })} name="description">
             <Input.TextArea rows={3} />
           </Form.Item>
 
           <Form.Item
-            label={t('admin.defaultEnabled', { ns: 'admin' })}
+            label={t('defaultEnabled', { ns: 'admin' })}
             name="defaultEnabled"
             valuePropName="checked"
           >

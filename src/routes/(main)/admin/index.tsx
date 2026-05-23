@@ -23,12 +23,12 @@ const AdminOverview = () => {
 
   return (
     <div>
-      <h2>{t('admin.systemStatistics', { ns: 'admin' })}</h2>
+      <h2>{t('systemStatistics', { ns: 'admin' })}</h2>
       <Row gutter={16}>
         <Col md={6} sm={12} xs={24}>
           <Card>
             <Statistic
-              title={t('admin.totalUsers', { ns: 'admin' })}
+              title={t('totalUsers', { ns: 'admin' })}
               value={statsData?.totalUserCount || 0}
             />
           </Card>
@@ -36,7 +36,7 @@ const AdminOverview = () => {
         <Col md={6} sm={12} xs={24}>
           <Card>
             <Statistic
-              title={t('admin.bannedUsers', { ns: 'admin' })}
+              title={t('bannedUsers', { ns: 'admin' })}
               value={statsData?.bannedUserCount || 0}
               valueStyle={{ color: '#ff4d4f' }}
             />

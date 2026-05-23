@@ -28,22 +28,22 @@ const AdminUsers = () => {
         reason: banReason,
         userId,
       });
-      message.success(t('admin.userBanned', { ns: 'admin' }));
+      message.success(t('userBanned', { ns: 'admin' }));
       setBanReason('');
       setSelectedUserId(null);
       mutate('admin:users');
     } catch {
-      message.error(t('admin.banFailed', { ns: 'admin' }));
+      message.error(t('banFailed', { ns: 'admin' }));
     }
   };
 
   const handleUnbanUser = async (userId: string) => {
     try {
       await lambdaClient.admin.unbanUser.mutate({ userId });
-      message.success(t('admin.userUnbanned', { ns: 'admin' }));
+      message.success(t('userUnbanned', { ns: 'admin' }));
       mutate('admin:users');
     } catch {
-      message.error(t('admin.unbanFailed', { ns: 'admin' }));
+      message.error(t('unbanFailed', { ns: 'admin' }));
     }
   };
 
@@ -55,14 +55,13 @@ const AdminUsers = () => {
     {
       dataIndex: 'email',
       key: 'email',
-      title: t('admin.email', { ns: 'admin' }),
+      title: t('email', { ns: 'admin' }),
     },
     {
       dataIndex: 'banned',
       key: 'banned',
-      render: (banned: boolean) =>
-        banned ? t('admin.yes', { ns: 'admin' }) : t('admin.no', { ns: 'admin' }),
-      title: t('admin.banned', { ns: 'admin' }),
+      render: (banned: boolean) => (banned ? t('yes', { ns: 'admin' }) : t('no', { ns: 'admin' })),
+      title: t('banned', { ns: 'admin' }),
     },
     {
       key: 'actions',
@@ -70,28 +69,28 @@ const AdminUsers = () => {
         <Space>
           {!record.banned ? (
             <Button danger size="small" onClick={() => setSelectedUserId(record.id)}>
-              {t('admin.ban', { ns: 'admin' })}
+              {t('ban', { ns: 'admin' })}
             </Button>
           ) : (
             <Popconfirm
-              cancelText={t('admin.no', { ns: 'admin' })}
-              description={t('admin.unbanConfirm', { ns: 'admin' })}
-              okText={t('admin.yes', { ns: 'admin' })}
-              title={t('admin.confirm', { ns: 'admin' })}
+              cancelText={t('no', { ns: 'admin' })}
+              description={t('unbanConfirm', { ns: 'admin' })}
+              okText={t('yes', { ns: 'admin' })}
+              title={t('confirm', { ns: 'admin' })}
               onConfirm={() => handleUnbanUser(record.id)}
             >
-              <Button size="small">{t('admin.unban', { ns: 'admin' })}</Button>
+              <Button size="small">{t('unban', { ns: 'admin' })}</Button>
             </Popconfirm>
           )}
         </Space>
       ),
-      title: t('admin.actions', { ns: 'admin' }),
+      title: t('actions', { ns: 'admin' }),
     },
   ];
 
   return (
     <div>
-      <h2>{t('admin.users', { ns: 'admin' })}</h2>
+      <h2>{t('users', { ns: 'admin' })}</h2>
       <Table
         columns={columns}
         dataSource={userData?.users || []}
@@ -104,7 +103,7 @@ const AdminUsers = () => {
 
       <Modal
         open={!!selectedUserId}
-        title={t('admin.banUser', { ns: 'admin' })}
+        title={t('banUser', { ns: 'admin' })}
         onOk={() => selectedUserId && handleBanUser(selectedUserId)}
         onCancel={() => {
           setSelectedUserId(null);
@@ -112,7 +111,7 @@ const AdminUsers = () => {
         }}
       >
         <Input.TextArea
-          placeholder={t('admin.banReasonPlaceholder', { ns: 'admin' })}
+          placeholder={t('banReasonPlaceholder', { ns: 'admin' })}
           rows={4}
           value={banReason}
           onChange={(e) => setBanReason(e.target.value)}

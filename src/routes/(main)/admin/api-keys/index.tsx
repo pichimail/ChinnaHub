@@ -53,7 +53,7 @@ const AdminApiKeysPage = () => {
     <div>
       <div style={{ marginBottom: 12 }}>
         <Button type="primary" onClick={() => setOpen(true)}>
-          {t('admin.apiKeys', { ns: 'admin' })}
+          {t('apiKeys', { ns: 'admin' })}
         </Button>
       </div>
 
@@ -62,13 +62,12 @@ const AdminApiKeysPage = () => {
         rowKey="id"
         columns={[
           { dataIndex: 'service', key: 'service', title: 'Service' },
-          { dataIndex: 'label', key: 'label', title: t('admin.label', { ns: 'admin' }) },
+          { dataIndex: 'label', key: 'label', title: t('label', { ns: 'admin' }) },
           {
             dataIndex: 'isActive',
             key: 'isActive',
             title: 'Active',
-            render: (v: boolean) =>
-              v ? t('admin.yes', { ns: 'admin' }) : t('admin.no', { ns: 'admin' }),
+            render: (v: boolean) => (v ? t('yes', { ns: 'admin' }) : t('no', { ns: 'admin' })),
           },
           {
             dataIndex: 'updatedAt',
@@ -78,11 +77,11 @@ const AdminApiKeysPage = () => {
           },
           {
             key: 'actions',
-            title: t('admin.actions', { ns: 'admin' }),
+            title: t('actions', { ns: 'admin' }),
             render: (_: unknown, record: any) => (
               <Space>
                 <Button danger size="small" onClick={() => remove(record.id)}>
-                  {t('admin.delete', { ns: 'admin' })}
+                  {t('delete', { ns: 'admin' })}
                 </Button>
               </Space>
             ),
@@ -92,7 +91,7 @@ const AdminApiKeysPage = () => {
 
       <Modal
         open={open}
-        title={t('admin.apiKeys', { ns: 'admin' })}
+        title={t('apiKeys', { ns: 'admin' })}
         onCancel={() => setOpen(false)}
         onOk={submit}
       >
@@ -100,11 +99,7 @@ const AdminApiKeysPage = () => {
           <Form.Item label="Service" name="service" rules={[{ required: true }]}>
             <Input placeholder="audio_generation" />
           </Form.Item>
-          <Form.Item
-            label={t('admin.label', { ns: 'admin' })}
-            name="label"
-            rules={[{ required: true }]}
-          >
+          <Form.Item label={t('label', { ns: 'admin' })} name="label" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
           <Form.Item label="Key" name="keyValue" rules={[{ required: true }]}>

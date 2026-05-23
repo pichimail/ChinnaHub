@@ -40,17 +40,17 @@ const AdminRolesPage = () => {
 
   return (
     <div>
-      <h2>{t('admin.roleManagement', { ns: 'admin' })}</h2>
+      <h2>{t('roleManagement', { ns: 'admin' })}</h2>
       <Table
         dataSource={userData?.users || []}
         pagination={{ pageSize: 20 }}
         rowKey="id"
         columns={[
-          { dataIndex: 'email', key: 'email', title: t('admin.email', { ns: 'admin' }) },
+          { dataIndex: 'email', key: 'email', title: t('email', { ns: 'admin' }) },
           {
             dataIndex: 'role',
             key: 'role',
-            title: t('admin.roleManagement', { ns: 'admin' }),
+            title: t('roleManagement', { ns: 'admin' }),
             render: (role: string, record: any) => (
               <Space>
                 <Select
