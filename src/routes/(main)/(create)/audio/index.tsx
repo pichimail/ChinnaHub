@@ -8,7 +8,7 @@ import AudioWorkspace from './features/AudioWorkspace';
 import PromptInput from './features/PromptInput';
 
 const DesktopAudioPage = memo(() => (
-  <CreateGenerationPage PromptInput={PromptInput} Workspace={AudioWorkspace} path="/audio" />
+  <CreateGenerationPage PromptInput={PromptInput} Workspace={AudioWorkspace} />
 ));
 
 DesktopAudioPage.displayName = 'DesktopAudioPage';

@@ -1,7 +1,7 @@
 'use client';
 
-import { Button, Card, Flexbox } from '@lobehub/ui';
-import { Divider, Input, InputNumber, Select, Switch } from 'antd';
+import { Button, Flexbox } from '@lobehub/ui';
+import { Card, Divider, Input, InputNumber, Switch } from 'antd';
 import { memo, useCallback, useState } from 'react';
 
 const AdminAudioSettings = memo(() => {
@@ -15,7 +15,6 @@ const AdminAudioSettings = memo(() => {
     setTesting(true);
     try {
       // TODO: Test connection to audio generation API
-      console.log('Testing connection with API key:', apiKey);
       // Simulate successful test
       setTimeout(() => {
         setTesting(false);
@@ -32,33 +31,29 @@ const AdminAudioSettings = memo(() => {
       isEnabled,
       pollingInterval,
     };
-    console.log('Saving audio settings:', settings);
     // TODO: Save to database or store
+    void settings;
   }, [apiKey, isEnabled, pollingInterval]);
 
   return (
-    <Card title="Audio Generation Settings" style={{ marginBottom: '24px' }}>
+    <Card style={{ marginBottom: '24px' }} title="Audio Generation Settings">
       <Flexbox gap="lg">
         <div>
           <label>Enable Audio Generation</label>
-          <Switch
-            checked={isEnabled}
-            onChange={setIsEnabled}
-            style={{ marginLeft: '12px' }}
-          />
+          <Switch checked={isEnabled} style={{ marginLeft: '12px' }} onChange={setIsEnabled} />
         </div>
 
         <Divider />
 
         <div>
           <label>API Key</label>
-          <Flexbox horizontal gap="sm" align="center">
+          <Flexbox horizontal align="center" gap="sm">
             <Input
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              type={showApiKey ? 'text' : 'password'}
               placeholder="Enter Suno API key"
               style={{ flex: 1 }}
+              type={showApiKey ? 'text' : 'password'}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
             />
             <Button onClick={() => setShowApiKey(!showApiKey)}>
               {showApiKey ? 'Hide' : 'Show'}
@@ -69,25 +64,19 @@ const AdminAudioSettings = memo(() => {
         <div>
           <label>Polling Interval (ms)</label>
           <InputNumber
-            min={1000}
             max={10000}
+            min={1000}
+            style={{ width: '100%' }}
             value={pollingInterval}
             onChange={(value) => value && setPollingInterval(value)}
-            style={{ width: '100%' }}
           />
         </div>
 
         <Flexbox horizontal gap="sm">
-          <Button
-            loading={testing}
-            onClick={handleTestConnection}
-          >
+          <Button loading={testing} onClick={handleTestConnection}>
             Test Connection
           </Button>
-          <Button
-            type="primary"
-            onClick={handleSaveSettings}
-          >
+          <Button type="primary" onClick={handleSaveSettings}>
             Save Settings
           </Button>
         </Flexbox>

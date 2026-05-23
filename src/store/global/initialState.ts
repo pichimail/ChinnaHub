@@ -117,6 +117,7 @@ export interface SystemStatus {
    * number of agents (defaultList) to display
    */
   agentPageSize?: number;
+  audioTopicViewMode?: 'grid' | 'list';
   chatInputHeight?: number;
   disabledModelProvidersSortType?: string;
   disabledModelsSortType?: string;
@@ -381,6 +382,7 @@ export const INITIAL_STATUS = {
   systemRoleExpandedMap: {},
   tokenDisplayFormatShort: true,
   topicPageSize: 20,
+  audioTopicViewMode: 'grid' as const,
   videoPanelWidth: 320,
   videoTopicViewMode: 'grid' as const,
   videoTopicPanelWidth: 80,

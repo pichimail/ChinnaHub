@@ -1,7 +1,7 @@
 'use client';
 
 import { Flexbox, Icon, Skeleton } from '@lobehub/ui';
-import { BanIcon, ShieldCheckIcon, UsersIcon } from 'lucide-react';
+import { BanIcon, type LucideIcon, ShieldCheckIcon, UsersIcon } from 'lucide-react';
 import { type CSSProperties, memo } from 'react';
 
 import { lambdaQuery } from '@/libs/trpc/client';
@@ -9,7 +9,7 @@ import { lambdaQuery } from '@/libs/trpc/client';
 interface StatCardProps {
   bg: string;
   color: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   label: string;
   loading?: boolean;
   value?: number;

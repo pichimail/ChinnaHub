@@ -8,6 +8,12 @@ import { ProfileTabs, SettingsTabs, SidebarTabKey } from '@/store/global/initial
 export const useActiveTabKey = () => {
   const pathname = usePathname();
   const first = pathname.split('/').find(Boolean)!;
+
+  // Direct generation routes
+  if (first === 'image' || first === 'images') return SidebarTabKey.Image;
+  if (first === 'video') return SidebarTabKey.Video;
+  if (first === 'audio') return SidebarTabKey.Audio;
+
   // Map /create/* sub-routes to the correct generation type tab
   if (first === 'create') {
     const second = pathname.split('/')[2];
@@ -16,6 +22,7 @@ export const useActiveTabKey = () => {
     if (second === 'audio') return SidebarTabKey.Audio;
     return SidebarTabKey.Create;
   }
+
   return (first as SidebarTabKey) || SidebarTabKey.Home;
 };
 

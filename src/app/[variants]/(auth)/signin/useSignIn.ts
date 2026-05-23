@@ -19,6 +19,19 @@ const LAST_AUTH_PROVIDER_KEY = 'lobehub:auth:last-provider:v1';
 
 type Step = 'email' | 'password';
 
+const toError = (error: unknown, fallbackMessage: string): Error => {
+  if (error instanceof Error) return error;
+
+  if (typeof error === 'string') return new Error(error);
+
+  if (error && typeof error === 'object') {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim().length > 0) return new Error(message);
+  }
+
+  return new Error(fallbackMessage);
+};
+
 interface SignInFormValues {
   email: string;
   password: string;
@@ -236,9 +249,13 @@ export const useSignIn = () => {
 
       const result = await signInWithAdditionalData();
 
-      if (result && 'error' in result && result.error) throw result.error;
+      if (result && 'error' in result && result.error)
+        throw toError(result.error, `${normalizedProvider} sign in error`);
     } catch (error) {
-      console.error(`${normalizedProvider} sign in error:`, error);
+      console.error(
+        `${normalizedProvider} sign in error:`,
+        toError(error, `${normalizedProvider} sign in error`),
+      );
       message.error(t('betterAuth.signin.socialError'));
     } finally {
       setSocialLoading(null);

@@ -7,7 +7,7 @@ const CreateIndexRedirect = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    navigate('/create/image', { replace: true });
+    navigate('/image', { replace: true });
   }, [navigate]);
 
   return null;

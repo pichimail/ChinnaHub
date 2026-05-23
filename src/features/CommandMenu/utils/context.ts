@@ -25,12 +25,12 @@ const CONTEXT_CONFIGS: ContextConfig[] = [
     type: 'group',
   },
   {
-    matcher: /^\/image$/,
+    matcher: /^\/(?:create\/)?images?$/,
     name: 'Painting',
     type: 'painting',
   },
   {
-    matcher: /^\/video$/,
+    matcher: /^\/(?:create\/)?video$/,
     name: 'Video',
     type: 'video',
   },

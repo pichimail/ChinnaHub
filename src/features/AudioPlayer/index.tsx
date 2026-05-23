@@ -12,12 +12,12 @@ interface AudioPlayerProps {
   title?: string;
 }
 
-const useStyles = createStaticStyles(({ css, token }) => ({
+const styles = createStaticStyles(({ css, cssVar }) => ({
   container: css`
     padding: 12px;
-    border: 1px solid ${token.colorBorderSecondary};
+    border: 1px solid ${cssVar.colorBorderSecondary};
     border-radius: 8px;
-    background: ${token.colorBgContainer};
+    background: ${cssVar.colorBgContainer};
   `,
   controls: css`
     display: flex;
@@ -30,12 +30,11 @@ const useStyles = createStaticStyles(({ css, token }) => ({
   time: css`
     min-width: 40px;
     font-size: 12px;
-    color: ${token.colorTextTertiary};
+    color: ${cssVar.colorTextTertiary};
   `,
 }));
 
 const AudioPlayer = memo<AudioPlayerProps>(({ audioUrl, title, audioId }) => {
-  const { styles } = useStyles();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -74,7 +73,7 @@ const AudioPlayer = memo<AudioPlayerProps>(({ audioUrl, title, audioId }) => {
         onTimeUpdate={(e) => setCurrentTime((e.target as HTMLAudioElement).currentTime)}
       />
 
-      <Flexbox vertical gap="sm">
+      <Flexbox gap="sm" style={{ flexDirection: 'column' }}>
         {title && <div style={{ fontSize: '14px', fontWeight: 500 }}>{title}</div>}
 
         <Flexbox horizontal className={styles.controls} gap="xs">

@@ -4,9 +4,12 @@ import { ThemeProvider } from '@lobehub/ui';
 import type { PropsWithChildren } from 'react';
 import { memo, useEffect, useState } from 'react';
 
+import AntdStaticMethods from '@/components/AntdStaticMethods';
+
 interface AuthThemeLiteProps extends PropsWithChildren {
-  defaultAppearance?: 'dark' | 'light' | 'auto';
   appearance?: 'dark' | 'light' | 'auto';
+  defaultAppearance?: 'dark' | 'light' | 'auto';
+  globalCDN?: boolean;
 }
 
 const AuthThemeLite = memo<AuthThemeLiteProps>(({ children, appearance, defaultAppearance }) => {
@@ -21,13 +24,13 @@ const AuthThemeLite = memo<AuthThemeLiteProps>(({ children, appearance, defaultA
   if (!mounted) {
     return (
       <div
+        suppressHydrationWarning
         className="auth-layout"
         style={{
           height: '100%',
           minHeight: 'inherit',
           width: 'inherit',
         }}
-        suppressHydrationWarning
       >
         {children}
       </div>
@@ -45,6 +48,7 @@ const AuthThemeLite = memo<AuthThemeLiteProps>(({ children, appearance, defaultA
         width: 'inherit',
       }}
     >
+      <AntdStaticMethods />
       {children}
     </ThemeProvider>
   );

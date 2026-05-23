@@ -420,6 +420,52 @@ export const desktopRoutes: RouteObject[] = [
         path: 'memory',
       },
 
+      // Top-level generation routes kept for existing navigation and shared links
+      {
+        children: [
+          {
+            element: <ImagePage />,
+            index: true,
+          },
+        ],
+        element: <DesktopImageLayout />,
+        errorElement: <ErrorBoundary />,
+        path: 'image',
+      },
+      {
+        children: [
+          {
+            element: <ImagePage />,
+            index: true,
+          },
+        ],
+        element: <DesktopImageLayout />,
+        errorElement: <ErrorBoundary />,
+        path: 'images',
+      },
+      {
+        children: [
+          {
+            element: <VideoPage />,
+            index: true,
+          },
+        ],
+        element: <DesktopVideoLayout />,
+        errorElement: <ErrorBoundary />,
+        path: 'video',
+      },
+      {
+        children: [
+          {
+            element: <AudioPage />,
+            index: true,
+          },
+        ],
+        element: <DesktopAudioLayout />,
+        errorElement: <ErrorBoundary />,
+        path: 'audio',
+      },
+
       // Create (generation) routes - Video, Image, Audio
       {
         children: [

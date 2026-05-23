@@ -33,6 +33,12 @@ export class IoRedisRedisProvider implements BaseRedisProvider {
       username: this.config.username,
     });
 
+    // ioredis emits 'error' events during connection retries/failures.
+    // Without a listener, Node reports them as "Unhandled error event".
+    (this.client as any).on?.('error', (error: unknown) => {
+      log('Redis client error (prefix "%s"): %O', this.config.prefix, error);
+    });
+
     await this.client.connect();
     await this.client.ping();
 

@@ -44,7 +44,7 @@ const getAuthHeaders = async (provider?: ModelProvider) => {
 };
 
 const resolveImageProvider = async (): Promise<ModelProvider | undefined> => {
-  if (location.pathname !== '/image') return;
+  if (!['/create/image', '/image', '/images'].includes(location.pathname)) return;
 
   try {
     return imageGenerationConfigSelectors.provider(getImageStoreState()) as ModelProvider;

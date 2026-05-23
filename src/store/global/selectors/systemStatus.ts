@@ -201,6 +201,7 @@ const groupAgentBuilderPanelWidth = (s: GlobalState) => s.status.groupAgentBuild
 const imagePanelWidth = (s: GlobalState) => s.status.imagePanelWidth;
 const imageTopicViewMode = (s: GlobalState) => s.status.imageTopicViewMode || 'grid';
 const imageTopicPanelWidth = (s: GlobalState) => s.status.imageTopicPanelWidth;
+const audioTopicViewMode = (s: GlobalState) => s.status.audioTopicViewMode || 'grid';
 const videoPanelWidth = (s: GlobalState) => s.status.videoPanelWidth;
 const videoTopicViewMode = (s: GlobalState) => s.status.videoTopicViewMode || 'grid';
 const videoTopicPanelWidth = (s: GlobalState) => s.status.videoTopicPanelWidth;
@@ -241,6 +242,7 @@ const tokenDisplayFormatShort = (s: GlobalState) =>
 const homeSelectedAgentId = (s: GlobalState) => s.status.homeSelectedAgentId;
 
 export const systemStatusSelectors = {
+  audioTopicViewMode,
   agentBuilderPanelWidth,
   agentPageSize,
   chatInputHeight,

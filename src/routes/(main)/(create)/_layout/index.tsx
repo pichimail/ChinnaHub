@@ -1,20 +1,16 @@
 'use client';
 
 import { Flexbox } from '@lobehub/ui';
-import { type ReactNode } from 'react';
+import { Outlet } from 'react-router-dom';
 
 import GenerationTypeSelector from '@/routes/(main)/(create)/features/GenerationLayout/GenerationTypeSelector';
 
-interface CreateLayoutProps {
-  children: ReactNode;
-}
-
-const CreateLayout = ({ children }: CreateLayoutProps) => {
+const CreateLayout = () => {
   return (
-    <Flexbox vertical height="100%">
+    <Flexbox height="100%" style={{ flexDirection: 'column' }}>
       <GenerationTypeSelector />
       <Flexbox horizontal flex={1}>
-        {children}
+        <Outlet />
       </Flexbox>
     </Flexbox>
   );

@@ -23,17 +23,17 @@ const GenerationTypeSelector = memo(() => {
   }, [location.pathname]);
 
   const handleChange = (value: string) => {
-    navigate(`/create/${value}`);
+    navigate(`/${value}`);
   };
 
   return (
-    <Flexbox padding="md" horizontal>
+    <Flexbox horizontal padding="md">
       <label style={{ marginRight: '8px', fontWeight: 500 }}>Generation Type:</label>
       <Select
-        value={currentType}
-        onChange={handleChange}
         options={options}
         style={{ width: '150px' }}
+        value={currentType}
+        onChange={handleChange}
       />
     </Flexbox>
   );

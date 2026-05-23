@@ -7,13 +7,13 @@ import { type CSSProperties, memo, useState } from 'react';
 
 import { lambdaQuery } from '@/libs/trpc/client';
 
+type AppRole = 'admin' | 'pro' | 'user';
+
 const ROLE_OPTIONS = [
   { label: 'User', value: 'user' },
   { label: 'Pro User', value: 'pro' },
   { label: 'Admin', value: 'admin' },
-] as const;
-
-type AppRole = (typeof ROLE_OPTIONS)[number]['value'];
+] satisfies { label: string; value: AppRole }[];
 
 const ROLE_COLORS: Record<string, string> = {
   admin: 'gold',

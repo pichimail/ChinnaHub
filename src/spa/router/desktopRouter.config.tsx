@@ -504,6 +504,76 @@ export const desktopRoutes: RouteObject[] = [
         path: 'memory',
       },
 
+      // Top-level generation routes kept for existing navigation and shared links
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/(create)/image'),
+              'Desktop > Image',
+            ),
+            index: true,
+          },
+        ],
+        element: dynamicLayout(
+          () => import('@/routes/(main)/(create)/image/_layout'),
+          'Desktop > Image > Layout',
+        ),
+        errorElement: <ErrorBoundary />,
+        path: 'image',
+      },
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/(create)/image'),
+              'Desktop > Images',
+            ),
+            index: true,
+          },
+        ],
+        element: dynamicLayout(
+          () => import('@/routes/(main)/(create)/image/_layout'),
+          'Desktop > Images > Layout',
+        ),
+        errorElement: <ErrorBoundary />,
+        path: 'images',
+      },
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/(create)/video'),
+              'Desktop > Video',
+            ),
+            index: true,
+          },
+        ],
+        element: dynamicLayout(
+          () => import('@/routes/(main)/(create)/video/_layout'),
+          'Desktop > Video > Layout',
+        ),
+        errorElement: <ErrorBoundary />,
+        path: 'video',
+      },
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/(create)/audio'),
+              'Desktop > Audio',
+            ),
+            index: true,
+          },
+        ],
+        element: dynamicLayout(
+          () => import('@/routes/(main)/(create)/audio/_layout'),
+          'Desktop > Audio > Layout',
+        ),
+        errorElement: <ErrorBoundary />,
+        path: 'audio',
+      },
+
       // Create (generation) routes - Video, Image, Audio
       {
         children: [
