@@ -5,7 +5,7 @@ import type { FileItem } from '../files';
 import type { KnowledgeBaseItem } from '../knowledgeBase';
 import type { FewShots } from '../llm';
 import type { LobeAgentAgencyConfig } from './agencyConfig';
-import { AgentChatConfigSchema, type LobeAgentChatConfig } from './chatConfig';
+import type { LobeAgentChatConfig } from './chatConfig';
 import type { LobeAgentTTSConfig } from './tts';
 
 export interface LobeAgentConfig {
@@ -95,7 +95,7 @@ export const CreateAgentSchema = z.object({
   agencyConfig: z.custom<LobeAgentAgencyConfig>().optional(),
   avatar: z.string().nullable().optional(),
   backgroundColor: z.string().nullable().optional(),
-  chatConfig: AgentChatConfigSchema.optional(),
+  chatConfig: z.custom<LobeAgentChatConfig>().optional(),
   description: z.string().nullable().optional(),
   editorData: z.unknown().optional(),
   fewShots: z.unknown().optional(),

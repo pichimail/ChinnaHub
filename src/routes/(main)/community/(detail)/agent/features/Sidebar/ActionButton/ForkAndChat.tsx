@@ -108,10 +108,10 @@ const ForkAndChat = memo<{ mobile?: boolean }>(({ mobile }) => {
           ...meta,
           marketIdentifier,
           params: {
-            ...config.params,
+            ...config?.params,
             forkedFromIdentifier: identifier,
           },
-          title: title || config.title,
+          title: title || config?.title,
         },
       };
 

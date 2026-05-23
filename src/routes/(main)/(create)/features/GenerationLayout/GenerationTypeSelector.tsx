@@ -12,11 +12,13 @@ const GenerationTypeSelector = memo(() => {
   const options = [
     { label: '🖼️ Image', value: 'image' },
     { label: '🎬 Video', value: 'video' },
+    { label: '🎵 Music', value: 'audio' },
   ];
 
   const currentType = useMemo(() => {
     if (location.pathname.includes('/image')) return 'image';
     if (location.pathname.includes('/video')) return 'video';
+    if (location.pathname.includes('/audio')) return 'audio';
     return 'image';
   }, [location.pathname]);
 

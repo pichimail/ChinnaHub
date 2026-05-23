@@ -450,6 +450,46 @@ export const desktopRoutes: RouteObject[] = [
         path: 'memory',
       },
 
+      // Admin console routes
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/admin'),
+              'Desktop > Admin > Overview',
+            ),
+            index: true,
+          },
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/admin/users'),
+              'Desktop > Admin > Users',
+            ),
+            path: 'users',
+          },
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/admin/feature-flags'),
+              'Desktop > Admin > Feature Flags',
+            ),
+            path: 'feature-flags',
+          },
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/admin/audit-logs'),
+              'Desktop > Admin > Audit Logs',
+            ),
+            path: 'audit-logs',
+          },
+        ],
+        element: dynamicLayout(
+          () => import('@/routes/(main)/admin/_layout'),
+          'Desktop > Admin > Layout',
+        ),
+        errorElement: <ErrorBoundary />,
+        path: 'admin',
+      },
+
       // Top-level generation routes kept for existing navigation and shared links
       {
         children: [
@@ -501,6 +541,23 @@ export const desktopRoutes: RouteObject[] = [
         ),
         errorElement: <ErrorBoundary />,
         path: 'video',
+      },
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/(create)/audio'),
+              'Desktop > Audio',
+            ),
+            index: true,
+          },
+        ],
+        element: dynamicLayout(
+          () => import('@/routes/(main)/(create)/audio/_layout'),
+          'Desktop > Audio > Layout',
+        ),
+        errorElement: <ErrorBoundary />,
+        path: 'audio',
       },
       // Create (generation) routes - Video, Image, Audio
       {

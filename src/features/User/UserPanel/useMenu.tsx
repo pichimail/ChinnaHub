@@ -2,7 +2,15 @@ import { LOBE_CHAT_CLOUD, UTM_SOURCE } from '@lobechat/business-const';
 import { DOWNLOAD_URL, isDesktop } from '@lobechat/const';
 import { Flexbox, Hotkey, Icon, Tag } from '@lobehub/ui';
 import { type ItemType } from 'antd/es/menu/interface';
-import { BrainCircuit, Cloudy, Download, HardDriveDownload, LogOut, Settings2 } from 'lucide-react';
+import {
+  BrainCircuit,
+  Cloudy,
+  Download,
+  HardDriveDownload,
+  LogOut,
+  Settings2,
+  Shield,
+} from 'lucide-react';
 import { type PropsWithChildren } from 'react';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -49,13 +57,17 @@ export const useMenu = () => {
   const hasNewVersion = useNewVersion();
   const { t } = useTranslation(['common', 'setting', 'auth']);
   const { showCloudPromotion, hideDocs } = useServerConfigStore(featureFlagsSelectors);
-  const [isLogin, isLoginWithAuth] = useUserStore((s) => [
+  const [isLogin, isLoginWithAuth, user] = useUserStore((s) => [
     authSelectors.isLogin(s),
     authSelectors.isLoginWithAuth(s),
+    s.user,
   ]);
   const { userPanel } = useNavLayout();
   const businessMenuItems = useBusinessMenuItems(isLogin);
   const { isIOS, isAndroid } = usePlatform();
+
+  // Check if user is admin
+  const isAdmin = user?.email === 'pichimail24@gmail.com' || user?.role === 'admin';
 
   const downloadUrl = useMemo(() => {
     if (isIOS) return DOWNLOAD_URL.ios;
@@ -64,6 +76,15 @@ export const useMenu = () => {
   }, [isIOS, isAndroid]);
 
   const settings: MenuProps['items'] = [
+    ...(isAdmin
+      ? [
+          {
+            icon: <Icon icon={Shield} />,
+            key: 'admin',
+            label: <Link to="/admin">{t('userPanel.admin', { ns: 'common' })}</Link>,
+          },
+        ]
+      : []),
     {
       extra: isDesktop ? (
         <div>
