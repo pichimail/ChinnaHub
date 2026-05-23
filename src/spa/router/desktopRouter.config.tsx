@@ -469,6 +469,27 @@ export const desktopRoutes: RouteObject[] = [
           },
           {
             element: dynamicElement(
+              () => import('@/routes/(main)/admin/roles'),
+              'Desktop > Admin > Roles',
+            ),
+            path: 'roles',
+          },
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/admin/api-keys'),
+              'Desktop > Admin > API Keys',
+            ),
+            path: 'api-keys',
+          },
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/admin/providers'),
+              'Desktop > Admin > Providers',
+            ),
+            path: 'providers',
+          },
+          {
+            element: dynamicElement(
               () => import('@/routes/(main)/admin/feature-flags'),
               'Desktop > Admin > Feature Flags',
             ),

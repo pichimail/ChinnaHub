@@ -2,7 +2,8 @@ import { TRPCError } from '@trpc/server';
 import { desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { adminAuditLogs, featureFlags } from '@/database/schemas/admin';
+import { adminApiKeys, adminAuditLogs, featureFlags } from '@/database/schemas/admin';
+import { aiProviders } from '@/database/schemas/aiInfra';
 import { users } from '@/database/schemas/user';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
@@ -169,6 +170,41 @@ export const adminRouter = router({
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: errorMessage,
+        });
+      }
+    }),
+
+  /**
+   * Update user role
+   */
+  updateUserRole: adminProcedure
+    .input(
+      z.object({
+        role: z.string().min(1),
+        userId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        await ctx.serverDB
+          .update(users)
+          .set({ role: input.role })
+          .where(eq(users.id, input.userId));
+
+        await ctx.serverDB.insert(adminAuditLogs).values({
+          action: 'user.role_update',
+          adminEmail: ctx.adminEmail,
+          adminId: ctx.adminId,
+          metadata: { role: input.role },
+          targetId: input.userId,
+          targetType: 'user',
+        });
+
+        return { success: true };
+      } catch (error) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }),
@@ -391,5 +427,76 @@ export const adminRouter = router({
         message: errorMessage,
       });
     }
+  }),
+
+  // ─────────────────── Admin API Keys ───────────────────
+
+  getAdminApiKeys: adminProcedure.query(async ({ ctx }) => {
+    const keys = await ctx.serverDB.select().from(adminApiKeys).orderBy(adminApiKeys.service);
+    return { success: true, data: keys };
+  }),
+
+  upsertAdminApiKey: adminProcedure
+    .input(
+      z.object({
+        config: z.record(z.string(), z.unknown()).optional(),
+        isActive: z.boolean().default(true),
+        keyValue: z.string().min(1),
+        label: z.string().min(1),
+        service: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.serverDB
+        .select()
+        .from(adminApiKeys)
+        .where(eq(adminApiKeys.service, input.service))
+        .limit(1);
+
+      if (existing.length > 0) {
+        await ctx.serverDB
+          .update(adminApiKeys)
+          .set({
+            config: input.config || {},
+            isActive: input.isActive,
+            keyValue: input.keyValue,
+            label: input.label,
+            updatedAt: new Date(),
+          })
+          .where(eq(adminApiKeys.service, input.service));
+      } else {
+        await ctx.serverDB.insert(adminApiKeys).values({
+          config: input.config || {},
+          isActive: input.isActive,
+          keyValue: input.keyValue,
+          label: input.label,
+          service: input.service,
+        });
+      }
+
+      await ctx.serverDB.insert(adminAuditLogs).values({
+        action: 'admin_api_key.upsert',
+        adminEmail: ctx.adminEmail,
+        adminId: ctx.adminId,
+        metadata: { isActive: input.isActive, label: input.label, service: input.service },
+        targetId: input.service,
+        targetType: 'admin_api_key',
+      });
+
+      return { success: true };
+    }),
+
+  deleteAdminApiKey: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.serverDB.delete(adminApiKeys).where(eq(adminApiKeys.id, input.id));
+      return { success: true };
+    }),
+
+  // ─────────────────── Provider Management ───────────────────
+
+  getProviderOverview: adminProcedure.query(async ({ ctx }) => {
+    const providers = await ctx.serverDB.select().from(aiProviders).limit(500);
+    return { success: true, data: providers };
   }),
 });

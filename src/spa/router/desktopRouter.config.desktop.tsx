@@ -20,8 +20,11 @@ import DesktopVideoLayout from '@/routes/(main)/(create)/video/_layout';
 import TaskWorkspaceLayout from '@/routes/(main)/(task-workspace)/_layout';
 import AdminOverview from '@/routes/(main)/admin';
 import AdminLayout from '@/routes/(main)/admin/_layout';
+import AdminApiKeys from '@/routes/(main)/admin/api-keys';
 import AdminAuditLogs from '@/routes/(main)/admin/audit-logs';
 import AdminFeatureFlags from '@/routes/(main)/admin/feature-flags';
+import AdminProviders from '@/routes/(main)/admin/providers';
+import AdminRoles from '@/routes/(main)/admin/roles';
 import AdminUsers from '@/routes/(main)/admin/users';
 // Pages — sync import
 import AgentPage from '@/routes/(main)/agent';
@@ -395,6 +398,18 @@ export const desktopRoutes: RouteObject[] = [
           {
             element: <AdminUsers />,
             path: 'users',
+          },
+          {
+            element: <AdminRoles />,
+            path: 'roles',
+          },
+          {
+            element: <AdminApiKeys />,
+            path: 'api-keys',
+          },
+          {
+            element: <AdminProviders />,
+            path: 'providers',
           },
           {
             element: <AdminFeatureFlags />,

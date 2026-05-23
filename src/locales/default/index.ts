@@ -1,3 +1,4 @@
+import admin from './admin';
 import agent from './agent';
 import agentGroup from './agentGroup';
 import auth from './auth';
@@ -49,6 +50,7 @@ import welcome from './welcome';
 const resources = {
   agent,
   agentGroup,
+  admin,
   auth,
   authError,
   changelog,

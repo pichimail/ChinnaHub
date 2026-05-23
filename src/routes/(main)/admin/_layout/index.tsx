@@ -2,7 +2,7 @@
 
 import { Tabs } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useUserStore } from '@/store/user';
 
@@ -26,6 +26,13 @@ const AdminLayout = () => {
   const items = [
     { key: 'overview', label: t('admin.overview', { ns: 'admin' }), path: '/admin' },
     { key: 'users', label: t('admin.users', { ns: 'admin' }), path: '/admin/users' },
+    { key: 'roles', label: t('admin.roleManagement', { ns: 'admin' }), path: '/admin/roles' },
+    { key: 'api-keys', label: t('admin.apiKeys', { ns: 'admin' }), path: '/admin/api-keys' },
+    {
+      key: 'providers',
+      label: t('admin.providerManagement', { ns: 'admin' }),
+      path: '/admin/providers',
+    },
     {
       key: 'feature-flags',
       label: t('admin.featureFlags', { ns: 'admin' }),
@@ -35,7 +42,9 @@ const AdminLayout = () => {
   ];
 
   const currentTab =
-    items.find((item) => location.pathname.startsWith(item.path))?.key || 'overview';
+    items.find(
+      (item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
+    )?.key || 'overview';
 
   return (
     <div style={{ height: '100vh', backgroundColor: '#f5f5f5' }}>
@@ -63,7 +72,7 @@ const AdminLayout = () => {
       />
 
       <div style={{ padding: '24px', backgroundColor: 'white', margin: '16px' }}>
-        <p>{t('admin.selectTab', { ns: 'admin' })}</p>
+        <Outlet />
       </div>
     </div>
   );
