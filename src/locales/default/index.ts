@@ -1,6 +1,5 @@
 import agent from './agent';
 import agentGroup from './agentGroup';
-import audio from './audio';
 import auth from './auth';
 import authError from './authError';
 import changelog from './changelog';
@@ -50,7 +49,6 @@ import welcome from './welcome';
 const resources = {
   agent,
   agentGroup,
-  audio,
   auth,
   authError,
   changelog,
