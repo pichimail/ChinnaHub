@@ -42,6 +42,19 @@ const AdminOverview = () => {
             />
           </Card>
         </Col>
+        <Col md={6} sm={12} xs={24}>
+          <Card>
+            <Statistic title="Env Vars" value={statsData?.envVarCount || 0} />
+          </Card>
+        </Col>
+        <Col md={6} sm={12} xs={24}>
+          <Card>
+            <Statistic
+              title="Governance Policies"
+              value={statsData?.activeGovernancePolicyCount || 0}
+            />
+          </Card>
+        </Col>
       </Row>
     </div>
   );

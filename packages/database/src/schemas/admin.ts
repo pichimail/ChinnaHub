@@ -1,22 +1,24 @@
-import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 import { users } from './user';
-
-// ─── Feature Flags ───────────────────────────────────────────────────────────
 
 export const featureFlags = pgTable(
   'feature_flags',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    /** Flag identifier, e.g. "enable_audio_generation" */
     key: text('key').notNull(),
-    /** Human-readable label */
     label: text('label').notNull(),
-    /** Default value when no user override exists */
     defaultEnabled: boolean('default_enabled').notNull().default(false),
-    /** Per-user enabled overrides (JSON array of user IDs) */
     enabledUserIds: jsonb('enabled_user_ids').$type<string[]>().default([]),
-    /** Per-user disabled overrides (JSON array of user IDs) */
     disabledUserIds: jsonb('disabled_user_ids').$type<string[]>().default([]),
     description: text('description'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -25,29 +27,37 @@ export const featureFlags = pgTable(
   (t) => [index('feature_flags_key_idx').on(t.key)],
 );
 
-export type NewFeatureFlag = typeof featureFlags.$inferInsert;
-export type FeatureFlagItem = typeof featureFlags.$inferSelect;
-
-// ─── Audit Logs ──────────────────────────────────────────────────────────────
+export const featureFlagAssignments = pgTable(
+  'feature_flag_assignments',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    enabled: boolean('enabled').notNull(),
+    flagKey: text('flag_key').notNull(),
+    source: text('source').notNull().default('admin'),
+    userId: text('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('feature_flag_assignments_flag_key_idx').on(t.flagKey),
+    index('feature_flag_assignments_user_id_idx').on(t.userId),
+  ],
+);
 
 export const adminAuditLogs = pgTable(
   'admin_audit_logs',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    /** Admin performing the action */
     adminId: text('admin_id')
       .references(() => users.id, { onDelete: 'set null' })
       .notNull(),
     adminEmail: text('admin_email'),
-    /** Action type, e.g. "user.ban", "user.role_update", "flag.update" */
     action: text('action').notNull(),
-    /** Target resource type */
     targetType: text('target_type'),
-    /** Target resource identifier */
     targetId: text('target_id'),
-    /** Snapshot of the change (before/after) */
     metadata: jsonb('metadata').$type<Record<string, unknown>>(),
-    /** Client IP (optional, for audit trails) */
     ipAddress: text('ip_address'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
@@ -59,24 +69,14 @@ export const adminAuditLogs = pgTable(
   ],
 );
 
-export type NewAdminAuditLog = typeof adminAuditLogs.$inferInsert;
-export type AdminAuditLogItem = typeof adminAuditLogs.$inferSelect;
-
-// ─── Admin API Keys ───────────────────────────────────────────────────────────
-
 export const adminApiKeys = pgTable(
   'admin_api_keys',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    /** Service name, e.g. "audio_generation", "image_generation" */
     service: text('service').notNull().unique(),
-    /** Encrypted or masked API key value */
     keyValue: text('key_value').notNull(),
-    /** Human-readable label */
     label: text('label').notNull(),
-    /** Whether this key is currently active */
     isActive: boolean('is_active').notNull().default(true),
-    /** Extra config (endpoint URLs, model overrides, etc.) */
     config: jsonb('config').$type<Record<string, unknown>>(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -84,5 +84,51 @@ export const adminApiKeys = pgTable(
   (t) => [index('admin_api_keys_service_idx').on(t.service)],
 );
 
+export const adminEnvVars = pgTable(
+  'admin_env_vars',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    key: text('key').notNull(),
+    value: text('value').notNull(),
+    domain: text('domain').notNull().default('global'),
+    description: text('description'),
+    isActive: boolean('is_active').notNull().default(true),
+    isSecret: boolean('is_secret').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('admin_env_vars_domain_key_idx').on(t.domain, t.key)],
+);
+
+export const adminGovernancePolicies = pgTable(
+  'admin_governance_policies',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    config: jsonb('config').$type<Record<string, unknown>>().default({}),
+    domain: text('domain').notNull(),
+    isActive: boolean('is_active').notNull().default(true),
+    mode: text('mode').notNull().default('allow'),
+    notes: text('notes'),
+    priority: integer('priority').notNull().default(100),
+    target: text('target').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('admin_governance_policies_domain_idx').on(t.domain),
+    index('admin_governance_policies_target_idx').on(t.target),
+  ],
+);
+
+export type NewFeatureFlag = typeof featureFlags.$inferInsert;
+export type FeatureFlagItem = typeof featureFlags.$inferSelect;
+export type NewFeatureFlagAssignment = typeof featureFlagAssignments.$inferInsert;
+export type FeatureFlagAssignmentItem = typeof featureFlagAssignments.$inferSelect;
+export type NewAdminAuditLog = typeof adminAuditLogs.$inferInsert;
+export type AdminAuditLogItem = typeof adminAuditLogs.$inferSelect;
 export type NewAdminApiKey = typeof adminApiKeys.$inferInsert;
 export type AdminApiKeyItem = typeof adminApiKeys.$inferSelect;
+export type NewAdminEnvVar = typeof adminEnvVars.$inferInsert;
+export type AdminEnvVarItem = typeof adminEnvVars.$inferSelect;
+export type NewAdminGovernancePolicy = typeof adminGovernancePolicies.$inferInsert;
+export type AdminGovernancePolicyItem = typeof adminGovernancePolicies.$inferSelect;

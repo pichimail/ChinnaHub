@@ -497,6 +497,20 @@ export const desktopRoutes: RouteObject[] = [
           },
           {
             element: dynamicElement(
+              () => import('@/routes/(main)/admin/env-vars'),
+              'Desktop > Admin > Env Vars',
+            ),
+            path: 'env-vars',
+          },
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/admin/governance'),
+              'Desktop > Admin > Governance',
+            ),
+            path: 'governance',
+          },
+          {
+            element: dynamicElement(
               () => import('@/routes/(main)/admin/audit-logs'),
               'Desktop > Admin > Audit Logs',
             ),

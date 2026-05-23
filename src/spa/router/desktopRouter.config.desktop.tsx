@@ -22,7 +22,9 @@ import AdminOverview from '@/routes/(main)/admin';
 import AdminLayout from '@/routes/(main)/admin/_layout';
 import AdminApiKeys from '@/routes/(main)/admin/api-keys';
 import AdminAuditLogs from '@/routes/(main)/admin/audit-logs';
+import AdminEnvVars from '@/routes/(main)/admin/env-vars';
 import AdminFeatureFlags from '@/routes/(main)/admin/feature-flags';
+import AdminGovernance from '@/routes/(main)/admin/governance';
 import AdminProviders from '@/routes/(main)/admin/providers';
 import AdminRoles from '@/routes/(main)/admin/roles';
 import AdminUsers from '@/routes/(main)/admin/users';
@@ -414,6 +416,14 @@ export const desktopRoutes: RouteObject[] = [
           {
             element: <AdminFeatureFlags />,
             path: 'feature-flags',
+          },
+          {
+            element: <AdminEnvVars />,
+            path: 'env-vars',
+          },
+          {
+            element: <AdminGovernance />,
+            path: 'governance',
           },
           {
             element: <AdminAuditLogs />,

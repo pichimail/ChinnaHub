@@ -1,100 +1,118 @@
 'use client';
 
-import { Button, Form, Input, message, Modal, Space, Spin, Switch, Table } from 'antd';
+import { Button, Form, Input, message, Modal, Select, Space, Spin, Switch, Table } from 'antd';
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import useSWR, { useSWRConfig } from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
 
 const AdminFeatureFlags = () => {
-  const { t } = useTranslation();
   const { mutate } = useSWRConfig();
   const [form] = Form.useForm();
+  const [overrideForm] = Form.useForm();
   const [isCreating, setIsCreating] = useState(false);
+  const [overrideOpen, setOverrideOpen] = useState(false);
 
-  const { data: flagsData, isLoading } = useSWR(
-    'admin:feature-flags',
-    async () => {
-      const result = await lambdaClient.admin.getFeatureFlags.query();
-      return result.data || [];
-    },
-    { revalidateOnFocus: false },
-  );
+  const { data: flagsData, isLoading } = useSWR('admin:feature-flags', async () => {
+    const result = await lambdaClient.admin.getFeatureFlags.query();
+    return result.data || [];
+  });
+
+  const { data: usersData } = useSWR('admin:feature-flags:users', async () => {
+    const result = await lambdaClient.admin.getUsers.query({ limit: 500, offset: 0 });
+    return result.data?.users || [];
+  });
 
   const handleCreateFlag = async (values: any) => {
     try {
       await lambdaClient.admin.createFeatureFlag.mutate(values);
-      message.success(t('flagCreated', { ns: 'admin' }));
+      message.success('Feature flag created');
       form.resetFields();
       setIsCreating(false);
       mutate('admin:feature-flags');
     } catch {
-      message.error(t('createFailed', { ns: 'admin' }));
+      message.error('Create failed');
+    }
+  };
+
+  const handleUpdateFlag = async (record: any, defaultEnabled: boolean) => {
+    try {
+      await lambdaClient.admin.updateFeatureFlag.mutate({
+        defaultEnabled,
+        flagId: record.id,
+      });
+      mutate('admin:feature-flags');
+      message.success('Flag updated');
+    } catch {
+      message.error('Update failed');
     }
   };
 
   const handleDeleteFlag = async (flagId: string) => {
     try {
       await lambdaClient.admin.deleteFeatureFlag.mutate({ flagId });
-      message.success(t('flagDeleted', { ns: 'admin' }));
+      message.success('Flag deleted');
       mutate('admin:feature-flags');
     } catch {
-      message.error(t('deleteFailed', { ns: 'admin' }));
+      message.error('Delete failed');
     }
   };
 
-  if (isLoading) {
-    return <Spin size="large" style={{ marginTop: '48px' }} />;
-  }
+  const handleOverride = async () => {
+    try {
+      const values = await overrideForm.validateFields();
+      await lambdaClient.admin.setUserFeatureFlag.mutate(values);
+      message.success('User override saved');
+      overrideForm.resetFields();
+      setOverrideOpen(false);
+    } catch {
+      message.error('Failed to save override');
+    }
+  };
 
-  const columns = [
-    {
-      dataIndex: 'key',
-      key: 'key',
-      title: t('flagKey', { ns: 'admin' }),
-    },
-    {
-      dataIndex: 'label',
-      key: 'label',
-      title: t('label', { ns: 'admin' }),
-    },
-    {
-      dataIndex: 'defaultEnabled',
-      key: 'defaultEnabled',
-      render: (enabled: boolean) =>
-        enabled ? t('yes', { ns: 'admin' }) : t('no', { ns: 'admin' }),
-      title: t('defaultEnabled', { ns: 'admin' }),
-    },
-    {
-      key: 'actions',
-      render: (_: unknown, record: any) => (
-        <Space>
-          <Button size="small" type="link">
-            {t('edit', { ns: 'admin' })}
-          </Button>
-          <Button danger size="small" type="link" onClick={() => handleDeleteFlag(record.id)}>
-            {t('delete', { ns: 'admin' })}
-          </Button>
-        </Space>
-      ),
-      title: t('actions', { ns: 'admin' }),
-    },
-  ];
+  if (isLoading) return <Spin size="large" style={{ marginTop: '48px' }} />;
 
   return (
     <div>
       <div style={{ marginBottom: '16px' }}>
-        <Button type="primary" onClick={() => setIsCreating(true)}>
-          {t('createFlag', { ns: 'admin' })}
-        </Button>
+        <Space>
+          <Button type="primary" onClick={() => setIsCreating(true)}>
+            Create Flag
+          </Button>
+          <Button onClick={() => setOverrideOpen(true)}>Per-user Override</Button>
+        </Space>
       </div>
 
-      <Table columns={columns} dataSource={flagsData || []} rowKey="id" />
+      <Table
+        dataSource={flagsData || []}
+        rowKey="id"
+        columns={[
+          { dataIndex: 'key', key: 'key', title: 'Flag Key' },
+          { dataIndex: 'label', key: 'label', title: 'Label' },
+          { dataIndex: 'description', key: 'description', title: 'Description' },
+          {
+            dataIndex: 'defaultEnabled',
+            key: 'defaultEnabled',
+            title: 'Default Enabled',
+            render: (enabled: boolean, record: any) => (
+              <Switch checked={enabled} onChange={(next) => handleUpdateFlag(record, next)} />
+            ),
+          },
+          {
+            key: 'actions',
+            title: 'Actions',
+            render: (_: unknown, record: any) => (
+              <Button danger size="small" type="link" onClick={() => handleDeleteFlag(record.id)}>
+                Delete
+              </Button>
+            ),
+          },
+        ]}
+      />
 
       <Modal
         open={isCreating}
-        title={t('createFlag', { ns: 'admin' })}
+        title="Create Flag"
         onOk={() => form.submit()}
         onCancel={() => {
           setIsCreating(false);
@@ -102,23 +120,41 @@ const AdminFeatureFlags = () => {
         }}
       >
         <Form form={form} layout="vertical" onFinish={handleCreateFlag}>
-          <Form.Item label={t('flagKey', { ns: 'admin' })} name="key" rules={[{ required: true }]}>
+          <Form.Item label="Flag Key" name="key" rules={[{ required: true }]}>
             <Input placeholder="enable_feature_x" />
           </Form.Item>
-
-          <Form.Item label={t('label', { ns: 'admin' })} name="label" rules={[{ required: true }]}>
+          <Form.Item label="Label" name="label" rules={[{ required: true }]}>
             <Input placeholder="Feature X" />
           </Form.Item>
-
-          <Form.Item label={t('description', { ns: 'admin' })} name="description">
+          <Form.Item label="Description" name="description">
             <Input.TextArea rows={3} />
           </Form.Item>
+          <Form.Item label="Default Enabled" name="defaultEnabled" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Form>
+      </Modal>
 
-          <Form.Item
-            label={t('defaultEnabled', { ns: 'admin' })}
-            name="defaultEnabled"
-            valuePropName="checked"
-          >
+      <Modal
+        open={overrideOpen}
+        title="Per-user Flag Override"
+        onCancel={() => setOverrideOpen(false)}
+        onOk={handleOverride}
+      >
+        <Form form={overrideForm} initialValues={{ enabled: true }} layout="vertical">
+          <Form.Item label="User" name="userId" rules={[{ required: true }]}>
+            <Select
+              showSearch
+              options={(usersData || []).map((u: any) => ({
+                label: `${u.email || u.id} (${u.id.slice(0, 8)})`,
+                value: u.id,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item label="Flag" name="flagKey" rules={[{ required: true }]}>
+            <Select options={(flagsData || []).map((f: any) => ({ label: f.key, value: f.key }))} />
+          </Form.Item>
+          <Form.Item label="Enabled" name="enabled" valuePropName="checked">
             <Switch />
           </Form.Item>
         </Form>

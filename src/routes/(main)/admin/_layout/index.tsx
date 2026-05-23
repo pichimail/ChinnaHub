@@ -78,6 +78,16 @@ const AdminLayout = () => {
       label: t('featureFlags', { ns: 'admin' }),
       path: '/admin/feature-flags',
     },
+    {
+      key: 'env-vars',
+      label: 'Env Vars',
+      path: '/admin/env-vars',
+    },
+    {
+      key: 'governance',
+      label: 'Governance',
+      path: '/admin/governance',
+    },
     { key: 'audit-logs', label: t('auditLogs', { ns: 'admin' }), path: '/admin/audit-logs' },
   ];
 
