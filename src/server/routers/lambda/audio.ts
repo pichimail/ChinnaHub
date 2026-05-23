@@ -5,7 +5,12 @@ import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { GenerationModel } from '@/database/models/generation';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
-import { type AudioGenerationParams, getAudioService } from '@/server/services/audio';
+import {
+  enforceGovernancePolicy,
+  getManagedApiKey,
+  getManagedEnvVar,
+} from '@/server/services/admin/runtimeGovernance';
+import { type AudioGenerationParams, KieAiAudioService } from '@/server/services/audio';
 import { AsyncTaskStatus } from '@/types/asyncTask';
 
 const audioProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
@@ -39,7 +44,31 @@ export const audioRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const audioService = getAudioService();
+        const audioPolicy = await enforceGovernancePolicy(ctx.serverDB, {
+          domain: 'audio',
+          target: 'provider:kie-ai:model:music-generation-v5.5',
+          userId: ctx.userId,
+        });
+
+        if (!audioPolicy.allowed) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: audioPolicy.reason || 'Audio generation blocked by governance policy',
+          });
+        }
+
+        const adminManagedKey = await getManagedApiKey(ctx.serverDB, 'audio_generation');
+        const adminManagedEnvKey = await getManagedEnvVar(ctx.serverDB, 'KIE_AI_API_KEY', 'audio');
+        const apiKey = adminManagedKey || adminManagedEnvKey || process.env.KIE_AI_API_KEY;
+
+        if (!apiKey) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Audio provider API key is not configured in admin or environment',
+          });
+        }
+
+        const audioService = new KieAiAudioService(apiKey);
 
         // Create music generation task via KIE AI API
         const musicResponse = await audioService.createMusic(input.parameters);

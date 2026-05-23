@@ -14,6 +14,7 @@ import { asyncTasks, generationBatches, generations } from '@/database/schemas';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { createAsyncCaller } from '@/server/routers/async/caller';
+import { enforceGovernancePolicy } from '@/server/services/admin/runtimeGovernance';
 import { FileService } from '@/server/services/file';
 import {
   AsyncTaskError,
@@ -65,6 +66,19 @@ export const imageRouter = router({
     log('Starting image creation process, input: %O', input);
 
     const { resolvedModelId } = await resolveBusinessModelMapping(provider, model);
+
+    const imagePolicy = await enforceGovernancePolicy(serverDB, {
+      domain: 'image',
+      target: `provider:${provider}:model:${resolvedModelId}`,
+      userId,
+    });
+
+    if (!imagePolicy.allowed) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: imagePolicy.reason || 'Image generation blocked by governance policy',
+      });
+    }
 
     // Reject lobehub model ids that are no longer in the model bank so callers get a
     // clear error instead of an opaque downstream failure when the underlying channel

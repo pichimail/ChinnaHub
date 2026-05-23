@@ -30,6 +30,7 @@ import { appEnv } from '@/envs/app';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
+import { enforceGovernancePolicy } from '@/server/services/admin/runtimeGovernance';
 import { FileService } from '@/server/services/file';
 import { processBackgroundVideoPolling } from '@/server/services/generation/videoBackgroundPolling';
 import { AsyncTaskStatus, AsyncTaskType } from '@/types/asyncTask';
@@ -75,6 +76,19 @@ export const videoRouter = router({
     const { generationTopicId, provider, model, params } = input;
 
     const { resolvedModelId } = await resolveBusinessModelMapping(provider, model);
+
+    const videoPolicy = await enforceGovernancePolicy(serverDB, {
+      domain: 'video',
+      target: `provider:${provider}:model:${resolvedModelId}`,
+      userId,
+    });
+
+    if (!videoPolicy.allowed) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: videoPolicy.reason || 'Video generation blocked by governance policy',
+      });
+    }
 
     // Reject lobehub model ids that are no longer in the model bank so callers get a
     // clear error instead of an opaque downstream failure when the resolved channel

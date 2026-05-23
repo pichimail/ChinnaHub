@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { publicProcedure, router } from '@/libs/trpc/lambda';
 import { marketUserInfo, serverDatabase } from '@/libs/trpc/lambda/middleware';
+import { enforceGovernancePolicy } from '@/server/services/admin/runtimeGovernance';
 import { DiscoverService } from '@/server/services/discover';
 import { MarketService } from '@/server/services/market';
 import {
@@ -34,6 +35,22 @@ const marketSourceSchema = z.enum(['legacy', 'new']);
 const marketProcedure = publicProcedure
   .use(serverDatabase)
   .use(marketUserInfo)
+  .use(async ({ ctx, next }) => {
+    const marketPolicy = await enforceGovernancePolicy(ctx.serverDB, {
+      domain: 'marketplace',
+      target: 'discover:*',
+      userId: ctx.marketUserInfo?.id,
+    });
+
+    if (!marketPolicy.allowed) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: marketPolicy.reason || 'Marketplace access blocked by governance policy',
+      });
+    }
+
+    return next();
+  })
   .use(async ({ ctx, next }) => {
     return next({
       ctx: {
