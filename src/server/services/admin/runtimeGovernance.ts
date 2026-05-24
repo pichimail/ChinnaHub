@@ -42,16 +42,23 @@ export const enforceGovernancePolicy = async (
   reason?: string;
   target?: string;
 }> => {
-  const policies = await db
-    .select()
-    .from(adminGovernancePolicies)
-    .where(
-      and(
-        eq(adminGovernancePolicies.domain, input.domain),
-        eq(adminGovernancePolicies.isActive, true),
-      ),
-    )
-    .orderBy(asc(adminGovernancePolicies.priority));
+  const policies = await (async () => {
+    try {
+      return await db
+        .select()
+        .from(adminGovernancePolicies)
+        .where(
+          and(
+            eq(adminGovernancePolicies.domain, input.domain),
+            eq(adminGovernancePolicies.isActive, true),
+          ),
+        )
+        .orderBy(asc(adminGovernancePolicies.priority));
+    } catch (error: any) {
+      if (error?.code === '42P01' || error?.cause?.code === '42P01') return [];
+      throw error;
+    }
+  })();
 
   for (const policy of policies) {
     if (!targetMatches(policy.target, input.target)) continue;
@@ -133,16 +140,23 @@ export const enforceContentTextPolicy = async (
   db: any,
   input: ContentPolicyCheckInput,
 ): Promise<{ allowed: boolean; policyId?: string; reason?: string; target?: string }> => {
-  const contentPolicies = await db
-    .select()
-    .from(adminGovernancePolicies)
-    .where(
-      and(
-        eq(adminGovernancePolicies.domain, 'content'),
-        eq(adminGovernancePolicies.isActive, true),
-      ),
-    )
-    .orderBy(asc(adminGovernancePolicies.priority));
+  const contentPolicies = await (async () => {
+    try {
+      return await db
+        .select()
+        .from(adminGovernancePolicies)
+        .where(
+          and(
+            eq(adminGovernancePolicies.domain, 'content'),
+            eq(adminGovernancePolicies.isActive, true),
+          ),
+        )
+        .orderBy(asc(adminGovernancePolicies.priority));
+    } catch (error: any) {
+      if (error?.code === '42P01' || error?.cause?.code === '42P01') return [];
+      throw error;
+    }
+  })();
 
   for (const policy of contentPolicies) {
     if (!targetMatches(policy.target, input.contextTarget) && !targetMatches(policy.target, '*'))
@@ -193,13 +207,18 @@ export const enforceContentTextPolicy = async (
 };
 
 export const getManagedApiKey = async (db: any, service: string): Promise<string | null> => {
-  const rows = await db
-    .select()
-    .from(adminApiKeys)
-    .where(and(eq(adminApiKeys.service, service), eq(adminApiKeys.isActive, true)))
-    .limit(1);
+  try {
+    const rows = await db
+      .select()
+      .from(adminApiKeys)
+      .where(and(eq(adminApiKeys.service, service), eq(adminApiKeys.isActive, true)))
+      .limit(1);
 
-  return rows[0]?.keyValue || null;
+    return rows[0]?.keyValue || null;
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.cause?.code === '42P01') return null;
+    throw error;
+  }
 };
 
 export const getManagedEnvVar = async (
@@ -207,17 +226,22 @@ export const getManagedEnvVar = async (
   key: string,
   domain = 'global',
 ): Promise<string | null> => {
-  const rows = await db
-    .select()
-    .from(adminEnvVars)
-    .where(
-      and(
-        eq(adminEnvVars.key, key),
-        eq(adminEnvVars.domain, domain),
-        eq(adminEnvVars.isActive, true),
-      ),
-    )
-    .limit(1);
+  try {
+    const rows = await db
+      .select()
+      .from(adminEnvVars)
+      .where(
+        and(
+          eq(adminEnvVars.key, key),
+          eq(adminEnvVars.domain, domain),
+          eq(adminEnvVars.isActive, true),
+        ),
+      )
+      .limit(1);
 
-  return rows[0]?.value || null;
+    return rows[0]?.value || null;
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.cause?.code === '42P01') return null;
+    throw error;
+  }
 };
