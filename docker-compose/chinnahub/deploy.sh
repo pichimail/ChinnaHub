@@ -2,13 +2,15 @@
 # Chinna Hub — VPS Deploy Script
 # Runs on: root@187.127.156.186
 # Domain: https://app.itsmechinna.com
-set -e
+set -eo pipefail
 
 DEPLOY_DIR="/opt/chinnahub"
 BACKUP_DIR="/opt/backups/chinnahub"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 COMPOSE_FILE="$DEPLOY_DIR/docker-compose/chinnahub/docker-compose.yml"
 ENV_FILE="$DEPLOY_DIR/docker-compose/chinnahub/.env"
+SKIP_GIT_PULL="${SKIP_GIT_PULL:-0}"
+APP_URL="${APP_URL:-https://app.itsmechinna.com}"
 
 echo "========================================"
 echo " Chinna Hub Deploy — $TIMESTAMP"
@@ -41,10 +43,14 @@ done
 echo ""
 echo "▶ [2/7] Pulling latest code from git..."
 cd "$DEPLOY_DIR"
-git fetch origin
-git checkout agents/code-audit-white-label-optimization
-git pull origin agents/code-audit-white-label-optimization
-echo "  ✓ Code updated"
+if [ "$SKIP_GIT_PULL" = "1" ]; then
+  echo "  ✓ Using uploaded local working tree (git pull skipped)"
+else
+  git fetch origin
+  git checkout agents/code-audit-white-label-optimization
+  git pull origin agents/code-audit-white-label-optimization
+  echo "  ✓ Code updated"
+fi
 
 # ── 3. ENSURE NETWORK EXISTS ─────────────────
 echo ""
@@ -83,8 +89,19 @@ echo "  ✓ Services started"
 echo ""
 echo "▶ [7/7] Running database migrations..."
 sleep 5
-docker exec chinnahub-app sh -c "node_modules/.bin/drizzle-kit migrate 2>/dev/null || npx drizzle-kit migrate 2>/dev/null || echo 'Migration skipped (run manually if needed)'"
+docker exec chinnahub-app /bin/node /app/docker.cjs
 echo "  ✓ Migrations done"
+
+echo ""
+echo "▶ Verifying public routes..."
+for ROUTE in / /admin /admin/api-keys /admin/feature-flags /admin/plans /image /video /audio; do
+  STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" "$APP_URL$ROUTE")
+  if [ "$STATUS" != "200" ]; then
+    echo "  ✗ $APP_URL$ROUTE returned HTTP $STATUS"
+    exit 1
+  fi
+  echo "  ✓ $APP_URL$ROUTE → HTTP 200"
+done
 
 # ── DONE ─────────────────────────────────────
 echo ""
