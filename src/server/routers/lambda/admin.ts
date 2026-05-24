@@ -7,6 +7,9 @@ import {
   adminAuditLogs,
   adminEnvVars,
   adminGovernancePolicies,
+  adminPlanFeatures,
+  adminPlans,
+  adminUserPlans,
   featureFlagAssignments,
   featureFlags,
 } from '@/database/schemas/admin';
@@ -54,12 +57,23 @@ const publishUserFeatureOverrides = async (ctx: any, userId: string) => {
   const redis = await initializeRedis(getRedisConfig());
   if (!redis) return;
 
-  const assignments = await ctx.serverDB
-    .select()
-    .from(featureFlagAssignments)
-    .where(eq(featureFlagAssignments.userId, userId));
+  const [assignments, userPlanRows] = await Promise.all([
+    ctx.serverDB
+      .select()
+      .from(featureFlagAssignments)
+      .where(eq(featureFlagAssignments.userId, userId)),
+    ctx.serverDB.select().from(adminUserPlans).where(eq(adminUserPlans.userId, userId)).limit(1),
+  ]);
 
-  const payload = Object.fromEntries(assignments.map((a: any) => [a.flagKey, !!a.enabled]));
+  const planKey = userPlanRows[0]?.planKey || 'starter';
+  const planFeatures = await ctx.serverDB
+    .select()
+    .from(adminPlanFeatures)
+    .where(eq(adminPlanFeatures.planKey, planKey));
+
+  const planPayload = Object.fromEntries(planFeatures.map((f: any) => [f.flagKey, !!f.enabled]));
+  const userPayload = Object.fromEntries(assignments.map((a: any) => [a.flagKey, !!a.enabled]));
+  const payload = { ...planPayload, ...userPayload };
 
   await redis.set(
     `runtime-config:feature-flags:user:${userId}`,
@@ -68,6 +82,167 @@ const publishUserFeatureOverrides = async (ctx: any, userId: string) => {
 };
 
 const governanceDomains = ['content', 'pricing', 'marketplace', 'image', 'video', 'audio'] as const;
+
+const featureCatalog = [
+  ['chat', 'Chat', 'Core chat and conversation access', true],
+  ['agents', 'Agents', 'Create and use AI agents', true],
+  ['agent_teams', 'Agent Teams', 'Group and orchestrate multiple agents', true],
+  ['tasks', 'Tasks', 'Task workspace and automation controls', true],
+  ['pages', 'Pages', 'Document and page workspace', true],
+  ['resources', 'Resources', 'Personal resource and file library', true],
+  ['market', 'Marketplace', 'Browse marketplace items, agents, skills, and MCP entries', true],
+  ['skills', 'Skills', 'Install and run skills', true],
+  ['mcp', 'MCP Connectors', 'Use MCP/plugin connectors', true],
+  ['provider_settings', 'AI Providers', 'Manage AI provider settings', true],
+  ['ai_models', 'AI Models', 'Access AI model picker and model catalog', true],
+  ['api_key_manage', 'API Key Management', 'Manage personal API keys', false],
+  ['ai_image', 'Image Generation', 'Generate images', true],
+  ['ai_video', 'Video Generation', 'Generate videos', true],
+  ['ai_audio', 'Audio Generation', 'Generate music and audio', true],
+  ['audio_accoustica_classic', 'Accoustica Classic', 'KIE/Suno-backed music generation', true],
+  [
+    'audio_accoustica_lyria',
+    'Accoustica Lyria',
+    'OpenRouter-compatible Lyria music generation',
+    false,
+  ],
+  ['channels', 'Messaging Channels', 'Connect external messenger channels', true],
+  ['channel_discord', 'Discord Channel', 'Expose Discord bot channel', true],
+  ['channel_telegram', 'Telegram Channel', 'Expose Telegram bot channel', true],
+  ['channel_slack', 'Slack Channel', 'Expose Slack bot channel', true],
+  ['channel_wechat', 'WeChat Channel', 'Expose WeChat bot channel', true],
+  ['channel_line', 'LINE Channel', 'Expose LINE bot channel', true],
+  ['channel_whatsapp', 'WhatsApp Channel', 'Expose WhatsApp QR channel', true],
+  ['speech_to_text', 'Speech to Text', 'Voice transcription in chat', true],
+  ['knowledge_base', 'Knowledge Base', 'Knowledge base and RAG access', true],
+  ['rag_eval', 'RAG Evaluation', 'Knowledge base evaluation tooling', false],
+  ['token_counter', 'Token Counter', 'Token usage helpers', true],
+  ['welcome_suggest', 'Welcome Suggestions', 'Starter prompts and suggestions', true],
+] as const;
+
+const defaultPlans = [
+  {
+    config: { support: 'community' },
+    description: 'Entry plan for normal chat and starter generation access.',
+    key: 'starter',
+    label: 'Starter',
+    monthlyCredits: { audio: 5, chat: 1000, image: 50, video: 5 },
+    sortOrder: 10,
+  },
+  {
+    config: { support: 'priority' },
+    description: 'Creator plan with expanded generation and marketplace access.',
+    key: 'creator',
+    label: 'Creator',
+    monthlyCredits: { audio: 50, chat: 5000, image: 500, video: 50 },
+    sortOrder: 20,
+  },
+  {
+    config: { support: 'enterprise', governance: true },
+    description: 'Enterprise plan with complete admin-governed feature access.',
+    key: 'enterprise',
+    label: 'Enterprise',
+    monthlyCredits: { audio: 500, chat: 50_000, image: 5000, video: 500 },
+    sortOrder: 30,
+  },
+] as const;
+
+const planFeatureMatrix: Record<string, string[]> = {
+  starter: [
+    'chat',
+    'agents',
+    'tasks',
+    'pages',
+    'resources',
+    'ai_image',
+    'ai_audio',
+    'audio_accoustica_classic',
+    'channel_discord',
+    'channel_telegram',
+    'channel_slack',
+    'speech_to_text',
+    'knowledge_base',
+    'token_counter',
+    'welcome_suggest',
+  ],
+  creator: [
+    'chat',
+    'agents',
+    'agent_teams',
+    'tasks',
+    'pages',
+    'resources',
+    'market',
+    'skills',
+    'mcp',
+    'provider_settings',
+    'ai_models',
+    'ai_image',
+    'ai_video',
+    'ai_audio',
+    'audio_accoustica_classic',
+    'audio_accoustica_lyria',
+    'channels',
+    'channel_discord',
+    'channel_telegram',
+    'channel_slack',
+    'channel_wechat',
+    'channel_line',
+    'channel_whatsapp',
+    'speech_to_text',
+    'knowledge_base',
+    'rag_eval',
+    'token_counter',
+    'welcome_suggest',
+  ],
+  enterprise: featureCatalog.map(([key]) => key),
+};
+
+const ensureFeatureCatalog = async (ctx: any) => {
+  const existing = await ctx.serverDB.select().from(featureFlags);
+  const existingKeys = new Set(existing.map((flag: any) => flag.key));
+  const missing = featureCatalog
+    .filter(([key]) => !existingKeys.has(key))
+    .map(([key, label, description, defaultEnabled]) => ({
+      defaultEnabled,
+      description,
+      key,
+      label,
+    }));
+
+  if (missing.length > 0) {
+    await ctx.serverDB.insert(featureFlags).values(missing);
+    await publishRuntimeFeatureFlags(ctx);
+  }
+};
+
+const ensureDefaultPlans = async (ctx: any) => {
+  const existingPlans = await ctx.serverDB.select().from(adminPlans);
+  const existingPlanKeys = new Set(existingPlans.map((plan: any) => plan.key));
+  const missingPlans = defaultPlans.filter((plan) => !existingPlanKeys.has(plan.key));
+
+  if (missingPlans.length > 0) {
+    await ctx.serverDB.insert(adminPlans).values(missingPlans as any);
+  }
+
+  const existingFeatures = await ctx.serverDB.select().from(adminPlanFeatures);
+  const existingFeatureKeys = new Set(
+    existingFeatures.map((feature: any) => `${feature.planKey}:${feature.flagKey}`),
+  );
+  const missingFeatures = Object.entries(planFeatureMatrix)
+    .flatMap(([planKey, flagKeys]) =>
+      featureCatalog.map(([flagKey]) => ({
+        enabled: flagKeys.includes(flagKey),
+        flagKey,
+        planKey,
+      })),
+    )
+    .filter((feature) => !existingFeatureKeys.has(`${feature.planKey}:${feature.flagKey}`));
+
+  if (missingFeatures.length > 0) {
+    await ctx.serverDB.insert(adminPlanFeatures).values(missingFeatures);
+  }
+};
 
 export const adminRouter = router({
   getUsers: adminProcedure
@@ -156,6 +331,7 @@ export const adminRouter = router({
     }),
 
   getFeatureFlags: adminProcedure.query(async ({ ctx }) => {
+    await ensureFeatureCatalog(ctx);
     const flags = await ctx.serverDB.select().from(featureFlags).orderBy(featureFlags.key);
     return { success: true, data: flags };
   }),
@@ -294,6 +470,159 @@ export const adminRouter = router({
         .where(eq(featureFlagAssignments.userId, input.userId));
 
       return { success: true, data: assignments };
+    }),
+
+  getPlans: adminProcedure.query(async ({ ctx }) => {
+    await ensureFeatureCatalog(ctx);
+    await ensureDefaultPlans(ctx);
+
+    const [plans, planFeatures, userPlans] = await Promise.all([
+      ctx.serverDB.select().from(adminPlans).orderBy(adminPlans.sortOrder, adminPlans.key),
+      ctx.serverDB.select().from(adminPlanFeatures).orderBy(adminPlanFeatures.planKey),
+      ctx.serverDB.select().from(adminUserPlans),
+    ]);
+
+    return {
+      success: true,
+      data: { planFeatures, plans, userPlans },
+    };
+  }),
+
+  upsertPlan: adminProcedure
+    .input(
+      z.object({
+        config: z.record(z.string(), z.unknown()).default({}),
+        description: z.string().optional(),
+        isActive: z.boolean().default(true),
+        key: z.string().min(1),
+        label: z.string().min(1),
+        monthlyCredits: z
+          .object({
+            audio: z.number().int().nonnegative().optional(),
+            chat: z.number().int().nonnegative().optional(),
+            image: z.number().int().nonnegative().optional(),
+            video: z.number().int().nonnegative().optional(),
+          })
+          .default({}),
+        sortOrder: z.number().int().default(100),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.serverDB
+        .select()
+        .from(adminPlans)
+        .where(eq(adminPlans.key, input.key))
+        .limit(1);
+
+      if (existing[0]) {
+        await ctx.serverDB
+          .update(adminPlans)
+          .set({ ...input, updatedAt: new Date() })
+          .where(eq(adminPlans.id, existing[0].id));
+      } else {
+        await ctx.serverDB.insert(adminPlans).values(input);
+      }
+
+      await ctx.serverDB.insert(adminAuditLogs).values({
+        action: 'plan.upsert',
+        adminEmail: ctx.adminEmail,
+        adminId: ctx.adminId,
+        metadata: input,
+        targetId: input.key,
+        targetType: 'admin_plan',
+      });
+
+      return { success: true };
+    }),
+
+  setPlanFeature: adminProcedure
+    .input(
+      z.object({
+        enabled: z.boolean(),
+        flagKey: z.string().min(1),
+        limits: z.record(z.string(), z.unknown()).default({}),
+        planKey: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.serverDB
+        .select()
+        .from(adminPlanFeatures)
+        .where(
+          and(
+            eq(adminPlanFeatures.planKey, input.planKey),
+            eq(adminPlanFeatures.flagKey, input.flagKey),
+          ),
+        )
+        .limit(1);
+
+      if (existing[0]) {
+        await ctx.serverDB
+          .update(adminPlanFeatures)
+          .set({ enabled: input.enabled, limits: input.limits, updatedAt: new Date() })
+          .where(eq(adminPlanFeatures.id, existing[0].id));
+      } else {
+        await ctx.serverDB.insert(adminPlanFeatures).values(input);
+      }
+
+      await ctx.serverDB.insert(adminAuditLogs).values({
+        action: 'plan.feature_update',
+        adminEmail: ctx.adminEmail,
+        adminId: ctx.adminId,
+        metadata: input,
+        targetId: `${input.planKey}:${input.flagKey}`,
+        targetType: 'admin_plan_feature',
+      });
+
+      return { success: true };
+    }),
+
+  assignUserPlan: adminProcedure
+    .input(
+      z.object({
+        notes: z.string().optional(),
+        planKey: z.string().min(1),
+        userId: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.serverDB
+        .select()
+        .from(adminUserPlans)
+        .where(eq(adminUserPlans.userId, input.userId))
+        .limit(1);
+
+      if (existing[0]) {
+        await ctx.serverDB
+          .update(adminUserPlans)
+          .set({
+            assignedBy: ctx.adminId,
+            notes: input.notes,
+            planKey: input.planKey,
+            updatedAt: new Date(),
+          })
+          .where(eq(adminUserPlans.id, existing[0].id));
+      } else {
+        await ctx.serverDB.insert(adminUserPlans).values({
+          assignedBy: ctx.adminId,
+          notes: input.notes,
+          planKey: input.planKey,
+          userId: input.userId,
+        });
+      }
+
+      await publishUserFeatureOverrides(ctx, input.userId);
+
+      await ctx.serverDB.insert(adminAuditLogs).values({
+        action: 'plan.user_assign',
+        adminEmail: ctx.adminEmail,
+        adminId: ctx.adminId,
+        metadata: input,
+        targetId: input.userId,
+        targetType: 'user',
+      });
+
+      return { success: true };
     }),
 
   getAuditLogs: adminProcedure

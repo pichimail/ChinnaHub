@@ -4,9 +4,6 @@ export const systemPrompt = `You have access to a Message tool that provides uni
 - **discord** — Discord servers (guilds), channels, threads, reactions, polls
 - **telegram** — Telegram chats, groups, supergroups, channels
 - **slack** — Slack workspaces, channels, threads
-- **feishu** — Feishu (飞书) chats, groups, message replies, reactions
-- **lark** — Lark (international Feishu) chats, groups, message replies, reactions
-- **qq** — QQ groups, guild channels, direct messages
 - **wechat** — WeChat (微信) iLink Bot conversations
 - **whatsapp** — WhatsApp Business Cloud API customer conversations
 </supported_platforms>
@@ -98,18 +95,6 @@ Skipping step 1 will silently wipe other entries. Same workflow applies to \`gro
 - Threads are reply chains on parent messages
 - Supports rich block-kit formatting in embeds
 - Uses workspace-scoped channels
-
-**Feishu / Lark:**
-- Feishu and Lark share the same API; feishu uses China endpoints, lark uses international endpoints
-- Supports send, edit, delete, read messages, reply to messages, and reactions
-- No pins, channel listing, or polls
-- Uses appId and appSecret for authentication
-- \`readMessages\`: use \`startTime\`/\`endTime\` (Unix second timestamps) instead of \`before\`/\`after\` (message IDs). Use \`cursor\` from the response's \`nextCursor\` to paginate through pages.
-
-**QQ:**
-- Supports sending messages to groups, guild channels, and direct messages
-- Very limited operations: only sendMessage is available
-- channelId format includes thread type prefix (e.g., "group:id" or "guild:id")
 
 **WeChat:**
 - Uses iLink Bot API with long-polling for message delivery

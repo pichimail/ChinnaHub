@@ -14,6 +14,10 @@ import {
 } from '@/server/services/bot/agentBotProviderSettings';
 import { getBotMessageRouter } from '@/server/services/bot/BotMessageRouter';
 import { mergeWithDefaults, platformRegistry } from '@/server/services/bot/platforms';
+import {
+  pollWhatsAppQrSession,
+  startWhatsAppQrSession,
+} from '@/server/services/bot/platforms/whatsapp/qr';
 import { GatewayService } from '@/server/services/gateway';
 import { getBotRuntimeStatus } from '@/server/services/gateway/runtimeStatus';
 
@@ -249,6 +253,18 @@ export const agentBotProviderRouter = router({
     .input(z.object({ qrcode: z.string() }))
     .query(async ({ input }) => {
       return pollQrStatus(input.qrcode);
+    }),
+
+  whatsappGetQrCode: authedProcedure
+    .input(z.object({ sessionId: z.string().optional() }).optional())
+    .mutation(async ({ input }) => {
+      return startWhatsAppQrSession(input?.sessionId);
+    }),
+
+  whatsappPollQrStatus: authedProcedure
+    .input(z.object({ sessionId: z.string() }))
+    .query(async ({ input }) => {
+      return pollWhatsAppQrSession(input.sessionId);
     }),
 
   update: agentBotProviderProcedure

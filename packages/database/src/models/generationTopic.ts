@@ -1,4 +1,5 @@
 import type {
+  AudioGenerationAsset,
   ImageGenerationAsset,
   ImageGenerationTopic,
   VideoGenerationAsset,
@@ -66,7 +67,7 @@ export class GenerationTopicModel {
         .where(eq(generationTopics.userId, this.userId));
 
       topics =
-        type === 'video'
+        type && type !== 'image'
           ? []
           : legacyTopics.map(
               (topic) => ({ ...topic, type: 'image' }) as unknown as GenerationTopicItem,
@@ -101,7 +102,7 @@ export class GenerationTopicModel {
       if (!isMissingTypeColumnError(error)) throw error;
 
       // Legacy schema has no `type` column and only supports image topics.
-      if (type === 'video') throw error;
+      if (type && type !== 'image') throw error;
 
       const [legacyTopic] = await this.db
         .insert(generationTopics)
@@ -182,7 +183,11 @@ export class GenerationTopicModel {
     if (topicWithBatches.batches) {
       for (const batch of topicWithBatches.batches) {
         for (const gen of batch.generations) {
-          const asset = gen.asset as ImageGenerationAsset | VideoGenerationAsset | null;
+          const asset = gen.asset as
+            | AudioGenerationAsset
+            | ImageGenerationAsset
+            | VideoGenerationAsset
+            | null;
           if (asset?.url) filesToDelete.push(asset.url);
           if (asset?.thumbnailUrl) filesToDelete.push(asset.thumbnailUrl);
           if (asset && 'coverUrl' in asset && asset.coverUrl) {

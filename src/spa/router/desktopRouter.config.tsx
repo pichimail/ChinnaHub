@@ -497,6 +497,13 @@ export const desktopRoutes: RouteObject[] = [
           },
           {
             element: dynamicElement(
+              () => import('@/routes/(main)/admin/plans'),
+              'Desktop > Admin > Plans',
+            ),
+            path: 'plans',
+          },
+          {
+            element: dynamicElement(
               () => import('@/routes/(main)/admin/env-vars'),
               'Desktop > Admin > Env Vars',
             ),
@@ -639,6 +646,24 @@ export const desktopRoutes: RouteObject[] = [
             ),
             errorElement: <ErrorBoundary />,
             path: 'image',
+          },
+          {
+            // Audio routes
+            children: [
+              {
+                element: dynamicElement(
+                  () => import('@/routes/(main)/(create)/audio'),
+                  'Desktop > Create > Audio',
+                ),
+                index: true,
+              },
+            ],
+            element: dynamicLayout(
+              () => import('@/routes/(main)/(create)/audio/_layout'),
+              'Desktop > Create > Audio > Layout',
+            ),
+            errorElement: <ErrorBoundary />,
+            path: 'audio',
           },
         ],
         element: dynamicLayout(

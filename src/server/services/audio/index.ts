@@ -4,15 +4,16 @@ const log = debug('lobe-audio:service');
 
 const MUSIC_API_BASE_URL = 'https://api.kie.ai/api/v1/suno';
 const MUSIC_MODEL = 'music-generation-v5.5'; // V5.5 model
-const POLLING_INTERVAL = 3000; // 3 seconds (configurable: 3-5 seconds)
-const MAX_POLLING_ATTEMPTS = 200; // ~10 minutes max
 
 export interface AudioGenerationParams {
   makeInstrumental?: boolean;
   prompt: string;
+  providerMode?: AudioProviderMode;
   style?: string;
   title?: string;
 }
+
+export type AudioProviderMode = 'classic' | 'lyria';
 
 export interface AudioGenerationResponse {
   audioUrl?: string;
@@ -69,10 +70,14 @@ export class KieAiAudioService {
       }
 
       const data = (await response.json()) as any;
-      log('Task created successfully: %O', { id: data.id, status: data.status });
+      const taskId = data.id || data.taskId || data.data?.id || data.data?.taskId || '';
+      log('Task created successfully: %O', {
+        id: taskId,
+        status: data.status || data.data?.status,
+      });
 
       return {
-        id: data.id || '',
+        id: taskId,
         status: 'processing',
       };
     } catch (error) {
@@ -84,96 +89,135 @@ export class KieAiAudioService {
   async pollMusicStatus(taskId: string): Promise<AudioGenerationResponse> {
     log('Polling music status for task: %s', taskId);
 
-    let attempts = 0;
+    const response = await fetch(`${MUSIC_API_BASE_URL}/task/${taskId}`, {
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'GET',
+    });
 
-    while (attempts < MAX_POLLING_ATTEMPTS) {
-      try {
-        const response = await fetch(`${MUSIC_API_BASE_URL}/task/${taskId}`, {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          method: 'GET',
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          log('Poll error: %s - %s', response.status, errorText);
-          throw new Error(`Poll error: ${response.status}`);
-        }
-
-        const data = (await response.json()) as any;
-        log('Poll result: %O', { status: data.status, id: taskId });
-
-        // Task completed successfully
-        if (data.status === 'succeeded' || data.status === 'success') {
-          return {
-            audioUrl: data.audio_url || data.audioUrl || '',
-            duration: data.duration,
-            id: taskId,
-            metadata: {
-              clipId: data.clip_id,
-              seedId: data.seed_id,
-              title: data.title,
-            },
-            status: 'completed',
-            title: data.title,
-          };
-        }
-
-        // Task failed
-        if (data.status === 'error' || data.status === 'failed') {
-          return {
-            error: data.error_message || 'Music generation failed',
-            id: taskId,
-            status: 'failed',
-          };
-        }
-
-        // Still processing - wait and retry
-        if (data.status === 'processing' || data.status === 'pending' || data.status === 'queued') {
-          attempts++;
-          log('Task still processing (attempt %d/%d), waiting...', attempts, MAX_POLLING_ATTEMPTS);
-          await this.delay(POLLING_INTERVAL);
-          continue;
-        }
-
-        // Unknown status
-        log('Unknown status: %s', data.status);
-        return {
-          id: taskId,
-          status: 'processing',
-        };
-      } catch (error) {
-        log('Poll failed: %O', error);
-        attempts++;
-
-        if (attempts >= MAX_POLLING_ATTEMPTS) {
-          throw new Error('Music generation polling timeout', { cause: error });
-        }
-
-        await this.delay(POLLING_INTERVAL);
-      }
+    if (!response.ok) {
+      const errorText = await response.text();
+      log('Poll error: %s - %s', response.status, errorText);
+      throw new Error(`Poll error: ${response.status}`);
     }
 
-    throw new Error('Music generation polling timeout');
-  }
+    const data = (await response.json()) as any;
+    const payload = data.data || data;
+    const status = payload.status || data.status;
+    log('Poll result: %O', { id: taskId, status });
 
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    if (['succeeded', 'success', 'completed', 'complete'].includes(status)) {
+      return {
+        audioUrl:
+          payload.audio_url ||
+          payload.audioUrl ||
+          payload.audio ||
+          payload.url ||
+          payload.response?.audioUrl ||
+          '',
+        duration: payload.duration,
+        id: taskId,
+        metadata: {
+          clipId: payload.clip_id,
+          raw: data,
+          seedId: payload.seed_id,
+          title: payload.title,
+        },
+        status: 'completed',
+        title: payload.title,
+      };
+    }
+
+    if (['error', 'failed', 'failure'].includes(status)) {
+      return {
+        error:
+          payload.error_message || payload.error || payload.message || 'Music generation failed',
+        id: taskId,
+        status: 'failed',
+      };
+    }
+
+    return {
+      id: taskId,
+      metadata: { raw: data },
+      status: 'processing',
+    };
   }
 }
 
-// Singleton instance
-let audioServiceInstance: KieAiAudioService | null = null;
+export class OpenRouterLyriaAudioService {
+  private apiKey: string;
+  private modelId: string;
 
-export const getAudioService = (): KieAiAudioService => {
-  if (!audioServiceInstance) {
-    const apiKey = process.env.KIE_AI_API_KEY;
+  constructor(apiKey: string, modelId: string) {
     if (!apiKey) {
-      throw new Error('KIE_AI_API_KEY environment variable is not set');
+      throw new Error('OPENROUTER_API_KEY is required for Accoustica Lyria');
     }
-    audioServiceInstance = new KieAiAudioService(apiKey);
+
+    this.apiKey = apiKey;
+    this.modelId = modelId || 'google/lyria-002';
   }
-  return audioServiceInstance;
-};
+
+  async createMusic(params: AudioGenerationParams): Promise<AudioGenerationResponse> {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      body: JSON.stringify({
+        messages: [
+          {
+            content: [
+              params.title && `Title: ${params.title}`,
+              params.style && `Style: ${params.style}`,
+              params.makeInstrumental ? 'Instrumental only.' : undefined,
+              params.prompt,
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            role: 'user',
+          },
+        ],
+        model: this.modelId,
+      }),
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`OpenRouter Lyria error: ${response.status} ${errorText}`);
+    }
+
+    const data = (await response.json()) as any;
+    const audioUrl =
+      data.audio_url ||
+      data.audioUrl ||
+      data.url ||
+      data.choices?.[0]?.message?.audio_url ||
+      data.choices?.[0]?.message?.audioUrl;
+
+    if (!audioUrl) {
+      throw new Error(
+        'Accoustica Lyria did not return an audio URL. Check the configured model ID.',
+      );
+    }
+
+    return {
+      audioUrl,
+      duration: data.duration,
+      id: data.id || crypto.randomUUID(),
+      metadata: { raw: data },
+      status: 'completed',
+      title: params.title,
+    };
+  }
+
+  async pollMusicStatus(taskId: string): Promise<AudioGenerationResponse> {
+    return {
+      id: taskId,
+      status: 'processing',
+    };
+  }
+}

@@ -10,6 +10,7 @@ export enum FilesTabs {
 }
 
 export enum FileSource {
+  AudioGeneration = 'audio_generation',
   ImageGeneration = 'image_generation',
   PageEditor = 'page-editor',
   VideoGeneration = 'video_generation',

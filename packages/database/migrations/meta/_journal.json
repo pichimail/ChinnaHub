@@ -735,6 +735,13 @@
       "when": 1779201960853,
       "tag": "0104_normal_mercury",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1779588976069,
+      "tag": "0107_admin_plans_feature_catalog",
+      "breakpoints": true
     }
   ],
   "version": "6"

@@ -1,7 +1,16 @@
-import { Outlet } from 'react-router-dom';
+'use client';
 
-const AudioPage = () => {
-  return <Outlet />;
-};
+import { memo } from 'react';
 
-export default AudioPage;
+import CreateGenerationPage from '@/routes/(main)/(create)/features/CreateGenerationPage';
+
+import { AudioWorkspace } from './features/AudioWorkspace';
+import PromptInput from './features/PromptInput';
+
+const DesktopAudioPage = memo(() => (
+  <CreateGenerationPage PromptInput={PromptInput} Workspace={AudioWorkspace} />
+));
+
+DesktopAudioPage.displayName = 'DesktopAudioPage';
+
+export default DesktopAudioPage;

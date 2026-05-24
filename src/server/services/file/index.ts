@@ -1,4 +1,5 @@
 import { type LobeChatDatabase } from '@lobechat/database';
+import { type FileSource } from '@lobechat/types';
 import { inferContentTypeFromImageUrl, nanoid, uuid } from '@lobechat/utils';
 import { TRPCError } from '@trpc/server';
 import { sha256 } from 'js-sha256';
@@ -11,6 +12,44 @@ import { TempFileManager } from '@/server/utils/tempFileManager';
 
 import { createFileServiceModule } from './impls';
 import { type FileServiceImpl } from './impls/type';
+
+const inferContentTypeFromPath = (pathname: string, fallback = 'application/octet-stream') => {
+  const extension = pathname.split(/[?#]/)[0]?.split('.').pop()?.toLowerCase();
+
+  switch (extension) {
+    case 'aac': {
+      return 'audio/aac';
+    }
+    case 'flac': {
+      return 'audio/flac';
+    }
+    case 'm4a': {
+      return 'audio/mp4';
+    }
+    case 'mp3': {
+      return 'audio/mpeg';
+    }
+    case 'ogg': {
+      return 'audio/ogg';
+    }
+    case 'opus': {
+      return 'audio/ogg; codecs=opus';
+    }
+    case 'wav': {
+      return 'audio/wav';
+    }
+    case 'webm': {
+      return 'audio/webm';
+    }
+    default: {
+      try {
+        return inferContentTypeFromImageUrl(pathname);
+      } catch {
+        return fallback;
+      }
+    }
+  }
+};
 
 /**
  * File service class
@@ -133,6 +172,7 @@ export class FileService {
     id?: string;
     metadata?: Record<string, unknown>;
     name: string;
+    source?: FileSource;
     size: number;
     url: string;
   }): Promise<{ fileId: string; url: string }> {
@@ -148,6 +188,7 @@ export class FileService {
         id: params.id, // Use custom ID if provided
         metadata: params.metadata,
         name: params.name,
+        source: params.source,
         size: params.size,
         url: params.url,
       },
@@ -333,6 +374,7 @@ export class FileService {
   public async uploadFromUrl(
     externalUrl: string,
     pathname: string,
+    source?: FileSource,
   ): Promise<{ fileId: string; key: string; url: string }> {
     const response = await fetch(externalUrl);
 
@@ -343,25 +385,21 @@ export class FileService {
       });
     }
 
+    let fileType = response.headers.get('content-type') || '';
+    if (!fileType || fileType === 'application/octet-stream') {
+      fileType = inferContentTypeFromPath(pathname, fileType || 'application/octet-stream');
+    }
+
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    // Upload to storage (S3 or local)
-    const { key } = await this.uploadMedia(pathname, buffer);
+    // Upload with the resolved content type so generated audio remains playable from storage.
+    const { key } = await this.uploadBuffer(pathname, buffer, fileType);
 
     // Extract filename from pathname
     const name = pathname.split('/').pop() || 'unknown';
 
     // Calculate file metadata
     const size = buffer.length;
-    let fileType = response.headers.get('content-type') || '';
-    if (!fileType || fileType === 'application/octet-stream') {
-      try {
-        fileType = inferContentTypeFromImageUrl(pathname);
-      } catch {
-        // inferContentTypeFromImageUrl throws for non-image extensions — fall back
-        fileType = fileType || 'application/octet-stream';
-      }
-    }
     const hash = sha256(buffer);
 
     // Generate UUID for cleaner URLs
@@ -373,6 +411,7 @@ export class FileService {
       fileType,
       id: fileId,
       name,
+      source,
       size,
       url: key,
     });

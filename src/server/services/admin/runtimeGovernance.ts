@@ -42,23 +42,21 @@ export const enforceGovernancePolicy = async (
   reason?: string;
   target?: string;
 }> => {
-  const policies = await (async () => {
-    try {
-      return await db
-        .select()
-        .from(adminGovernancePolicies)
-        .where(
-          and(
-            eq(adminGovernancePolicies.domain, input.domain),
-            eq(adminGovernancePolicies.isActive, true),
-          ),
-        )
-        .orderBy(asc(adminGovernancePolicies.priority));
-    } catch (error: any) {
-      if (error?.code === '42P01' || error?.cause?.code === '42P01') return [];
-      throw error;
-    }
-  })();
+  let policies = [];
+  try {
+    policies = await db
+      .select()
+      .from(adminGovernancePolicies)
+      .where(
+        and(
+          eq(adminGovernancePolicies.domain, input.domain),
+          eq(adminGovernancePolicies.isActive, true),
+        ),
+      )
+      .orderBy(asc(adminGovernancePolicies.priority));
+  } catch (error: any) {
+    if (error?.code !== '42P01' && error?.cause?.code !== '42P01') throw error;
+  }
 
   for (const policy of policies) {
     if (!targetMatches(policy.target, input.target)) continue;
@@ -140,23 +138,21 @@ export const enforceContentTextPolicy = async (
   db: any,
   input: ContentPolicyCheckInput,
 ): Promise<{ allowed: boolean; policyId?: string; reason?: string; target?: string }> => {
-  const contentPolicies = await (async () => {
-    try {
-      return await db
-        .select()
-        .from(adminGovernancePolicies)
-        .where(
-          and(
-            eq(adminGovernancePolicies.domain, 'content'),
-            eq(adminGovernancePolicies.isActive, true),
-          ),
-        )
-        .orderBy(asc(adminGovernancePolicies.priority));
-    } catch (error: any) {
-      if (error?.code === '42P01' || error?.cause?.code === '42P01') return [];
-      throw error;
-    }
-  })();
+  let contentPolicies = [];
+  try {
+    contentPolicies = await db
+      .select()
+      .from(adminGovernancePolicies)
+      .where(
+        and(
+          eq(adminGovernancePolicies.domain, 'content'),
+          eq(adminGovernancePolicies.isActive, true),
+        ),
+      )
+      .orderBy(asc(adminGovernancePolicies.priority));
+  } catch (error: any) {
+    if (error?.code !== '42P01' && error?.cause?.code !== '42P01') throw error;
+  }
 
   for (const policy of contentPolicies) {
     if (!targetMatches(policy.target, input.contextTarget) && !targetMatches(policy.target, '*'))

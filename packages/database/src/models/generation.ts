@@ -1,6 +1,7 @@
 import type {
   AsyncTaskError,
   AsyncTaskStatus,
+  AudioGenerationAsset,
   Generation,
   GenerationAsset,
   ImageGenerationAsset,
@@ -179,8 +180,14 @@ export class GenerationModel {
    */
   async transformGeneration(generation: GenerationWithAsyncTask): Promise<Generation> {
     // Process asset URLs if they exist, following the same logic as in generationBatch.ts
-    const asset = generation.asset as ImageGenerationAsset | VideoGenerationAsset | null;
-    if (asset && asset.url && asset.thumbnailUrl) {
+    const asset = generation.asset as
+      | AudioGenerationAsset
+      | ImageGenerationAsset
+      | VideoGenerationAsset
+      | null;
+    if (asset?.type === 'audio' && asset.url) {
+      asset.url = await this.fileService.getFullFileUrl(asset.url);
+    } else if (asset && asset.url && 'thumbnailUrl' in asset && asset.thumbnailUrl) {
       const urlPromises: Promise<string>[] = [
         this.fileService.getFullFileUrl(asset.url),
         this.fileService.getFullFileUrl(asset.thumbnailUrl),

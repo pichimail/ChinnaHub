@@ -23,11 +23,7 @@ export const displayToolCallsField: FieldSchema = {
  */
 const USER_ID_TOOLTIP_BY_PLATFORM: Record<string, string> = {
   discord: 'channel.userIdHint.discord',
-  // Feishu and Lark share `sharedSchema`, which always passes 'feishu' — the
-  // tooltip copy mentions both products so it reads naturally for either.
-  feishu: 'channel.userIdHint.feishu',
   line: 'channel.userIdHint.line',
-  qq: 'channel.userIdHint.qq',
   slack: 'channel.userIdHint.slack',
   telegram: 'channel.userIdHint.telegram',
   whatsapp: 'channel.userIdHint.whatsapp',
@@ -77,18 +73,14 @@ export function makeUserIdField(platform?: string): FieldSchema {
  * naturally — this only governs the small set of static strings the bot
  * itself emits.
  *
- * Picked per-platform since each platform has a primary audience: Chinese
- * platforms (Feishu / QQ / WeChat) ship Chinese strings, the rest ship
- * English. Languages without an entry in the system-string dictionary
+ * Picked per-platform since each platform has a primary audience: WeChat ships
+ * Chinese strings, the rest ship English. Languages without an entry in the system-string dictionary
  * gracefully fall back to `DEFAULT_LANG` ('en-US') at render time.
  */
 export type BotReplyLocale = Locales;
 
 const PLATFORM_REPLY_LOCALES: Record<string, BotReplyLocale> = {
   discord: 'en-US',
-  feishu: 'zh-CN',
-  lark: 'en-US',
-  qq: 'zh-CN',
   slack: 'en-US',
   telegram: 'en-US',
   wechat: 'zh-CN',
@@ -106,7 +98,7 @@ export function getBotReplyLocale(platform: string | undefined): BotReplyLocale 
  * Different IM platforms emit different shapes for the same tag:
  * - Telegram: lowercase BCP 47 (`pt-br`, `zh-hans`)
  * - Discord / Slack: mixed case (`pt-BR`, `zh-CN`)
- * - Feishu / Lark: underscored (`zh_CN`)
+ * - Some providers: underscored (`zh_CN`)
  *
  * We re-format to `lang-REGION` and then defer to the project's
  * `normalizeLocale` so the resulting value sits inside `Locales`. Returns

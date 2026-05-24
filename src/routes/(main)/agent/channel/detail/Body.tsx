@@ -414,7 +414,7 @@ const Body = memo<BodyProps>(({ platformDef, form, hasConfig, currentConfig, onA
               its own field ordering. LINE places `credentials` before `applicationId`
               because the operator must enter the channel access token before the
               "Fetch from LINE" button (rendered after applicationId) can auto-fill
-              the destination user ID; Discord/Slack/QQ/Feishu place `applicationId`
+              the destination user ID; Discord/Slack place `applicationId`
               first as a primary identifier. */}
           {platformDef.schema
             .filter((section) => section.key === 'applicationId' || section.key === 'credentials')

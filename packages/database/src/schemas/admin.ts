@@ -6,6 +6,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -120,6 +121,70 @@ export const adminGovernancePolicies = pgTable(
   ],
 );
 
+export const adminPlans = pgTable(
+  'admin_plans',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    key: text('key').notNull(),
+    label: text('label').notNull(),
+    description: text('description'),
+    monthlyCredits: jsonb('monthly_credits')
+      .$type<{
+        audio?: number;
+        chat?: number;
+        image?: number;
+        video?: number;
+      }>()
+      .default({}),
+    isActive: boolean('is_active').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(100),
+    config: jsonb('config').$type<Record<string, unknown>>().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex('admin_plans_key_unique').on(t.key)],
+);
+
+export const adminPlanFeatures = pgTable(
+  'admin_plan_features',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    planKey: text('plan_key').notNull(),
+    flagKey: text('flag_key').notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    limits: jsonb('limits').$type<Record<string, unknown>>().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('admin_plan_features_plan_key_idx').on(t.planKey),
+    index('admin_plan_features_flag_key_idx').on(t.flagKey),
+    uniqueIndex('admin_plan_features_plan_flag_unique').on(t.planKey, t.flagKey),
+  ],
+);
+
+export const adminUserPlans = pgTable(
+  'admin_user_plans',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: text('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    planKey: text('plan_key').notNull(),
+    assignedBy: text('assigned_by').references(() => users.id, { onDelete: 'set null' }),
+    notes: text('notes'),
+    startsAt: timestamp('starts_at', { withTimezone: true }).defaultNow().notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('admin_user_plans_user_id_idx').on(t.userId),
+    index('admin_user_plans_plan_key_idx').on(t.planKey),
+    uniqueIndex('admin_user_plans_user_unique').on(t.userId),
+  ],
+);
+
 export type NewFeatureFlag = typeof featureFlags.$inferInsert;
 export type FeatureFlagItem = typeof featureFlags.$inferSelect;
 export type NewFeatureFlagAssignment = typeof featureFlagAssignments.$inferInsert;
@@ -132,3 +197,9 @@ export type NewAdminEnvVar = typeof adminEnvVars.$inferInsert;
 export type AdminEnvVarItem = typeof adminEnvVars.$inferSelect;
 export type NewAdminGovernancePolicy = typeof adminGovernancePolicies.$inferInsert;
 export type AdminGovernancePolicyItem = typeof adminGovernancePolicies.$inferSelect;
+export type NewAdminPlan = typeof adminPlans.$inferInsert;
+export type AdminPlanItem = typeof adminPlans.$inferSelect;
+export type NewAdminPlanFeature = typeof adminPlanFeatures.$inferInsert;
+export type AdminPlanFeatureItem = typeof adminPlanFeatures.$inferSelect;
+export type NewAdminUserPlan = typeof adminUserPlans.$inferInsert;
+export type AdminUserPlanItem = typeof adminUserPlans.$inferSelect;

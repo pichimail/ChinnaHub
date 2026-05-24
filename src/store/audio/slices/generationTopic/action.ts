@@ -1,9 +1,15 @@
+import isEqual from 'fast-deep-equal';
+import { type SWRResponse } from 'swr';
+
+import { mutate, useClientDataSWR } from '@/libs/swr';
+import { generationTopicService } from '@/services/generationTopic';
 import { type StoreSetter } from '@/store/types';
 import { type ImageGenerationTopic } from '@/types/generation';
 
 import { type AudioStore } from '../../store';
 
 type Setter = StoreSetter<AudioStore>;
+const FETCH_AUDIO_GENERATION_TOPICS_KEY = 'fetchAudioGenerationTopics';
 
 export const createAudioGenerationTopicSlice = (
   set: Setter,
@@ -22,11 +28,17 @@ export class AudioGenerationTopicActionImpl {
   }
 
   switchGenerationTopic = (topicId: string): void => {
+    if (this.#get().activeGenerationTopicId === topicId) return;
+
     this.#set(
       { activeGenerationTopicId: topicId },
       false,
       'audioGenerationTopic/switchGenerationTopic',
     );
+  };
+
+  openNewGenerationTopic = (): void => {
+    this.#set({ activeGenerationTopicId: null }, false, 'audioGenerationTopic/openNewTopic');
   };
 
   internal_updateGenerationTopicLoading = (topicId: string, isLoading: boolean): void => {
@@ -55,9 +67,58 @@ export class AudioGenerationTopicActionImpl {
     );
   };
 
+  createGenerationTopic = async (prompts: string[]): Promise<string> => {
+    const title =
+      prompts
+        .find((prompt) => prompt.trim())
+        ?.trim()
+        .slice(0, 80) || 'Accoustica';
+    const topicId = await generationTopicService.createTopic('audio', title);
+
+    this.internal_addGenerationTopic({
+      coverUrl: null,
+      createdAt: new Date(),
+      id: topicId,
+      title,
+      updatedAt: new Date(),
+    });
+
+    return topicId;
+  };
+
   refreshGenerationTopics = async (): Promise<void> => {
-    // Topics are managed by the API, refresh would be called after operations
-    // For now, this is a placeholder for future topic refresh logic
+    await mutate([FETCH_AUDIO_GENERATION_TOPICS_KEY]);
+  };
+
+  useFetchGenerationTopics = (enabled: boolean): SWRResponse<ImageGenerationTopic[]> => {
+    return useClientDataSWR<ImageGenerationTopic[]>(
+      enabled ? [FETCH_AUDIO_GENERATION_TOPICS_KEY] : null,
+      () => generationTopicService.getAllGenerationTopics('audio'),
+      {
+        onError: (error) => {
+          console.error('Failed to fetch audio generation topics:', error);
+        },
+        onSuccess: (data) => {
+          if (isEqual(data, this.#get().generationTopics)) return;
+          this.#set({ generationTopics: data }, false, 'audioGenerationTopic/useFetchTopics');
+        },
+        suspense: false,
+      },
+    );
+  };
+
+  removeGenerationTopic = async (id: string): Promise<void> => {
+    await generationTopicService.deleteTopic(id);
+    await this.refreshGenerationTopics();
+
+    if (this.#get().activeGenerationTopicId === id) {
+      const nextTopic = this.#get().generationTopics.find((topic) => topic.id !== id);
+      this.#set(
+        { activeGenerationTopicId: nextTopic?.id || null },
+        false,
+        'audioGenerationTopic/removeGenerationTopic',
+      );
+    }
   };
 
   setTopicBatchLoaded = (topicId: string): void => {

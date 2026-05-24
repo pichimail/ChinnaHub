@@ -1,4 +1,5 @@
 import type {
+  AudioGenerationAsset,
   Generation,
   GenerationBatch,
   GenerationConfig,
@@ -203,7 +204,11 @@ export class GenerationBatchModel {
     const filesToDelete: string[] = [];
     if (batchWithGenerations.generations) {
       for (const gen of batchWithGenerations.generations) {
-        const asset = gen.asset as ImageGenerationAsset | VideoGenerationAsset | null;
+        const asset = gen.asset as
+          | AudioGenerationAsset
+          | ImageGenerationAsset
+          | VideoGenerationAsset
+          | null;
         if (asset?.url) filesToDelete.push(asset.url);
         if (asset?.thumbnailUrl) filesToDelete.push(asset.thumbnailUrl);
         if (asset && 'coverUrl' in asset && asset.coverUrl) {

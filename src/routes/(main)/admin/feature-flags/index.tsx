@@ -151,8 +151,16 @@ const AdminFeatureFlags = () => {
               }))}
             />
           </Form.Item>
-          <Form.Item label="Flag" name="flagKey" rules={[{ required: true }]}>
-            <Select options={(flagsData || []).map((f: any) => ({ label: f.key, value: f.key }))} />
+          <Form.Item label="Feature" name="flagKey" rules={[{ required: true }]}>
+            <Select
+              showSearch
+              optionFilterProp="label"
+              placeholder="Select a feature flag"
+              options={(flagsData || []).map((f: any) => ({
+                label: `${f.label || f.key} (${f.key})`,
+                value: f.key,
+              }))}
+            />
           </Form.Item>
           <Form.Item label="Enabled" name="enabled" valuePropName="checked">
             <Switch />

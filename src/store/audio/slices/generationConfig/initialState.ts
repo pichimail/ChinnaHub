@@ -16,6 +16,7 @@ export interface AudioGenerationConfigState {
   parameters: {
     makeInstrumental?: boolean;
     prompt?: string;
+    providerMode?: 'classic' | 'lyria';
     style?: string;
     title?: string;
   };
@@ -26,6 +27,7 @@ export const initialAudioGenerationConfigState: AudioGenerationConfigState = {
   parameters: {
     makeInstrumental: false,
     prompt: '',
+    providerMode: 'classic',
     style: undefined,
     title: undefined,
   },

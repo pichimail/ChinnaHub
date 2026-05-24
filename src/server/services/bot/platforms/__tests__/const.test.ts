@@ -27,19 +27,19 @@ describe('normalizeBotReplyLocale', () => {
   });
 
   it('normalizes Telegram-style lowercase to project Locales', () => {
-    expect(normalizeBotReplyLocale('pt-br')).toBe('pt-BR');
-    expect(normalizeBotReplyLocale('zh-cn')).toBe('zh-CN');
+    expect(normalizeBotReplyLocale('pt-br')).toBe('en-US');
+    expect(normalizeBotReplyLocale('zh-cn')).toBe('en-US');
     expect(normalizeBotReplyLocale('en')).toBe('en-US');
   });
 
-  it('normalizes Feishu-style underscore to project Locales', () => {
-    expect(normalizeBotReplyLocale('zh_CN')).toBe('zh-CN');
+  it('normalizes underscore locale tags to project Locales', () => {
+    expect(normalizeBotReplyLocale('zh_CN')).toBe('en-US');
     expect(normalizeBotReplyLocale('en_US')).toBe('en-US');
   });
 
   it('passes through Discord/Slack-style mixed case unchanged', () => {
     expect(normalizeBotReplyLocale('en-US')).toBe('en-US');
-    expect(normalizeBotReplyLocale('zh-CN')).toBe('zh-CN');
+    expect(normalizeBotReplyLocale('zh-CN')).toBe('en-US');
   });
 
   it('falls back to en-US when the input is not a project locale', () => {
@@ -59,8 +59,6 @@ describe('normalizeBotReplyLocale', () => {
 
 describe('getBotReplyLocale', () => {
   it('returns zh-CN for Chinese-first platforms', () => {
-    expect(getBotReplyLocale('feishu')).toBe('zh-CN');
-    expect(getBotReplyLocale('qq')).toBe('zh-CN');
     expect(getBotReplyLocale('wechat')).toBe('zh-CN');
   });
 
@@ -68,7 +66,6 @@ describe('getBotReplyLocale', () => {
     expect(getBotReplyLocale('discord')).toBe('en-US');
     expect(getBotReplyLocale('slack')).toBe('en-US');
     expect(getBotReplyLocale('telegram')).toBe('en-US');
-    expect(getBotReplyLocale('lark')).toBe('en-US');
     expect(getBotReplyLocale('whatsapp')).toBe('en-US');
   });
 

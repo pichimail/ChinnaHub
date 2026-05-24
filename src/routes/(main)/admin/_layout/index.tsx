@@ -35,6 +35,29 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
   tabs: css`
     padding-block: 0;
     padding-inline: 12px;
+
+    .ant-tabs-tab {
+      padding-block: 14px;
+      color: ${cssVar.colorTextSecondary};
+      transition:
+        color 0.2s ease,
+        background 0.2s ease;
+
+      &:hover {
+        color: ${cssVar.colorText};
+      }
+    }
+
+    .ant-tabs-tab-active .ant-tabs-tab-btn {
+      color: ${cssVar.colorText} !important;
+      text-shadow: none;
+    }
+
+    .ant-tabs-ink-bar {
+      height: 2px;
+      border-radius: 999px;
+      background: ${cssVar.colorText};
+    }
   `,
   content: css`
     padding: 16px;
@@ -79,22 +102,31 @@ const AdminLayout = () => {
       path: '/admin/feature-flags',
     },
     {
+      key: 'plans',
+      label: t('plans', { ns: 'admin' }),
+      path: '/admin/plans',
+    },
+    {
       key: 'env-vars',
-      label: 'Env Vars',
+      label: t('envVars', { ns: 'admin' }),
       path: '/admin/env-vars',
     },
     {
       key: 'governance',
-      label: 'Governance',
+      label: t('governance', { ns: 'admin' }),
       path: '/admin/governance',
     },
     { key: 'audit-logs', label: t('auditLogs', { ns: 'admin' }), path: '/admin/audit-logs' },
   ];
 
   const currentTab =
-    items.find(
-      (item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
-    )?.key || 'overview';
+    [...items]
+      .sort((a, b) => b.path.length - a.path.length)
+      .find((item) =>
+        item.path === '/admin'
+          ? location.pathname === item.path
+          : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
+      )?.key || 'overview';
 
   return (
     <div className={styles.container}>

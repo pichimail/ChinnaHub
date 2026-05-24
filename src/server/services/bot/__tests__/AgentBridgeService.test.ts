@@ -182,12 +182,10 @@ describe('AgentBridgeService', () => {
   });
 
   describe('progress message gating by supportsMessageEdit', () => {
-    // Regression test for the QQ duplicate-reply bug:
-    // QQ doesn't support message edits — the chat-adapter falls `editMessage`
-    // back to `postMessage`. So if we posted an "ack" placeholder and then
-    // tried to edit it on afterStep + onComplete, the user saw the placeholder
-    // PLUS two duplicate copies of the final reply. Edit-incapable platforms
-    // must skip the placeholder entirely so the final reply lands once.
+    // Regression test for edit-incapable platforms: if we posted an "ack"
+    // placeholder and then tried to edit it on afterStep + onComplete, the user
+    // could see the placeholder plus duplicate copies of the final reply.
+    // Edit-incapable platforms must skip progress tracking for that placeholder.
 
     beforeEach(() => {
       // Happy-path startup so we only count the placeholder post, not error fallbacks.
@@ -211,8 +209,8 @@ describe('AgentBridgeService', () => {
 
     it('posts the ack for an edit-incapable platform but does not track it as progressMessage', async () => {
       mockGetPlatform.mockReturnValue({
-        id: 'qq',
-        name: 'QQ',
+        id: 'wechat',
+        name: 'WeChat',
         supportsMessageEdit: false,
       });
       const service = new AgentBridgeService(FAKE_DB, USER_ID);
@@ -222,7 +220,7 @@ describe('AgentBridgeService', () => {
 
       await service.handleMention(thread, message, {
         agentId: 'agent-1',
-        botContext: { platform: 'qq', platformThreadId: 'qq:c2c:user-1' } as any,
+        botContext: { platform: 'wechat', platformThreadId: 'wechat:c2c:user-1' } as any,
         client,
       });
 

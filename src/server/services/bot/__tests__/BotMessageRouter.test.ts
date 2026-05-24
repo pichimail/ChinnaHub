@@ -200,7 +200,7 @@ const parseAllowlistMock = vi.hoisted(() => (raw: unknown): string[] => {
 vi.mock('../platforms', () => ({
   buildRuntimeKey: (platform: string, appId: string) => `${platform}:${appId}`,
   getBotReplyLocale: (platform: string | undefined): string => {
-    if (platform === 'feishu' || platform === 'qq' || platform === 'wechat') return 'zh-CN';
+    if (platform === 'wechat') return 'zh-CN';
     return 'en-US';
   },
   normalizeBotReplyLocale: (raw: string | undefined | null): string | undefined => {

@@ -5,10 +5,8 @@ import type { FC } from 'react';
 const ICON_NAMES = [
   'Discord',
   'GoogleChat',
-  'Lark',
   'Line',
   'MicrosoftTeams',
-  'QQ',
   'Slack',
   'Telegram',
   'WeChat',
@@ -16,13 +14,11 @@ const ICON_NAMES = [
 ] as const;
 
 /** Alias map for platforms whose display name differs from the icon name. */
-const ICON_ALIASES: Record<string, string> = {
-  feishu: 'Lark',
-};
+const ICON_ALIASES: Record<string, string> = {};
 
 /**
  * Resolve icon component by matching against known icon names.
- * Accepts either a platform display name (e.g. "Feishu / Lark") or id (e.g. "discord").
+ * Accepts either a platform display name or id (e.g. "discord").
  */
 export function getPlatformIcon(nameOrId: string): FC<any> | undefined {
   const alias = ICON_ALIASES[nameOrId.toLowerCase()];

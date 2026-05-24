@@ -6,9 +6,6 @@ export const MessageToolIdentifier = 'lobe-message';
 
 export const MessagePlatform = {
   discord: 'discord',
-  feishu: 'feishu',
-  lark: 'lark',
-  qq: 'qq',
   slack: 'slack',
   telegram: 'telegram',
   wechat: 'wechat',
@@ -119,15 +116,15 @@ export interface ReadMessagesParams {
   before?: string;
   /** Channel / conversation / room ID */
   channelId: string;
-  /** Pagination cursor from a previous response (Feishu/Lark pageToken) */
+  /** Pagination cursor from a previous response */
   cursor?: string;
-  /** End time as Unix second timestamp (Feishu/Lark only) */
+  /** End time as Unix second timestamp */
   endTime?: string;
   /** Max number of messages to fetch */
   limit?: number;
   /** Platform to read from */
   platform: MessagePlatformType;
-  /** Start time as Unix second timestamp (Feishu/Lark only) */
+  /** Start time as Unix second timestamp */
   startTime?: string;
 }
 

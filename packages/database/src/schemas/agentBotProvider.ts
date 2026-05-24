@@ -33,7 +33,7 @@ export const agentBotProviders = pgTable(
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
 
-    /** Platform identifier: 'discord' | 'slack' | 'feishu' | ... */
+    /** Platform identifier: 'discord' | 'slack' | 'wechat' | ... */
     platform: varchar('platform', { length: 50 }).notNull(),
 
     /** Platform-specific application/bot ID used for webhook routing */

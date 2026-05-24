@@ -74,8 +74,8 @@ export const useNavLayout = (): NavLayout => {
         {
           icon: getRouteById('image')!.icon,
           key: SidebarTabKey.Image,
-          title: t('tab.image'),
-          url: '/create/image',
+          title: t('tab.generation'),
+          url: '/image',
         },
         {
           icon: getRouteById('video')!.icon,

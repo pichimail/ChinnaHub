@@ -3,12 +3,14 @@ import type { ComponentType } from 'react';
 import LineCredentialExtras from './line/CredentialExtras';
 import type { PlatformCredentialBodyProps } from './types';
 import WechatCredentialBody from './wechat/CredentialBody';
+import WhatsAppCredentialBody from './whatsapp/CredentialBody';
 
 export const platformCredentialBodyMap: Record<
   string,
   ComponentType<PlatformCredentialBodyProps>
 > = {
   wechat: WechatCredentialBody,
+  whatsapp: WhatsAppCredentialBody,
 };
 
 /**

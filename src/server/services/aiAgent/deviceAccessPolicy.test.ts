@@ -99,7 +99,7 @@ describe('resolveDeviceAccessPolicy', () => {
       // Regression guard: don't accidentally widen the personal-scope set
       // to platforms that DO have group chat. Discord/Slack/Telegram etc.
       // must keep going through the standard isOwner gate.
-      const platforms = ['discord', 'slack', 'telegram', 'feishu', 'lark', 'qq', 'line'];
+      const platforms = ['discord', 'slack', 'telegram', 'line'];
       for (const platform of platforms) {
         const result = resolveDeviceAccessPolicy({
           botContext: baseBotContext({

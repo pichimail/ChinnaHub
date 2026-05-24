@@ -4,7 +4,7 @@ Manage bot integrations that connect agents to messaging platforms.
 
 ## Supported Platforms
 
-Discord, Slack, Telegram, Lark, Feishu
+Discord, Slack, Telegram, WeChat, WhatsApp
 
 ## Subcommands
 
@@ -42,7 +42,7 @@ Discord, Slack, Telegram, Lark, Feishu
 - Each platform requires specific credentials (token, app ID, secrets)
 - Use \`lh bot connect\` to start a long-running bot connection
 - Use \`lh bot message read\` with \`--json\` for batch message retrieval — ideal for processing large volumes of messages
-- For step-by-step platform setup instructions, read the platform-specific reference under \`references/bot/\`: \`discord\`, \`telegram\`, \`slack\`, \`feishu\`, \`lark\`, \`qq\`, \`wechat\`
+- For step-by-step platform setup instructions, read the platform-specific reference under \`references/bot/\`: \`discord\`, \`telegram\`, \`slack\`, \`wechat\`, \`whatsapp\`
 `;
 
 export default content;

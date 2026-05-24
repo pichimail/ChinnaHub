@@ -1,7 +1,5 @@
 import type { MessagePlatformType } from '@lobechat/builtin-tool-message';
 import type { MessageRuntimeService } from '@lobechat/builtin-tool-message/executionRuntime';
-import { LarkApiClient } from '@lobechat/chat-adapter-feishu';
-import { QQApiClient } from '@lobechat/chat-adapter-qq';
 import { WechatApiClient } from '@lobechat/chat-adapter-wechat';
 import {
   DEFAULT_BOT_HISTORY_LIMIT,
@@ -19,8 +17,6 @@ import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 import { mergeWithDefaults, platformRegistry } from '@/server/services/bot/platforms';
 import { DiscordApi } from '@/server/services/bot/platforms/discord/api';
 import { DiscordMessageService } from '@/server/services/bot/platforms/discord/service';
-import { FeishuMessageService } from '@/server/services/bot/platforms/feishu/service';
-import { QQMessageService } from '@/server/services/bot/platforms/qq/service';
 import { SlackApi } from '@/server/services/bot/platforms/slack/api';
 import { SlackMessageService } from '@/server/services/bot/platforms/slack/service';
 import { TelegramApi } from '@/server/services/bot/platforms/telegram/api';
@@ -54,21 +50,6 @@ const createServiceForBot = (provider: DecryptedBotProvider): MessageRuntimeServ
     }
     case 'telegram': {
       return new TelegramMessageService(new TelegramApi(credentials.botToken));
-    }
-    case 'feishu': {
-      return new FeishuMessageService(
-        new LarkApiClient(applicationId, credentials.appSecret, 'feishu'),
-        'feishu',
-      );
-    }
-    case 'lark': {
-      return new FeishuMessageService(
-        new LarkApiClient(applicationId, credentials.appSecret, 'lark'),
-        'lark',
-      );
-    }
-    case 'qq': {
-      return new QQMessageService(new QQApiClient(applicationId, credentials.appSecret));
     }
     case 'wechat': {
       return new WechatMessageService(

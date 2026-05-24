@@ -110,10 +110,10 @@ describe('parseRuntimeKey', () => {
   });
 
   it('should roundtrip with buildRuntimeKey', () => {
-    const key = buildRuntimeKey('feishu', 'my-app');
+    const key = buildRuntimeKey('wechat', 'my-app');
     expect(parseRuntimeKey(key)).toEqual({
       applicationId: 'my-app',
-      platform: 'feishu',
+      platform: 'wechat',
     });
   });
 });

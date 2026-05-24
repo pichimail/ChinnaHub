@@ -25,9 +25,8 @@ const BANNER_PLATFORM_NAMES = [
   'Slack',
   'Telegram',
   'Line',
-  'Lark',
   'WeChat',
-  'QQ',
+  'WhatsApp',
 ] as const;
 
 const styles = createStaticStyles(({ css, cssVar }) => ({

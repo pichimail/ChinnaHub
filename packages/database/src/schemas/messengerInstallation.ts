@@ -6,7 +6,7 @@ import { users } from './user';
 
 /**
  * Per-tenant install record for messenger platforms that distribute via OAuth
- * (Slack today; Feishu / MS Teams later). Keyed by `(platform, application_id,
+ * (Slack today; MS Teams later). Keyed by `(platform, application_id,
  * tenant_id)` so a single LobeHub deployment can serve many workspaces of the
  * same Slack App without collisions.
  *
@@ -17,8 +17,7 @@ import { users } from './user';
  *
  * `tenant_id` is opaque per platform — Slack workspace install stores
  * `team_id`, Slack Enterprise Grid org install stores `enterprise_id` (with
- * `metadata.isEnterpriseInstall = true`), Feishu stores `tenant_key`, MS
- * Teams stores tenantId. Adding a new per-tenant platform requires zero
+ * `metadata.isEnterpriseInstall = true`), MS Teams stores tenantId. Adding a new per-tenant platform requires zero
  * schema changes.
  */
 export const messengerInstallations = pgTable(
@@ -26,13 +25,13 @@ export const messengerInstallations = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
 
-    /** 'slack' | 'feishu' | 'msteams' | ... */
+    /** 'slack' | 'msteams' | ... */
     platform: varchar('platform', { length: 50 }).notNull(),
 
     /** Platform-opaque tenant identifier — see file header. */
     tenantId: varchar('tenant_id', { length: 255 }).notNull(),
 
-    /** Platform-side application/bot id (Slack `app_id`, Feishu `app_id`, …). */
+    /** Platform-side application/bot id (Slack `app_id`, etc.). */
     applicationId: varchar('application_id', { length: 255 }).notNull(),
 
     /** Bot user id within the tenant (Slack `bot_user_id`, …). Optional. */

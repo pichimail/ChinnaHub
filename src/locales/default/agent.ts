@@ -50,11 +50,6 @@ export default {
   'channel.endpointUrl': 'Webhook URL',
   'channel.endpointUrlHint':
     'Please copy this URL and paste it into the <bold>{{fieldName}}</bold> field in the {{name}} Developer Portal.',
-  'channel.feishu.description': 'Connect this assistant to Feishu for private and group chats.',
-  'channel.feishu.webhookMigrationTitle': 'Consider migrating to WebSocket mode',
-  'channel.feishu.webhookMigrationDesc':
-    'WebSocket mode provides real-time event delivery without needing a public callback URL. To migrate, switch the Connection Mode to WebSocket in Advanced Settings. No additional configuration is needed on the Feishu/Lark Open Platform.',
-  'channel.lark.description': 'Connect this assistant to Lark for private and group chats.',
   'channel.line.description':
     'Connect this assistant to LINE Messaging API for direct and group chats.',
   'channel.line.destinationUserId': 'Destination User ID',
@@ -79,11 +74,6 @@ export default {
   'channel.publicKey': 'Public Key',
   'channel.publicKeyHint': 'Optional. Used to verify interaction requests from Discord.',
   'channel.publicKeyPlaceholder': 'Required for interaction verification',
-  'channel.qq.appIdHint': 'Your QQ Bot App ID from QQ Open Platform',
-  'channel.qq.description': 'Connect this assistant to QQ for group chats and direct messages.',
-  'channel.qq.webhookMigrationTitle': 'Consider migrating to WebSocket mode',
-  'channel.qq.webhookMigrationDesc':
-    'WebSocket mode provides real-time event delivery and automatic reconnection without needing a callback URL. To migrate, create a new bot on QQ Open Platform without configuring a callback URL, then switch the Connection Mode to WebSocket in Advanced Settings.',
   'channel.wechat.description':
     'Connect this assistant to WeChat via iLink Bot for private and group chats.',
   'channel.wechatQrExpired': 'QR code expired. Please refresh to get a new one.',
@@ -239,11 +229,8 @@ export default {
   'channel.userIdMissingTitle': 'Add your platform User ID',
   'channel.userIdHint.discord':
     'Enable Developer Mode (Settings → Advanced), then right-click your avatar → Copy User ID.',
-  'channel.userIdHint.feishu':
-    'Open your app on the Feishu / Lark Open Platform → Permissions, then look up your Open ID.',
   'channel.userIdHint.line':
     'Open the LINE Developers Console → your channel → Basic settings tab, and copy "Your user ID" (starts with U, 33 chars).',
-  'channel.userIdHint.qq': 'Your QQ number, shown on your QQ profile page.',
   'channel.userIdHint.slack': 'Open your Slack profile → ⋮ More → Copy member ID (starts with U).',
   'channel.userIdHint.telegram':
     'Send any message to @userinfobot in Telegram — it replies with your numeric User ID.',

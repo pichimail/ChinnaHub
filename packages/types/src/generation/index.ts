@@ -51,6 +51,10 @@ export interface AudioGenerationAsset extends BaseGenerationAsset {
    */
   duration?: number;
   /**
+   * Stored user file record ID for the generated audio.
+   */
+  fileId?: string;
+  /**
    * CDN URL from the API provider, typically expires quickly
    */
   originalUrl?: string;

@@ -52,6 +52,10 @@ export class AudioGenerationConfigActionImpl {
     this.setAudioParameters({ makeInstrumental });
   };
 
+  setAudioProviderMode = (providerMode: 'classic' | 'lyria'): void => {
+    this.setAudioParameters({ providerMode });
+  };
+
   initializeAudioConfig = (): void => {
     this.#set({ isInit: true }, false, 'audioGenerationConfig/initializeAudioConfig');
   };

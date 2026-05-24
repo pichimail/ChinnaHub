@@ -3,7 +3,7 @@ import type { BuiltinToolManifest } from '@lobechat/types';
 import { systemPrompt } from './systemRole';
 import { MessageApiName, MessageToolIdentifier } from './types';
 
-const platformEnum = ['discord', 'telegram', 'slack', 'feishu', 'lark', 'qq', 'wechat', 'whatsapp'];
+const platformEnum = ['discord', 'telegram', 'slack', 'wechat', 'whatsapp'];
 
 /**
  * Schema for the bot's `settings` JSON column. Both `createBot` and
@@ -163,12 +163,12 @@ export const MessageManifest: BuiltinToolManifest = {
           },
           cursor: {
             description:
-              'Pagination cursor from a previous readMessages response (nextCursor). When provided, fetches the next page. Used by Feishu/Lark.',
+              'Pagination cursor from a previous readMessages response (nextCursor). When provided, fetches the next page.',
             type: 'string',
           },
           endTime: {
             description:
-              'End time as Unix second timestamp. Used by Feishu/Lark to filter messages before this time.',
+              'End time as Unix second timestamp. Optional Unix second timestamp filter.',
             type: 'string',
           },
           platform: {
@@ -178,7 +178,7 @@ export const MessageManifest: BuiltinToolManifest = {
           },
           startTime: {
             description:
-              'Start time as Unix second timestamp. Used by Feishu/Lark to filter messages after this time.',
+              'Start time as Unix second timestamp. Optional Unix second timestamp filter.',
             type: 'string',
           },
         },
@@ -647,7 +647,7 @@ export const MessageManifest: BuiltinToolManifest = {
           },
           credentials: {
             description:
-              'Credential key-value pairs. Required fields depend on the platform (e.g. botToken for Discord, appSecret for Feishu).',
+              'Credential key-value pairs. Required fields depend on the platform (e.g. botToken for Discord or Telegram).',
             type: 'object',
           },
           platform: {
@@ -746,7 +746,7 @@ export const MessageManifest: BuiltinToolManifest = {
     description:
       'Send, read, edit, and manage messages across multiple messaging platforms with a unified interface',
     readme:
-      'Cross-platform messaging tool supporting Discord, Telegram, Slack, Feishu, Lark, QQ, WeChat, and WhatsApp. Provides unified APIs for message operations, reactions, pins, threads, channel management, and platform-specific features like polls.',
+      'Cross-platform messaging tool supporting Discord, Telegram, Slack, WeChat, and WhatsApp. Provides unified APIs for message operations, reactions, pins, threads, channel management, and platform-specific features like polls.',
     title: 'Message',
   },
   systemRole: systemPrompt,

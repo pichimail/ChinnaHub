@@ -1,3 +1,4 @@
+import { AsyncTaskStatus } from '@lobechat/types';
 import { t } from 'i18next';
 
 import { message } from '@/components/AntdStaticMethods';
@@ -63,6 +64,7 @@ export class CreateAudioActionImpl {
         parameters: {
           makeInstrumental: parameters.makeInstrumental,
           prompt: parameters.prompt,
+          providerMode: parameters.providerMode,
           style: parameters.style,
           title: parameters.title,
         },
@@ -70,6 +72,24 @@ export class CreateAudioActionImpl {
       });
 
       if (result.success) {
+        if (result.data?.batch && finalTopicId) {
+          store.internal_dispatchGenerationBatch(
+            finalTopicId,
+            result.data.batch,
+            'createAudio/dispatchCreatedBatch',
+          );
+
+          const generation = result.data.generations?.[0];
+          if (generation?.task?.status === AsyncTaskStatus.Processing) {
+            void this.pollAudioStatus({
+              asyncTaskId: result.data.asyncTaskId,
+              batchId: result.data.batch.id,
+              generationId: generation.id,
+              topicId: finalTopicId,
+            });
+          }
+        }
+
         message.success(t('generation.success', { ns: 'audio' }));
       } else {
         message.error(result.error?.message || t('generation.failed', { ns: 'audio' }));
@@ -83,6 +103,47 @@ export class CreateAudioActionImpl {
         false,
         'createAudio/endCreateAudio',
       );
+    }
+  };
+
+  pollAudioStatus = async ({
+    asyncTaskId,
+    batchId,
+    generationId,
+    topicId,
+  }: {
+    asyncTaskId: string;
+    batchId: string;
+    generationId: string;
+    topicId: string;
+  }): Promise<void> => {
+    const maxAttempts = 120;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+
+      const status = await audioService.getAudioStatus(asyncTaskId, generationId);
+      if (status.generation) {
+        const batches = this.#get().generationBatchesMap[topicId] || [];
+        const batch = batches.find((item) => item.id === batchId);
+
+        if (batch) {
+          this.#get().internal_dispatchGenerationBatch(
+            topicId,
+            {
+              ...batch,
+              generations: batch.generations.map((generation) =>
+                generation.id === generationId ? status.generation! : generation,
+              ),
+            },
+            'createAudio/updatePolledGeneration',
+          );
+        }
+      }
+
+      if (status.status === AsyncTaskStatus.Success || status.status === AsyncTaskStatus.Error) {
+        return;
+      }
     }
   };
 }

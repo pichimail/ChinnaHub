@@ -1,3 +1,4 @@
+import { generationBatchService } from '@/services/generationBatch';
 import { type StoreSetter } from '@/store/types';
 import { type GenerationBatch } from '@/types/generation';
 
@@ -29,9 +30,11 @@ export class AudioGenerationBatchActionImpl {
     const currentMap = this.#get().generationBatchesMap;
     const batches = currentMap[topicId] || [];
 
-    const nextBatches = batch.id
-      ? batches.map((b) => (b.id === batch.id ? { ...b, ...batch } : b))
-      : [{ ...batch, id: batch.id || Date.now().toString() } as GenerationBatch, ...batches];
+    const existingBatch = batch.id ? batches.find((b) => b.id === batch.id) : undefined;
+    const nextBatches =
+      batch.id && existingBatch
+        ? batches.map((b) => (b.id === batch.id ? { ...b, ...batch } : b))
+        : [{ ...batch, id: batch.id || Date.now().toString() } as GenerationBatch, ...batches];
 
     const nextMap = {
       ...currentMap,
@@ -67,7 +70,24 @@ export class AudioGenerationBatchActionImpl {
   };
 
   refreshGenerationBatches = async (): Promise<void> => {
-    // Batches are managed by the API, refresh would be called after operations
+    const { activeGenerationTopicId } = this.#get();
+    if (!activeGenerationTopicId) return;
+
+    const batches = await generationBatchService.getGenerationBatches(
+      activeGenerationTopicId,
+      'audio',
+    );
+
+    this.#set(
+      {
+        generationBatchesMap: {
+          ...this.#get().generationBatchesMap,
+          [activeGenerationTopicId]: batches,
+        },
+      },
+      false,
+      'audioGenerationBatch/refreshGenerationBatches',
+    );
   };
 }
 
