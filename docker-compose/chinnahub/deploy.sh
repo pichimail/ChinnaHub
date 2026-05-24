@@ -63,21 +63,21 @@ if ! docker inspect caddy --format='{{range .NetworkSettings.Networks}}{{.Networ
   docker network connect chinnahub-net caddy && echo "  ✓ Caddy connected to chinnahub-net" || echo "  ⚠ Caddy already connected or not running"
 fi
 
-# ── 4. STOP EXISTING CONTAINERS ──────────────
+# ── 4. BUILD IMAGE ───────────────────────────
 echo ""
-echo "▶ [4/7] Stopping existing Chinna Hub containers..."
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true
-echo "  ✓ Old containers stopped"
-
-# ── 5. BUILD IMAGE ───────────────────────────
-echo ""
-echo "▶ [5/7] Building Chinna Hub Docker image..."
+echo "▶ [4/7] Building Chinna Hub Docker image while current services remain available..."
 docker build \
   --tag chinnahub-app:latest \
   --build-arg NEXT_PUBLIC_BASE_PATH="" \
   --progress=plain \
   "$DEPLOY_DIR" 2>&1 | tail -20
 echo "  ✓ Image built: chinnahub-app:latest"
+
+# ── 5. STOP EXISTING CONTAINERS ──────────────
+echo ""
+echo "▶ [5/7] Stopping existing Chinna Hub containers..."
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true
+echo "  ✓ Old containers stopped"
 
 # ── 6. START SERVICES ────────────────────────
 echo ""
@@ -95,7 +95,7 @@ echo "  ✓ Migrations done"
 echo ""
 echo "▶ Verifying public routes..."
 for ROUTE in / /admin /admin/api-keys /admin/feature-flags /admin/plans /image /video /audio; do
-  STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" "$APP_URL$ROUTE")
+  STATUS=$(curl --location --silent --output /dev/null --write-out "%{http_code}" "$APP_URL$ROUTE")
   if [ "$STATUS" != "200" ]; then
     echo "  ✗ $APP_URL$ROUTE returned HTTP $STATUS"
     exit 1
