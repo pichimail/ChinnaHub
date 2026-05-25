@@ -8,22 +8,11 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { request as undiciRequest } from 'undici';
 
 import { fileEnv } from '@/envs/file';
 import { getBrowserReachableS3Endpoint } from '@/server/modules/S3';
 
 const DEFAULT_S3_REGION = 'us-east-1';
-const HOP_BY_HOP_HEADERS = new Set([
-  'connection',
-  'keep-alive',
-  'proxy-authenticate',
-  'proxy-authorization',
-  'te',
-  'trailer',
-  'transfer-encoding',
-  'upgrade',
-]);
 
 const toWebReadable = (body: Readable | null | undefined) => (body ? Readable.toWeb(body) : null);
 
@@ -160,58 +149,92 @@ const verifyIncomingSignature = async (request: Request, path?: string[], conten
   return { bucket, key, expiresIn, signingDate };
 };
 
+const setS3ResponseHeaders = (
+  headers: Headers,
+  metadata: {
+    CacheControl?: string;
+    ContentLength?: number;
+    ContentType?: string;
+    ETag?: string;
+    LastModified?: Date;
+  },
+) => {
+  if (metadata.ContentType) headers.set('content-type', metadata.ContentType);
+  if (metadata.ContentLength !== undefined)
+    headers.set('content-length', String(metadata.ContentLength));
+  if (metadata.ETag) headers.set('etag', metadata.ETag);
+  if (metadata.CacheControl) headers.set('cache-control', metadata.CacheControl);
+  if (metadata.LastModified) headers.set('last-modified', metadata.LastModified.toUTCString());
+};
+
 const forwardToInternalS3 = async (request: Request, path?: string[], contentType?: string) => {
-  const { bucket, key, expiresIn, signingDate } = await verifyIncomingSignature(
-    request,
-    path,
-    contentType,
-  );
+  const { bucket, key } = await verifyIncomingSignature(request, path, contentType);
 
   if (!fileEnv.S3_ENDPOINT) {
     throw new Error('S3 endpoint is not configured');
   }
 
   const internalClient = buildS3Client(fileEnv.S3_ENDPOINT);
-  const command = buildCommand(request.method, bucket, key, contentType);
-  const internalUrl = await createSignedUrl(internalClient, command, signingDate, expiresIn);
-
-  const headers = new Headers(request.headers);
-
-  for (const header of HOP_BY_HOP_HEADERS) {
-    headers.delete(header);
-  }
-
-  headers.delete('host');
-
   const method = request.method.toUpperCase();
-  const hasBody = !['GET', 'HEAD', 'OPTIONS'].includes(method);
-  const requestBody = hasBody && request.body ? Readable.fromWeb(request.body) : undefined;
 
-  const upstream = await undiciRequest(internalUrl, {
-    body: requestBody,
-    headers: Object.fromEntries(headers.entries()),
-    method,
-    maxRedirections: 0,
-  });
+  switch (method) {
+    case 'PUT': {
+      const acl = fileEnv.S3_SET_ACL ? 'public-read' : undefined;
+      const contentLengthHeader = request.headers.get('content-length');
+      const contentLength = contentLengthHeader ? Number(contentLengthHeader) : undefined;
+      const hasValidContentLength =
+        contentLength !== undefined && Number.isFinite(contentLength) && contentLength >= 0;
+      const bufferedBody =
+        !hasValidContentLength && request.body
+          ? Buffer.from(await request.arrayBuffer())
+          : undefined;
+      const requestBody =
+        hasValidContentLength && request.body ? Readable.fromWeb(request.body) : bufferedBody;
+      const result = await internalClient.send(
+        new PutObjectCommand({
+          ACL: acl,
+          Body: requestBody,
+          Bucket: bucket,
+          ContentLength: hasValidContentLength ? contentLength : bufferedBody?.byteLength,
+          ContentType: contentType || 'application/octet-stream',
+          Key: key,
+        }),
+      );
+      const headers = new Headers();
+      setS3ResponseHeaders(headers, { ETag: result.ETag });
 
-  const responseHeaders = new Headers();
-  for (const [key, value] of Object.entries(upstream.headers)) {
-    if (value === undefined) continue;
-    if (Array.isArray(value)) {
-      for (const item of value) responseHeaders.append(key, item);
-    } else {
-      responseHeaders.set(key, value.toString());
+      return new Response(null, { headers, status: 200 });
+    }
+
+    case 'GET': {
+      const result = await internalClient.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+      const headers = new Headers();
+      setS3ResponseHeaders(headers, result);
+
+      return new Response(toWebReadable(result.Body as Readable | null | undefined), {
+        headers,
+        status: 200,
+      });
+    }
+
+    case 'HEAD': {
+      const result = await internalClient.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+      const headers = new Headers();
+      setS3ResponseHeaders(headers, result);
+
+      return new Response(null, { headers, status: 200 });
+    }
+
+    case 'DELETE': {
+      await internalClient.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+
+      return new Response(null, { status: 204 });
+    }
+
+    default: {
+      throw new Error(`Unsupported S3 method: ${method}`);
     }
   }
-
-  for (const header of HOP_BY_HOP_HEADERS) {
-    responseHeaders.delete(header);
-  }
-
-  return new Response(toWebReadable(upstream.body as Readable | null | undefined), {
-    headers: responseHeaders,
-    status: upstream.statusCode,
-  });
 };
 
 export const proxyS3Request = async (
