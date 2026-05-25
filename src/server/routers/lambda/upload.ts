@@ -51,9 +51,12 @@ const privateHostPatterns = [
   /^192\.168\./,
 ];
 
+const getBrowserReachableS3Endpoint = () =>
+  fileEnv.S3_PUBLIC_DOMAIN || process.env.NEXT_PUBLIC_S3_DOMAIN || fileEnv.S3_ENDPOINT;
+
 const getBrowserUploadEndpointIssues = () => {
   const issues: string[] = [];
-  const endpoint = fileEnv.S3_ENDPOINT;
+  const endpoint = getBrowserReachableS3Endpoint();
 
   if (!endpoint) return ['S3_ENDPOINT is missing.'];
 
@@ -142,21 +145,21 @@ export const uploadRouter = router({
     const checks = {
       hasAccessKey: !!fileEnv.S3_ACCESS_KEY_ID,
       hasBucket: !!fileEnv.S3_BUCKET,
-      hasEndpoint: !!fileEnv.S3_ENDPOINT,
+      hasEndpoint: !!getBrowserReachableS3Endpoint(),
       hasPublicDomain: !!fileEnv.S3_PUBLIC_DOMAIN,
       hasSecretKey: !!fileEnv.S3_SECRET_ACCESS_KEY,
       isConfigComplete: !!(
         fileEnv.S3_ACCESS_KEY_ID &&
         fileEnv.S3_SECRET_ACCESS_KEY &&
         fileEnv.S3_BUCKET &&
-        fileEnv.S3_ENDPOINT
+        getBrowserReachableS3Endpoint()
       ),
     };
 
     if (!checks.isConfigComplete || endpointIssues.length > 0) {
       return {
         checks,
-        endpoint: fileEnv.S3_ENDPOINT,
+        endpoint: getBrowserReachableS3Endpoint(),
         error: !checks.isConfigComplete
           ? 'S3 configuration is incomplete. Please check your environment variables.'
           : endpointIssues.join(' '),
@@ -171,7 +174,7 @@ export const uploadRouter = router({
       const testUrl = await s3.createPreSignedUrl('test-connection.txt', 'text/plain');
       return {
         checks,
-        endpoint: fileEnv.S3_ENDPOINT,
+        endpoint: getBrowserReachableS3Endpoint(),
         publicDomain: fileEnv.S3_PUBLIC_DOMAIN,
         success: true,
         testUrl: testUrl ? 'Generated successfully' : 'Failed to generate',

@@ -154,6 +154,10 @@ export const maskValue = (value?: string | null) => {
 };
 
 const getProcessValue = (key: string) => {
+  if (key === 'S3_ENDPOINT') {
+    return fileEnv.S3_PUBLIC_DOMAIN || process.env.NEXT_PUBLIC_S3_DOMAIN || process.env.S3_ENDPOINT;
+  }
+
   if (key === 'S3_PUBLIC_DOMAIN') {
     return fileEnv.S3_PUBLIC_DOMAIN || process.env.NEXT_PUBLIC_S3_DOMAIN;
   }

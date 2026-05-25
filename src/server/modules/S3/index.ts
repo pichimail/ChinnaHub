@@ -13,6 +13,9 @@ import { z } from 'zod';
 import { fileEnv } from '@/envs/file';
 import { YEAR } from '@/utils/units';
 
+const getBrowserReachableS3Endpoint = () =>
+  fileEnv.S3_PUBLIC_DOMAIN || process.env.NEXT_PUBLIC_S3_DOMAIN || fileEnv.S3_ENDPOINT;
+
 export const fileSchema = z.object({
   Key: z.string(),
   LastModified: z.date(),
@@ -206,7 +209,7 @@ export class S3 {
 
 export class FileS3 extends S3 {
   constructor() {
-    super(fileEnv.S3_ACCESS_KEY_ID, fileEnv.S3_SECRET_ACCESS_KEY, fileEnv.S3_ENDPOINT, {
+    super(fileEnv.S3_ACCESS_KEY_ID, fileEnv.S3_SECRET_ACCESS_KEY, getBrowserReachableS3Endpoint(), {
       bucket: fileEnv.S3_BUCKET,
       forcePathStyle: fileEnv.S3_ENABLE_PATH_STYLE,
       region: fileEnv.S3_REGION,
