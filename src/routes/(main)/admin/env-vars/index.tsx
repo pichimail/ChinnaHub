@@ -53,6 +53,18 @@ const AdminEnvVarsPage = () => {
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
 
+  const openQuickAdd = (record: RuntimeCatalogRow) => {
+    form.setFieldsValue({
+      description: record.description,
+      domain: record.domain,
+      isActive: true,
+      isSecret: record.isSecret,
+      key: record.key,
+      value: '',
+    });
+    setOpen(true);
+  };
+
   const { data, isLoading } = useSWR('admin:env-vars', async () => {
     const result = await lambdaClient.admin.getEnvVars.query();
     return result.data || [];
@@ -80,10 +92,11 @@ const AdminEnvVarsPage = () => {
     try {
       const values = await form.validateFields();
       await lambdaClient.admin.upsertEnvVar.mutate(values);
-      message.success('Env var saved');
+      message.success('Env var saved — environment updated');
       setOpen(false);
       form.resetFields();
       mutate('admin:env-vars');
+      mutate('admin:env-catalog');
     } catch {
       message.error('Save failed');
     }
@@ -156,6 +169,20 @@ const AdminEnvVarsPage = () => {
                       ),
                   },
                   { dataIndex: 'description', key: 'description', title: 'Description' },
+                  {
+                    key: 'actions',
+                    title: 'Actions',
+                    render: (_: unknown, record: RuntimeCatalogRow) =>
+                      record.source === 'missing' ? (
+                        <Button size="small" type="primary" onClick={() => openQuickAdd(record)}>
+                          Set Value
+                        </Button>
+                      ) : (
+                        <Button size="small" onClick={() => openQuickAdd(record)}>
+                          Edit
+                        </Button>
+                      ),
+                  },
                 ]}
               />
             ),
@@ -201,7 +228,15 @@ const AdminEnvVarsPage = () => {
         ]}
       />
 
-      <Modal open={open} title="Environment Variable" onCancel={() => setOpen(false)} onOk={submit}>
+      <Modal
+        open={open}
+        title="Environment Variable"
+        onCancel={() => {
+          setOpen(false);
+          form.resetFields();
+        }}
+        onOk={submit}
+      >
         <Form
           form={form}
           initialValues={{ domain: 'global', isActive: true, isSecret: true }}

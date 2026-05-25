@@ -530,6 +530,15 @@ export const marketRouter = router({
   connectListConnections: lobehubSkillBaseProcedure.query(async ({ ctx }) => {
     log('connectListConnections');
 
+    // On self-hosted deployments there is no market access token and trusted client
+    // is not configured — skip the remote call and return empty connections instead
+    // of propagating a 401 error to the client.
+    const hasAccessToken = !!(ctx as any).marketAccessToken;
+    if (!hasAccessToken && !isTrustedClientEnabled()) {
+      log('connectListConnections: no auth available on self-hosted instance, returning empty');
+      return { connections: [] };
+    }
+
     try {
       const response = await ctx.marketSDK.connect.listConnections();
       // Debug logging
@@ -544,19 +553,27 @@ export const marketRouter = router({
       const errorMessage = (error as Error)?.message || String(error);
       const errorCode = (error as any)?.code || (error as any)?.error;
 
-      // Map Market auth failures to UNAUTHORIZED so the client can trigger re-auth
-      if (
+      // On self-hosted deployments, silently return empty rather than surfacing
+      // a 401 that has no recovery path for the user.
+      const isAuthError =
         errorCode === 'invalid_token' ||
         errorCode === 'token_expired' ||
         errorCode === 'unauthorized' ||
         errorMessage.toLowerCase().includes('invalid_token') ||
         errorMessage.toLowerCase().includes('token expired') ||
-        errorMessage.toLowerCase().includes('unauthorized')
-      ) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Market access token is invalid or expired. Please sign in to Market again.',
-        });
+        errorMessage.toLowerCase().includes('unauthorized');
+
+      if (isAuthError) {
+        // If trusted client is configured, this is a real auth failure — surface it.
+        if (isTrustedClientEnabled()) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Market access token is invalid or expired. Please sign in to Market again.',
+          });
+        }
+        // Otherwise (self-hosted, no market integration) — degrade gracefully.
+        log('connectListConnections: auth error on self-hosted instance, returning empty');
+        return { connections: [] };
       }
 
       throw new TRPCError({
