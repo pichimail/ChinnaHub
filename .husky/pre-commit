@@ -1,3 +1,5 @@
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 BRANCH=$(git branch --show-current)
 if [ "$BRANCH" = "dev" ] || [ "$BRANCH" = "main" ]; then
   npm run type-check

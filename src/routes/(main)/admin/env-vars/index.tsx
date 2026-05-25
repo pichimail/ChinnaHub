@@ -1,10 +1,52 @@
 'use client';
 
-import { Button, Form, Input, message, Modal, Space, Spin, Switch, Table } from 'antd';
+import {
+  Alert,
+  Button,
+  Form,
+  Input,
+  message,
+  Modal,
+  Space,
+  Spin,
+  Switch,
+  Table,
+  Tabs,
+  Tag,
+} from 'antd';
 import { useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
+
+type EnvVarRow = {
+  domain: string;
+  id: string;
+  isActive: boolean;
+  isSecret: boolean;
+  key: string;
+  value: string;
+};
+
+type RuntimeCatalogRow = {
+  adminValueMasked?: string;
+  description: string;
+  domain: string;
+  hasAdminValue: boolean;
+  hasProcessValue: boolean;
+  isSecret: boolean;
+  issues: string[];
+  key: string;
+  processValueMasked?: string;
+  requiredFor: string[];
+  source: 'admin' | 'missing' | 'process';
+};
+
+const sourceColor: Record<RuntimeCatalogRow['source'], string> = {
+  admin: 'green',
+  missing: 'red',
+  process: 'blue',
+};
 
 const AdminEnvVarsPage = () => {
   const { mutate } = useSWRConfig();
@@ -15,6 +57,24 @@ const AdminEnvVarsPage = () => {
     const result = await lambdaClient.admin.getEnvVars.query();
     return result.data || [];
   });
+
+  const { data: catalog, isLoading: isCatalogLoading } = useSWR('admin:env-catalog', async () => {
+    const result = await lambdaClient.admin.getRuntimeEnvCatalog.query();
+    return (result.data || []) as RuntimeCatalogRow[];
+  });
+
+  const importRuntime = async () => {
+    try {
+      const result = await lambdaClient.admin.importRuntimeEnvVars.mutate();
+      message.success(
+        `Imported ${result.data.imported} runtime variables. Skipped ${result.data.skipped}.`,
+      );
+      mutate('admin:env-vars');
+      mutate('admin:env-catalog');
+    } catch {
+      message.error('Import failed');
+    }
+  };
 
   const submit = async () => {
     try {
@@ -39,43 +99,103 @@ const AdminEnvVarsPage = () => {
     }
   };
 
-  if (isLoading) return <Spin size="large" style={{ marginTop: 48 }} />;
+  if (isLoading || isCatalogLoading) return <Spin size="large" style={{ marginTop: 48 }} />;
 
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
+      <Space style={{ marginBottom: 12 }}>
         <Button type="primary" onClick={() => setOpen(true)}>
           Add Environment Variable
         </Button>
-      </div>
+        <Button onClick={importRuntime}>Import Existing Runtime Values</Button>
+      </Space>
 
-      <Table
-        dataSource={data || []}
-        rowKey="id"
-        columns={[
-          { dataIndex: 'domain', key: 'domain', title: 'Domain' },
-          { dataIndex: 'key', key: 'key', title: 'Key' },
+      <Tabs
+        items={[
           {
-            dataIndex: 'value',
-            key: 'value',
-            title: 'Value',
-            render: (value: string, record: any) => (record.isSecret ? '********' : value),
+            key: 'catalog',
+            label: 'Required Runtime Variables',
+            children: (
+              <Table
+                dataSource={catalog || []}
+                rowKey={(row) => `${row.domain}:${row.key}`}
+                columns={[
+                  { dataIndex: 'domain', key: 'domain', title: 'Domain' },
+                  { dataIndex: 'key', key: 'key', title: 'Key' },
+                  {
+                    dataIndex: 'source',
+                    key: 'source',
+                    title: 'Source',
+                    render: (source: RuntimeCatalogRow['source']) => (
+                      <Tag color={sourceColor[source]}>{source.toUpperCase()}</Tag>
+                    ),
+                  },
+                  {
+                    key: 'values',
+                    title: 'Values',
+                    render: (_: unknown, record: RuntimeCatalogRow) =>
+                      `Admin ${record.adminValueMasked || '-'} / Runtime ${
+                        record.processValueMasked || '-'
+                      }`,
+                  },
+                  {
+                    dataIndex: 'requiredFor',
+                    key: 'requiredFor',
+                    title: 'Used For',
+                    render: (items: string[]) => items.map((item) => <Tag key={item}>{item}</Tag>),
+                  },
+                  {
+                    dataIndex: 'issues',
+                    key: 'issues',
+                    title: 'Status',
+                    render: (issues: string[]) =>
+                      issues.length > 0 ? (
+                        <Alert showIcon message={issues.join(' ')} type="warning" />
+                      ) : (
+                        <Tag color="green">Ready</Tag>
+                      ),
+                  },
+                  { dataIndex: 'description', key: 'description', title: 'Description' },
+                ]}
+              />
+            ),
           },
           {
-            dataIndex: 'isActive',
-            key: 'isActive',
-            title: 'Active',
-            render: (v: boolean) => (v ? 'Yes' : 'No'),
-          },
-          {
-            key: 'actions',
-            title: 'Actions',
-            render: (_: unknown, record: any) => (
-              <Space>
-                <Button danger size="small" onClick={() => remove(record.id)}>
-                  Delete
-                </Button>
-              </Space>
+            key: 'saved',
+            label: 'Saved Variables',
+            children: (
+              <Table
+                dataSource={(data || []) as EnvVarRow[]}
+                rowKey="id"
+                columns={[
+                  { dataIndex: 'domain', key: 'domain', title: 'Domain' },
+                  { dataIndex: 'key', key: 'key', title: 'Key' },
+                  {
+                    dataIndex: 'value',
+                    key: 'value',
+                    title: 'Value',
+                    render: (value: string, record: EnvVarRow) =>
+                      record.isSecret ? '********' : value,
+                  },
+                  {
+                    dataIndex: 'isActive',
+                    key: 'isActive',
+                    title: 'Active',
+                    render: (v: boolean) => (v ? 'Yes' : 'No'),
+                  },
+                  {
+                    key: 'actions',
+                    title: 'Actions',
+                    render: (_: unknown, record: EnvVarRow) => (
+                      <Space>
+                        <Button danger size="small" onClick={() => remove(record.id)}>
+                          Delete
+                        </Button>
+                      </Space>
+                    ),
+                  },
+                ]}
+              />
             ),
           },
         ]}

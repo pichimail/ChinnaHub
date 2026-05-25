@@ -33,6 +33,7 @@ import { initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
 import {
   enforceContentTextPolicy,
   enforceGovernancePolicy,
+  enforceUserFeatureAccess,
   writeGovernanceEnforcementAudit,
 } from '@/server/services/admin/runtimeGovernance';
 import { FileService } from '@/server/services/file';
@@ -80,6 +81,19 @@ export const videoRouter = router({
     const { generationTopicId, provider, model, params } = input;
 
     const { resolvedModelId } = await resolveBusinessModelMapping(provider, model);
+
+    const featureAccess = await enforceUserFeatureAccess(serverDB, {
+      flagKey: 'ai_video',
+      label: 'Video generation',
+      userId,
+    });
+
+    if (!featureAccess.allowed) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: featureAccess.reason || 'Video generation is not available for your plan',
+      });
+    }
 
     const videoPolicy = await enforceGovernancePolicy(serverDB, {
       domain: 'video',

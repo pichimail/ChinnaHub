@@ -99,12 +99,33 @@ const AdminPlansPage = () => {
     }
   };
 
+  const openPlanEditor = (plan?: any) => {
+    if (plan) {
+      planForm.setFieldsValue({
+        audioCredits: plan.monthlyCredits?.audio || 0,
+        chatCredits: plan.monthlyCredits?.chat || 0,
+        config: JSON.stringify(plan.config || {}, null, 2),
+        description: plan.description,
+        imageCredits: plan.monthlyCredits?.image || 0,
+        isActive: plan.isActive,
+        key: plan.key,
+        label: plan.label,
+        sortOrder: plan.sortOrder,
+        videoCredits: plan.monthlyCredits?.video || 0,
+      });
+    } else {
+      planForm.resetFields();
+      planForm.setFieldsValue({ isActive: true, sortOrder: 100 });
+    }
+    setPlanOpen(true);
+  };
+
   if (isLoading) return <Spin size="large" style={{ marginTop: 48 }} />;
 
   return (
     <div>
       <Space style={{ marginBottom: 16 }}>
-        <Button type="primary" onClick={() => setPlanOpen(true)}>
+        <Button type="primary" onClick={() => openPlanEditor()}>
           Create or Edit Plan
         </Button>
         <Button onClick={() => setAssignOpen(true)}>Assign User Plan</Button>
@@ -128,10 +149,24 @@ const AdminPlansPage = () => {
                     key: 'monthlyCredits',
                     title: 'Monthly Credits',
                     render: (credits: any) =>
-                      `Chat ${credits?.chat || 0} / Image ${credits?.image || 0} / Video ${credits?.video || 0} / Audio ${credits?.audio || 0}`,
+                      [
+                        `Chat ${credits?.chat || 0}`,
+                        `Image ${credits?.image || 0}`,
+                        `Video ${credits?.video || 0}`,
+                        `Audio ${credits?.audio || 0}`,
+                      ].join(' / '),
                   },
                   { dataIndex: 'sortOrder', key: 'sortOrder', title: 'Order' },
                   { dataIndex: 'isActive', key: 'isActive', title: 'Active', render: Boolean },
+                  {
+                    key: 'actions',
+                    title: 'Actions',
+                    render: (_: unknown, record: any) => (
+                      <Button size="small" onClick={() => openPlanEditor(record)}>
+                        Edit
+                      </Button>
+                    ),
+                  },
                 ]}
               />
             ),

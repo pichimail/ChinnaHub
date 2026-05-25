@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 
 import {
@@ -19,6 +19,11 @@ import { getRedisConfig } from '@/envs/redis';
 import { initializeRedis } from '@/libs/redis';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
+import {
+  buildRuntimeEnvCatalog,
+  getRuntimeEnvImportValues,
+  maskValue,
+} from '@/server/services/admin/runtimeEnvCatalog';
 
 const adminProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
   const { ctx } = opts;
@@ -82,6 +87,51 @@ const publishUserFeatureOverrides = async (ctx: any, userId: string) => {
 };
 
 const governanceDomains = ['content', 'pricing', 'marketplace', 'image', 'video', 'audio'] as const;
+
+type OpenRouterModel = {
+  architecture?: {
+    input_modalities?: string[];
+    output_modalities?: string[];
+    modality?: string;
+  };
+  created?: number;
+  description?: string;
+  id: string;
+  name?: string;
+  output_modalities?: string[];
+};
+
+const parseModalities = (model: OpenRouterModel) => {
+  const output = [
+    ...(model.output_modalities || []),
+    ...(model.architecture?.output_modalities || []),
+  ].map((item) => item.toLowerCase());
+  const modality = model.architecture?.modality?.toLowerCase() || '';
+
+  return {
+    hasImage: output.includes('image') || modality.includes('image'),
+    hasVideo: output.includes('video') || modality.includes('video'),
+  };
+};
+
+const fetchOpenRouterModels = async (apiKey?: string) => {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+  const response = await fetch('https://openrouter.ai/api/v1/models?output_modalities=all', {
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new TRPCError({
+      code: 'BAD_GATEWAY',
+      message: `OpenRouter model fetch failed (${response.status})`,
+    });
+  }
+
+  const payload = (await response.json()) as { data?: OpenRouterModel[] };
+  return payload.data || [];
+};
 
 const featureCatalog = [
   ['chat', 'Chat', 'Core chat and conversation access', true],
@@ -255,13 +305,31 @@ export const adminRouter = router({
         .offset(input.offset);
       const totalCount = await ctx.serverDB.query.users.findMany({});
 
+      const [plans, assignments] = await Promise.all([
+        ctx.serverDB.select().from(adminUserPlans),
+        ctx.serverDB.select().from(featureFlagAssignments),
+      ]);
+      const planByUser = new Map(plans.map((plan) => [plan.userId, plan.planKey]));
+      const assignmentsByUser = assignments.reduce<Record<string, typeof assignments>>(
+        (acc, assignment) => {
+          acc[assignment.userId] ||= [];
+          acc[assignment.userId].push(assignment);
+          return acc;
+        },
+        {},
+      );
+
       return {
         success: true,
         data: {
           limit: input.limit,
           offset: input.offset,
           total: totalCount.length,
-          users: userList,
+          users: userList.map((user) => ({
+            ...user,
+            featureOverrides: assignmentsByUser[user.id] || [],
+            planKey: planByUser.get(user.id) || 'starter',
+          })),
         },
       };
     }),
@@ -728,8 +796,45 @@ export const adminRouter = router({
     }),
 
   getProviderOverview: adminProcedure.query(async ({ ctx }) => {
-    const providers = await ctx.serverDB.select().from(aiProviders).limit(500);
-    return { success: true, data: providers };
+    const [providers, policies] = await Promise.all([
+      ctx.serverDB.select().from(aiProviders).limit(500),
+      ctx.serverDB
+        .select()
+        .from(adminGovernancePolicies)
+        .where(inArray(adminGovernancePolicies.domain, ['image', 'video', 'audio'])),
+    ]);
+    return { success: true, data: { policies, providers } };
+  }),
+
+  getOpenRouterGenerationModels: adminProcedure.query(async ({ ctx }) => {
+    const [envRows, keyRows] = await Promise.all([
+      ctx.serverDB
+        .select()
+        .from(adminEnvVars)
+        .where(and(eq(adminEnvVars.key, 'OPENROUTER_API_KEY'), eq(adminEnvVars.isActive, true)))
+        .limit(1),
+      ctx.serverDB
+        .select()
+        .from(adminApiKeys)
+        .where(and(eq(adminApiKeys.service, 'openrouter'), eq(adminApiKeys.isActive, true)))
+        .limit(1),
+    ]);
+    const apiKey = keyRows[0]?.keyValue || envRows[0]?.value || process.env.OPENROUTER_API_KEY;
+    const models = await fetchOpenRouterModels(apiKey);
+    const mapped = models
+      .map((model) => {
+        const modalities = parseModalities(model);
+        return {
+          created: model.created,
+          description: model.description,
+          id: model.id,
+          name: model.name || model.id,
+          type: modalities.hasVideo ? 'video' : modalities.hasImage ? 'image' : 'other',
+        };
+      })
+      .filter((model) => model.type !== 'other');
+
+    return { success: true, data: mapped };
   }),
 
   getEnvVars: adminProcedure.query(async ({ ctx }) => {
@@ -740,6 +845,79 @@ export const adminRouter = router({
 
     return { success: true, data: vars };
   }),
+
+  getRuntimeEnvCatalog: adminProcedure.query(async ({ ctx }) => {
+    const vars = await ctx.serverDB.select().from(adminEnvVars);
+    return { success: true, data: buildRuntimeEnvCatalog(vars) };
+  }),
+
+  importRuntimeEnvVars: adminProcedure
+    .input(
+      z
+        .object({
+          keys: z.array(z.string()).optional(),
+          overwrite: z.boolean().default(false),
+        })
+        .optional(),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const candidates = getRuntimeEnvImportValues(input?.keys);
+      let imported = 0;
+      let skipped = 0;
+
+      for (const candidate of candidates) {
+        const existing = await ctx.serverDB
+          .select()
+          .from(adminEnvVars)
+          .where(
+            and(eq(adminEnvVars.domain, candidate.domain), eq(adminEnvVars.key, candidate.key)),
+          )
+          .limit(1);
+
+        if (existing[0] && !input?.overwrite) {
+          skipped += 1;
+          continue;
+        }
+
+        if (existing[0]) {
+          await ctx.serverDB
+            .update(adminEnvVars)
+            .set({
+              description: candidate.description,
+              isActive: true,
+              isSecret: candidate.isSecret,
+              updatedAt: new Date(),
+              value: candidate.value,
+            })
+            .where(eq(adminEnvVars.id, existing[0].id));
+        } else {
+          await ctx.serverDB.insert(adminEnvVars).values({
+            description: candidate.description,
+            domain: candidate.domain,
+            isActive: true,
+            isSecret: candidate.isSecret,
+            key: candidate.key,
+            value: candidate.value,
+          });
+        }
+        imported += 1;
+      }
+
+      await ctx.serverDB.insert(adminAuditLogs).values({
+        action: 'env_var.import_runtime',
+        adminEmail: ctx.adminEmail,
+        adminId: ctx.adminId,
+        metadata: {
+          imported,
+          keys: candidates.map((item) => item.key),
+          skipped,
+          values: Object.fromEntries(candidates.map((item) => [item.key, maskValue(item.value)])),
+        },
+        targetType: 'env_var',
+      });
+
+      return { success: true, data: { imported, skipped } };
+    }),
 
   upsertEnvVar: adminProcedure
     .input(

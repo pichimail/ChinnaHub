@@ -17,6 +17,7 @@ import { createAsyncCaller } from '@/server/routers/async/caller';
 import {
   enforceContentTextPolicy,
   enforceGovernancePolicy,
+  enforceUserFeatureAccess,
   writeGovernanceEnforcementAudit,
 } from '@/server/services/admin/runtimeGovernance';
 import { FileService } from '@/server/services/file';
@@ -70,6 +71,19 @@ export const imageRouter = router({
     log('Starting image creation process, input: %O', input);
 
     const { resolvedModelId } = await resolveBusinessModelMapping(provider, model);
+
+    const featureAccess = await enforceUserFeatureAccess(serverDB, {
+      flagKey: 'ai_image',
+      label: 'Image generation',
+      userId,
+    });
+
+    if (!featureAccess.allowed) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: featureAccess.reason || 'Image generation is not available for your plan',
+      });
+    }
 
     const imagePolicy = await enforceGovernancePolicy(serverDB, {
       domain: 'image',

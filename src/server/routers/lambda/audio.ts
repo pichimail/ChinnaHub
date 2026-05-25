@@ -12,6 +12,7 @@ import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import {
   enforceContentTextPolicy,
   enforceGovernancePolicy,
+  enforceUserFeatureAccess,
   getManagedApiKey,
   getManagedEnvVar,
   writeGovernanceEnforcementAudit,
@@ -69,12 +70,14 @@ const createAudioService = async (
   service: Pick<KieAiAudioService, 'createMusic' | 'pollMusicStatus'>;
 }> => {
   if (providerMode === 'lyria') {
-    const [managedKey, managedEnvKey, managedModel] = await Promise.all([
+    const [managedKey, managedAudioEnvKey, managedAiEnvKey, managedModel] = await Promise.all([
       getManagedApiKey(db, 'openrouter_audio_generation'),
       getManagedEnvVar(db, 'OPENROUTER_API_KEY', 'audio'),
+      getManagedEnvVar(db, 'OPENROUTER_API_KEY', 'ai'),
       getManagedEnvVar(db, 'OPENROUTER_LYRIA_MODEL', 'audio'),
     ]);
-    const apiKey = managedKey || managedEnvKey || process.env.OPENROUTER_API_KEY;
+    const apiKey =
+      managedKey || managedAudioEnvKey || managedAiEnvKey || process.env.OPENROUTER_API_KEY;
     const model = managedModel || process.env.OPENROUTER_LYRIA_MODEL || DEFAULT_LYRIA_MODEL;
 
     if (!apiKey) {
@@ -170,6 +173,30 @@ export const audioRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const providerMode = input.parameters.providerMode || 'classic';
+        const featureKey =
+          providerMode === 'lyria' ? 'audio_accoustica_lyria' : 'audio_accoustica_classic';
+
+        const [audioAccess, modeAccess] = await Promise.all([
+          enforceUserFeatureAccess(ctx.serverDB, {
+            flagKey: 'ai_audio',
+            label: 'Audio generation',
+            userId: ctx.userId,
+          }),
+          enforceUserFeatureAccess(ctx.serverDB, {
+            flagKey: featureKey,
+            label: providerMode === 'lyria' ? 'Accoustica Lyria' : 'Accoustica Classic',
+            userId: ctx.userId,
+          }),
+        ]);
+
+        const deniedAccess = [audioAccess, modeAccess].find((access) => !access.allowed);
+        if (deniedAccess) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: deniedAccess.reason || 'Audio generation is not available for your plan',
+          });
+        }
+
         const target =
           providerMode === 'lyria'
             ? 'provider:openrouter:model:lyria'
@@ -236,7 +263,11 @@ export const audioRouter = router({
         const contentPolicy = await enforceContentTextPolicy(ctx.serverDB, {
           contextTarget: 'audio:prompt',
           domain: 'audio',
-          text: `${input.parameters.title || ''}\n${input.parameters.style || ''}\n${input.parameters.prompt || ''}`,
+          text: [
+            input.parameters.title || '',
+            input.parameters.style || '',
+            input.parameters.prompt || '',
+          ].join('\n'),
           userId: ctx.userId,
         });
 

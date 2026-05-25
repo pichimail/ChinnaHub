@@ -5,6 +5,11 @@ import {
   adminAuditLogs,
   adminEnvVars,
   adminGovernancePolicies,
+  adminPlanFeatures,
+  adminPlans,
+  adminUserPlans,
+  featureFlagAssignments,
+  featureFlags,
 } from '@/database/schemas/admin';
 import { getRedisConfig } from '@/envs/redis';
 import { initializeRedis } from '@/libs/redis';
@@ -42,6 +47,10 @@ export const enforceGovernancePolicy = async (
   reason?: string;
   target?: string;
 }> => {
+  if (typeof db?.select !== 'function') {
+    return { allowed: true };
+  }
+
   let policies = [];
   try {
     policies = await db
@@ -138,6 +147,10 @@ export const enforceContentTextPolicy = async (
   db: any,
   input: ContentPolicyCheckInput,
 ): Promise<{ allowed: boolean; policyId?: string; reason?: string; target?: string }> => {
+  if (typeof db?.select !== 'function') {
+    return { allowed: true };
+  }
+
   let contentPolicies = [];
   try {
     contentPolicies = await db
@@ -240,4 +253,121 @@ export const getManagedEnvVar = async (
     if (error?.code === '42P01' || error?.cause?.code === '42P01') return null;
     throw error;
   }
+};
+
+export const resolveUserFeatureAccess = async (
+  db: any,
+  input: { flagKey: string; userId: string },
+): Promise<{
+  allowed: boolean;
+  flagKey: string;
+  planKey?: string;
+  reason?: string;
+  source: 'default' | 'missing' | 'plan' | 'user_override';
+}> => {
+  if (typeof db?.select !== 'function') {
+    return { allowed: true, flagKey: input.flagKey, source: 'missing' };
+  }
+
+  try {
+    const [assignmentRows, planRows, flagRows] = await Promise.all([
+      db
+        .select()
+        .from(featureFlagAssignments)
+        .where(
+          and(
+            eq(featureFlagAssignments.userId, input.userId),
+            eq(featureFlagAssignments.flagKey, input.flagKey),
+          ),
+        )
+        .limit(1),
+      db.select().from(adminUserPlans).where(eq(adminUserPlans.userId, input.userId)).limit(1),
+      db.select().from(featureFlags).where(eq(featureFlags.key, input.flagKey)).limit(1),
+    ]);
+
+    const assignment = assignmentRows[0];
+    if (assignment) {
+      return {
+        allowed: !!assignment.enabled,
+        flagKey: input.flagKey,
+        reason: assignment.enabled ? undefined : `${input.flagKey} is disabled for this user`,
+        source: 'user_override',
+      };
+    }
+
+    const planKey = planRows[0]?.planKey || 'starter';
+    const [planFeatureRows, planStatusRows] = await Promise.all([
+      db
+        .select()
+        .from(adminPlanFeatures)
+        .where(
+          and(eq(adminPlanFeatures.planKey, planKey), eq(adminPlanFeatures.flagKey, input.flagKey)),
+        )
+        .limit(1),
+      db.select().from(adminPlans).where(eq(adminPlans.key, planKey)).limit(1),
+    ]);
+
+    if (planStatusRows[0] && !planStatusRows[0].isActive) {
+      return {
+        allowed: false,
+        flagKey: input.flagKey,
+        planKey,
+        reason: `Plan ${planKey} is inactive`,
+        source: 'plan',
+      };
+    }
+
+    const planFeature = planFeatureRows[0];
+    if (planFeature) {
+      return {
+        allowed: !!planFeature.enabled,
+        flagKey: input.flagKey,
+        planKey,
+        reason: planFeature.enabled ? undefined : `${input.flagKey} is not enabled for ${planKey}`,
+        source: 'plan',
+      };
+    }
+
+    const flag = flagRows[0];
+    return {
+      allowed: !!flag?.defaultEnabled,
+      flagKey: input.flagKey,
+      planKey,
+      reason: flag?.defaultEnabled ? undefined : `${input.flagKey} is disabled`,
+      source: flag ? 'default' : 'missing',
+    };
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.cause?.code === '42P01') {
+      return { allowed: true, flagKey: input.flagKey, source: 'missing' };
+    }
+    throw error;
+  }
+};
+
+export const enforceUserFeatureAccess = async (
+  db: any,
+  input: { flagKey: string; label: string; userId: string },
+) => {
+  const access = await resolveUserFeatureAccess(db, input);
+
+  if (!access.allowed) {
+    await writeGovernanceEnforcementAudit(db, {
+      action: 'governance.policy_block',
+      metadata: {
+        flagKey: input.flagKey,
+        planKey: access.planKey,
+        source: access.source,
+      },
+      reason: access.reason,
+      targetId: input.flagKey,
+      userId: input.userId,
+    });
+  }
+
+  return access.allowed
+    ? access
+    : {
+        ...access,
+        reason: access.reason || `${input.label} is not available for this user`,
+      };
 };
