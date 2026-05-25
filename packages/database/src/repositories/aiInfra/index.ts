@@ -149,15 +149,24 @@ export class AiInfraRepos {
     // 1. First create a mapping based on DEFAULT_MODEL_PROVIDER_LIST id order
     const orderMap = new Map(DEFAULT_MODEL_PROVIDER_LIST.map((item, index) => [item.id, index]));
 
-    const builtinProviders = DEFAULT_MODEL_PROVIDER_LIST.map((item) => ({
-      description: item.description,
-      enabled:
-        userProviders.some((provider) => provider.id === item.id && provider.enabled) ||
-        this.providerConfigs[item.id]?.enabled,
-      id: item.id,
-      name: item.name,
-      source: 'builtin',
-    })) as AiProviderListItem[];
+    const builtinProviders = DEFAULT_MODEL_PROVIDER_LIST.filter((item) => {
+      const cfg = this.providerConfigs[item.id] as any;
+      // Completely exclude providers that admin has force-disabled
+      return cfg?.enabled !== false;
+    }).map((item) => {
+      const cfg = this.providerConfigs[item.id] as any;
+      return {
+        description: item.description,
+        enabled:
+          userProviders.some((provider) => provider.id === item.id && provider.enabled) ||
+          cfg?.enabled,
+        id: item.id,
+        // Admin-set label/logo override the builtin defaults
+        logo: cfg?.adminLogo ?? item.logo,
+        name: cfg?.adminLabel ?? item.name,
+        source: 'builtin',
+      };
+    }) as AiProviderListItem[];
 
     const mergedProviders = mergeArrayById(builtinProviders, userProviders);
 

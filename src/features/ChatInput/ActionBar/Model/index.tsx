@@ -7,6 +7,10 @@ import { Settings2Icon } from 'lucide-react';
 import { memo, Suspense, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import {
+  ChinnaAutoModelIcon,
+  OPENROUTER_AUTO_MODEL_ID,
+} from '@/components/ModelSelect/modelDisplay';
 import ModelSwitchPanel from '@/features/ModelSwitchPanel';
 import ModelDetailPanel from '@/features/ModelSwitchPanel/components/ModelDetailPanel';
 import { useAgentStore } from '@/store/agent';
@@ -92,7 +96,11 @@ const ModelSwitch = memo(() => {
           width={36}
         >
           <div className={styles.icon}>
-            <ModelIcon model={model} size={22} />
+            {model === OPENROUTER_AUTO_MODEL_ID ? (
+              <ChinnaAutoModelIcon size={22} />
+            ) : (
+              <ModelIcon model={model} size={22} />
+            )}
           </div>
         </Center>
       </ModelSwitchPanel>

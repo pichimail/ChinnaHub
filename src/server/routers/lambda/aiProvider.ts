@@ -1,9 +1,11 @@
 import { TRPCError } from '@trpc/server';
+import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { AiProviderModel } from '@/database/models/aiProvider';
 import { UserModel } from '@/database/models/user';
 import { AiInfraRepos } from '@/database/repositories/aiInfra';
+import { adminEnvVars, adminGovernancePolicies } from '@/database/schemas/admin';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { getServerGlobalConfig } from '@/server/globalConfig';
@@ -23,13 +25,58 @@ const aiProviderProcedure = authedProcedure.use(serverDatabase).use(async (opts)
   const { aiProvider } = await getServerGlobalConfig();
 
   const gateKeeper = await KeyVaultsGateKeeper.initWithEnvKey();
+
+  // Apply admin-level provider overrides (disable/custom label+logo) from governance + env vars
+  const overriddenProviderConfigs = { ...(aiProvider as Record<string, ProviderConfig>) };
+  try {
+    const [disablePolicies, providerEnvRows] = await Promise.all([
+      ctx.serverDB
+        .select({ target: adminGovernancePolicies.target })
+        .from(adminGovernancePolicies)
+        .where(
+          and(
+            eq(adminGovernancePolicies.domain, 'provider'),
+            eq(adminGovernancePolicies.mode, 'deny'),
+            eq(adminGovernancePolicies.isActive, true),
+          ),
+        ),
+      ctx.serverDB
+        .select({ key: adminEnvVars.key, value: adminEnvVars.value })
+        .from(adminEnvVars)
+        .where(and(eq(adminEnvVars.domain, 'provider'), eq(adminEnvVars.isActive, true))),
+    ]);
+
+    // Force-disable providers that have a deny policy
+    for (const policy of disablePolicies) {
+      overriddenProviderConfigs[policy.target] = {
+        ...overriddenProviderConfigs[policy.target],
+        enabled: false,
+      };
+    }
+
+    // Inject custom names/logos so AiInfraRepos can surface them via providerConfigs
+    for (const row of providerEnvRows) {
+      if (row.key.startsWith('LABEL_')) {
+        const id = row.key.replace('LABEL_', '');
+        overriddenProviderConfigs[id] = {
+          ...overriddenProviderConfigs[id],
+          adminLabel: row.value,
+        } as any;
+      } else if (row.key.startsWith('LOGO_')) {
+        const id = row.key.replace('LOGO_', '');
+        overriddenProviderConfigs[id] = {
+          ...overriddenProviderConfigs[id],
+          adminLogo: row.value,
+        } as any;
+      }
+    }
+  } catch {
+    // If admin tables don't exist yet, fall back to base config
+  }
+
   return opts.next({
     ctx: {
-      aiInfraRepos: new AiInfraRepos(
-        ctx.serverDB,
-        ctx.userId,
-        aiProvider as Record<string, ProviderConfig>,
-      ),
+      aiInfraRepos: new AiInfraRepos(ctx.serverDB, ctx.userId, overriddenProviderConfigs),
       aiProviderModel: new AiProviderModel(ctx.serverDB, ctx.userId),
       gateKeeper,
       userModel: new UserModel(ctx.serverDB, ctx.userId),

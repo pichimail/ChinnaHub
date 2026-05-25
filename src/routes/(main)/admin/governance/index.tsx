@@ -1,23 +1,63 @@
 'use client';
 
-import { Button, Form, Input, message, Modal, Select, Space, Spin, Switch, Table } from 'antd';
+import { Button, Form, Input, message, Modal, Select, Space, Spin, Switch, Table, Tag } from 'antd';
 import { useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
 
-const domainOptions = ['content', 'pricing', 'marketplace', 'image', 'video', 'audio'];
+const domainOptions = ['content', 'pricing', 'marketplace', 'image', 'video', 'audio', 'provider'];
 const modeOptions = ['allow', 'deny', 'review', 'throttle'];
+
+const modeColor: Record<string, string> = {
+  allow: 'green',
+  deny: 'red',
+  review: 'orange',
+  throttle: 'blue',
+};
+
+type PolicyRow = {
+  config?: Record<string, unknown>;
+  domain: string;
+  id: string;
+  isActive: boolean;
+  mode: string;
+  notes?: string | null;
+  priority: number;
+  target: string;
+};
 
 const AdminGovernancePage = () => {
   const { mutate } = useSWRConfig();
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | undefined>();
   const [form] = Form.useForm();
 
   const { data, isLoading } = useSWR('admin:governance', async () => {
     const result = await lambdaClient.admin.getGovernancePolicies.query();
-    return result.data || [];
+    return (result.data || []) as PolicyRow[];
   });
+
+  const openAdd = () => {
+    setEditingId(undefined);
+    form.resetFields();
+    form.setFieldsValue({ domain: 'content', isActive: true, mode: 'allow', priority: 100 });
+    setOpen(true);
+  };
+
+  const openEdit = (record: PolicyRow) => {
+    setEditingId(record.id);
+    form.setFieldsValue({
+      config: record.config ? JSON.stringify(record.config, null, 2) : '',
+      domain: record.domain,
+      isActive: record.isActive,
+      mode: record.mode,
+      notes: record.notes,
+      priority: record.priority,
+      target: record.target,
+    });
+    setOpen(true);
+  };
 
   const submit = async () => {
     try {
@@ -25,23 +65,44 @@ const AdminGovernancePage = () => {
       await lambdaClient.admin.upsertGovernancePolicy.mutate({
         ...values,
         config: values.config ? JSON.parse(values.config) : {},
+        id: editingId,
       });
-      message.success('Policy saved');
+      message.success(editingId ? 'Policy updated' : 'Policy created');
       setOpen(false);
       form.resetFields();
+      setEditingId(undefined);
       mutate('admin:governance');
     } catch {
-      message.error('Save failed');
+      message.error('Save failed — check JSON config syntax');
     }
   };
 
   const remove = async (id: string) => {
     try {
       await lambdaClient.admin.deleteGovernancePolicy.mutate({ id });
-      message.success('Deleted');
+      message.success('Policy deleted');
       mutate('admin:governance');
     } catch {
       message.error('Delete failed');
+    }
+  };
+
+  const toggleActive = async (record: PolicyRow) => {
+    try {
+      await lambdaClient.admin.upsertGovernancePolicy.mutate({
+        config: record.config || {},
+        domain: record.domain as any,
+        id: record.id,
+        isActive: !record.isActive,
+        mode: record.mode as any,
+        notes: record.notes ?? undefined,
+        priority: record.priority,
+        target: record.target,
+      });
+      message.success(`Policy ${!record.isActive ? 'activated' : 'deactivated'}`);
+      mutate('admin:governance');
+    } catch {
+      message.error('Toggle failed');
     }
   };
 
@@ -49,31 +110,52 @@ const AdminGovernancePage = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
-        <Button type="primary" onClick={() => setOpen(true)}>
+      <Space direction="vertical" size={12} style={{}}>
+        <Button type="primary" onClick={openAdd}>
           Add Governance Policy
         </Button>
-      </div>
+      </Space>
 
       <Table
         dataSource={data || []}
         rowKey="id"
         columns={[
-          { dataIndex: 'domain', key: 'domain', title: 'Domain' },
+          {
+            dataIndex: 'domain',
+            key: 'domain',
+            title: 'Domain',
+            render: (d: string) => <Tag color="purple">{d}</Tag>,
+          },
           { dataIndex: 'target', key: 'target', title: 'Target' },
-          { dataIndex: 'mode', key: 'mode', title: 'Mode' },
+          {
+            dataIndex: 'mode',
+            key: 'mode',
+            title: 'Mode',
+            render: (m: string) => <Tag color={modeColor[m] ?? 'default'}>{m.toUpperCase()}</Tag>,
+          },
           { dataIndex: 'priority', key: 'priority', title: 'Priority' },
           {
             dataIndex: 'isActive',
             key: 'isActive',
             title: 'Active',
-            render: (v: boolean) => (v ? 'Yes' : 'No'),
+            render: (v: boolean, record: PolicyRow) => (
+              <Switch checked={v} size="small" onChange={() => toggleActive(record)} />
+            ),
+          },
+          {
+            dataIndex: 'notes',
+            key: 'notes',
+            title: 'Notes',
+            render: (n: string | null) => n || '—',
           },
           {
             key: 'actions',
             title: 'Actions',
-            render: (_: unknown, record: any) => (
+            render: (_: unknown, record: PolicyRow) => (
               <Space>
+                <Button size="small" onClick={() => openEdit(record)}>
+                  Edit
+                </Button>
                 <Button danger size="small" onClick={() => remove(record.id)}>
                   Delete
                 </Button>
@@ -83,7 +165,16 @@ const AdminGovernancePage = () => {
         ]}
       />
 
-      <Modal open={open} title="Governance Policy" onCancel={() => setOpen(false)} onOk={submit}>
+      <Modal
+        open={open}
+        title={editingId ? 'Edit Governance Policy' : 'Add Governance Policy'}
+        onOk={submit}
+        onCancel={() => {
+          setOpen(false);
+          form.resetFields();
+          setEditingId(undefined);
+        }}
+      >
         <Form
           form={form}
           initialValues={{ domain: 'content', isActive: true, mode: 'allow', priority: 100 }}
@@ -93,7 +184,7 @@ const AdminGovernancePage = () => {
             <Select options={domainOptions.map((d) => ({ label: d, value: d }))} />
           </Form.Item>
           <Form.Item label="Target" name="target" rules={[{ required: true }]}>
-            <Input placeholder="model:gpt-4.1 | plan:free | media:image" />
+            <Input placeholder="model:gpt-4.1 | plan:free | openai | *" />
           </Form.Item>
           <Form.Item label="Mode" name="mode" rules={[{ required: true }]}>
             <Select options={modeOptions.map((m) => ({ label: m, value: m }))} />

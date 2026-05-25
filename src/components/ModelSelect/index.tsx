@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { type AiProviderSourceType } from '@/types/aiProvider';
 import { formatTokenNumber } from '@/utils/format';
 
+import { ChinnaAutoModelIcon, getModelDisplayName, OPENROUTER_AUTO_MODEL_ID } from './modelDisplay';
 import NewModelBadgeI18n, { NewModelBadge as NewModelBadgeCore } from './NewModelBadge';
 
 export const TAG_CLASSNAME = 'lobe-model-info-tags';
@@ -259,7 +260,7 @@ export const ModelItemRender = memo<ModelItemRenderProps>(
     ...rest
   }) => {
     const { mobile } = useResponsive();
-    const displayNameOrId = displayName || id;
+    const displayNameOrId = getModelDisplayName(id, displayName);
 
     return (
       <Flexbox
@@ -281,7 +282,11 @@ export const ModelItemRender = memo<ModelItemRenderProps>(
           gap={8}
           style={{ flexShrink: 1, minWidth: 0, overflow: 'hidden' }}
         >
-          <ModelIcon model={id} size={20} />
+          {id === OPENROUTER_AUTO_MODEL_ID ? (
+            <ChinnaAutoModelIcon size={20} />
+          ) : (
+            <ModelIcon model={id} size={20} />
+          )}
           <Text
             style={mobile ? { maxWidth: '60vw' } : { minWidth: 0, overflow: 'hidden' }}
             ellipsis={{

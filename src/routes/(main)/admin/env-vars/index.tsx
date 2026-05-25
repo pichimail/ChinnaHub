@@ -231,11 +231,11 @@ const AdminEnvVarsPage = () => {
       <Modal
         open={open}
         title="Environment Variable"
+        onOk={submit}
         onCancel={() => {
           setOpen(false);
           form.resetFields();
         }}
-        onOk={submit}
       >
         <Form
           form={form}

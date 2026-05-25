@@ -1,5 +1,6 @@
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, inArray } from 'drizzle-orm';
+import { DEFAULT_MODEL_PROVIDER_LIST } from 'model-bank/modelProviders';
 import { z } from 'zod';
 
 import {
@@ -86,7 +87,15 @@ const publishUserFeatureOverrides = async (ctx: any, userId: string) => {
   );
 };
 
-const governanceDomains = ['content', 'pricing', 'marketplace', 'image', 'video', 'audio'] as const;
+const governanceDomains = [
+  'content',
+  'pricing',
+  'marketplace',
+  'image',
+  'video',
+  'audio',
+  'provider',
+] as const;
 
 type OpenRouterModel = {
   architecture?: {
@@ -1048,6 +1057,153 @@ export const adminRouter = router({
         adminId: ctx.adminId,
         targetId: input.id,
         targetType: 'governance_policy',
+      });
+
+      return { success: true };
+    }),
+
+  // ── Global Provider Settings ─────────────────────────────────────────────
+
+  getGlobalProviderSettings: adminProcedure.query(async ({ ctx }) => {
+    const [policies, envRows] = await Promise.all([
+      ctx.serverDB
+        .select()
+        .from(adminGovernancePolicies)
+        .where(
+          and(
+            eq(adminGovernancePolicies.domain, 'provider'),
+            eq(adminGovernancePolicies.isActive, true),
+          ),
+        ),
+      ctx.serverDB
+        .select()
+        .from(adminEnvVars)
+        .where(and(eq(adminEnvVars.domain, 'provider'), eq(adminEnvVars.isActive, true))),
+    ]);
+
+    const disabledSet = new Set(policies.filter((p) => p.mode === 'deny').map((p) => p.target));
+    const labelMap = new Map(
+      envRows
+        .filter((r) => r.key.startsWith('LABEL_'))
+        .map((r) => [r.key.replace('LABEL_', ''), r.value]),
+    );
+    const logoMap = new Map(
+      envRows
+        .filter((r) => r.key.startsWith('LOGO_'))
+        .map((r) => [r.key.replace('LOGO_', ''), r.value]),
+    );
+
+    // Build a fully merged provider list (all built-ins + admin overrides)
+    const providers = DEFAULT_MODEL_PROVIDER_LIST.map((item) => ({
+      description: item.description,
+      enabled: !disabledSet.has(item.id),
+      id: item.id,
+      logo: logoMap.get(item.id) ?? (item as any).logo ?? null,
+      name: labelMap.get(item.id) ?? item.name,
+      originalName: item.name,
+    }));
+
+    return {
+      success: true,
+      data: {
+        providers,
+      },
+    };
+  }),
+
+  upsertGlobalProviderSetting: adminProcedure
+    .input(
+      z.object({
+        customLabel: z.string().optional(),
+        customLogo: z.string().optional(),
+        enabled: z.boolean(),
+        providerId: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { providerId, enabled, customLabel, customLogo } = input;
+
+      // ── 1. Handle enabled/disabled via governance policy ──
+      const existing = await ctx.serverDB
+        .select()
+        .from(adminGovernancePolicies)
+        .where(
+          and(
+            eq(adminGovernancePolicies.domain, 'provider'),
+            eq(adminGovernancePolicies.target, providerId),
+            eq(adminGovernancePolicies.mode, 'deny'),
+          ),
+        )
+        .limit(1);
+
+      if (!enabled) {
+        // Create or reactivate a deny policy
+        if (existing[0]) {
+          await ctx.serverDB
+            .update(adminGovernancePolicies)
+            .set({ isActive: true, updatedAt: new Date() })
+            .where(eq(adminGovernancePolicies.id, existing[0].id));
+        } else {
+          await ctx.serverDB.insert(adminGovernancePolicies).values({
+            domain: 'provider',
+            isActive: true,
+            mode: 'deny',
+            notes: `Provider ${providerId} disabled by admin`,
+            priority: 1,
+            target: providerId,
+          });
+        }
+      } else {
+        // Remove deny policy (re-enable)
+        if (existing[0]) {
+          await ctx.serverDB
+            .delete(adminGovernancePolicies)
+            .where(eq(adminGovernancePolicies.id, existing[0].id));
+        }
+      }
+
+      // ── 2. Handle custom label ──
+      const upsertEnvVar = async (key: string, value: string | undefined) => {
+        const fullKey = `${key}_${providerId}`;
+        const row = await ctx.serverDB
+          .select()
+          .from(adminEnvVars)
+          .where(and(eq(adminEnvVars.domain, 'provider'), eq(adminEnvVars.key, fullKey)))
+          .limit(1);
+
+        if (!value) {
+          if (row[0]) await ctx.serverDB.delete(adminEnvVars).where(eq(adminEnvVars.id, row[0].id));
+          return;
+        }
+
+        if (row[0]) {
+          await ctx.serverDB
+            .update(adminEnvVars)
+            .set({ isActive: true, updatedAt: new Date(), value })
+            .where(eq(adminEnvVars.id, row[0].id));
+        } else {
+          await ctx.serverDB.insert(adminEnvVars).values({
+            domain: 'provider',
+            isActive: true,
+            isSecret: false,
+            key: fullKey,
+            value,
+          });
+        }
+      };
+
+      await Promise.all([
+        upsertEnvVar('LABEL', customLabel ?? undefined),
+        upsertEnvVar('LOGO', customLogo ?? undefined),
+      ]);
+
+      await ctx.serverDB.insert(adminAuditLogs).values({
+        action: 'provider.upsert_setting',
+        adminEmail: ctx.adminEmail,
+        adminId: ctx.adminId,
+        metadata: { customLabel, customLogo, enabled, providerId },
+        targetId: providerId,
+        targetType: 'provider_setting',
       });
 
       return { success: true };
