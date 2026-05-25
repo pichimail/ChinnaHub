@@ -8,6 +8,45 @@ import { MarketService } from '@/server/services/market';
 
 const log = debug('lambda-router:market:creds');
 
+const isMarketAuthError = (error: unknown) => {
+  const anyError = error as {
+    code?: string;
+    message?: string;
+    status?: number;
+    statusCode?: number;
+    response?: { status?: number };
+  };
+  const status = anyError?.status ?? anyError?.statusCode ?? anyError?.response?.status;
+  const message = anyError?.message || '';
+
+  return (
+    status === 401 ||
+    status === 403 ||
+    anyError?.code === 'UNAUTHORIZED' ||
+    message.includes('Market access token') ||
+    message.toLowerCase().includes('unauthorized') ||
+    message.toLowerCase().includes('token')
+  );
+};
+
+const toMarketCredsError = (error: unknown, fallbackMessage: string) => {
+  if (error instanceof TRPCError) return error;
+
+  if (isMarketAuthError(error)) {
+    return new TRPCError({
+      cause: error,
+      code: 'UNAUTHORIZED',
+      message: 'Market access token is invalid or expired. Please sign in to Market again.',
+    });
+  }
+
+  return new TRPCError({
+    cause: error,
+    code: 'INTERNAL_SERVER_ERROR',
+    message: fallbackMessage,
+  });
+};
+
 // Creds procedure with market authentication
 const credsProcedure = publicProcedure
   .use(serverDatabase)
@@ -317,11 +356,7 @@ export const credsRouter = router({
       return result;
     } catch (error) {
       log('list error: %O', error);
-      throw new TRPCError({
-        cause: error,
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to list credentials',
-      });
+      throw toMarketCredsError(error, 'Failed to list credentials');
     }
   }),
 
@@ -335,11 +370,7 @@ export const credsRouter = router({
       return result;
     } catch (error) {
       log('listOAuthConnections error: %O', error);
-      throw new TRPCError({
-        cause: error,
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to list OAuth connections',
-      });
+      throw toMarketCredsError(error, 'Failed to list OAuth connections');
     }
   }),
 

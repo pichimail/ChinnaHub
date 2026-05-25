@@ -564,15 +564,10 @@ export const marketRouter = router({
         errorMessage.toLowerCase().includes('unauthorized');
 
       if (isAuthError) {
-        // If trusted client is configured, this is a real auth failure — surface it.
-        if (isTrustedClientEnabled()) {
-          throw new TRPCError({
-            code: 'UNAUTHORIZED',
-            message: 'Market access token is invalid or expired. Please sign in to Market again.',
-          });
-        }
-        // Otherwise (self-hosted, no market integration) — degrade gracefully.
-        log('connectListConnections: auth error on self-hosted instance, returning empty');
+        // Degrade gracefully for connection listing to avoid repeated unauthorized
+        // console noise in non-Market pages. Auth-specific reconnect UX is handled
+        // by the dedicated Market credentials views.
+        log('connectListConnections: auth error, returning empty connection list');
         return { connections: [] };
       }
 

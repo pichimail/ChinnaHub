@@ -12,6 +12,7 @@ import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import {
   enforceContentTextPolicy,
   enforceGovernancePolicy,
+  enforceProviderAvailability,
   enforceUserFeatureAccess,
   getManagedApiKey,
   getManagedEnvVar,
@@ -291,6 +292,19 @@ export const audioRouter = router({
         }
 
         const { model, provider, service } = await createAudioService(ctx.serverDB, providerMode);
+        const providerPolicy = await enforceProviderAvailability(ctx.serverDB, {
+          model,
+          provider,
+          userId: ctx.userId,
+        });
+
+        if (!providerPolicy.allowed) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: providerPolicy.reason || 'AI provider is disabled by admin policy',
+          });
+        }
+
         const musicResponse = await service.createMusic(input.parameters);
 
         if (!musicResponse.id) {

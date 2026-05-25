@@ -106,7 +106,7 @@ const HtmlPreviewDrawer = memo<HtmlPreviewDrawerProps>(({ content, open, onClose
         <Block className={styles.container}>
           <iframe
             className={styles.iframe}
-            sandbox="allow-scripts allow-same-origin"
+            sandbox="allow-scripts allow-forms allow-modals"
             srcDoc={content}
             title={t('HtmlPreview.iframeTitle')}
           />

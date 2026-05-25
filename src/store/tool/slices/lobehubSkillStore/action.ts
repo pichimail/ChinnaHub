@@ -19,6 +19,15 @@ import { LobehubSkillStatus } from './types';
 
 const n = setNamespace('lobehubSkillStore');
 
+const isMarketAuthExpired = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('UNAUTHORIZED') ||
+    message.includes('Market access token') ||
+    message.toLowerCase().includes('unauthorized')
+  );
+};
+
 /**
  * LobeHub Skill Store Actions
  */
@@ -273,28 +282,30 @@ export class LobehubSkillStoreActionImpl {
     return useSWR<LobehubSkillServer[]>(
       enabled ? 'fetchLobehubSkillConnections' : null,
       async () => {
-        const response = await toolsClient.market.connectListConnections.query();
+        try {
+          const response = await toolsClient.market.connectListConnections.query();
 
-        // Debug logging
+          return response.connections.map((conn: any) => {
+            // Get provider config from local definition for correct display name
+            const providerConfig = getLobehubSkillProviderById(conn.providerId);
+            return {
+              cachedAt: Date.now(),
+              icon: conn.icon,
+              identifier: conn.providerId,
+              isConnected: true,
+              // Use local config label (e.g., "Linear") instead of API's providerName (which is user's name on that service)
+              name: providerConfig?.label || conn.providerId,
+              providerUsername: conn.providerUsername,
+              scopes: conn.scopes,
+              status: LobehubSkillStatus.CONNECTED,
+              tokenExpiresAt: conn.tokenExpiresAt,
+            };
+          });
+        } catch (error) {
+          if (isMarketAuthExpired(error)) return [];
 
-        return response.connections.map((conn: any) => {
-          // Debug logging for each connection
-
-          // Get provider config from local definition for correct display name
-          const providerConfig = getLobehubSkillProviderById(conn.providerId);
-          return {
-            cachedAt: Date.now(),
-            icon: conn.icon,
-            identifier: conn.providerId,
-            isConnected: true,
-            // Use local config label (e.g., "Linear") instead of API's providerName (which is user's name on that service)
-            name: providerConfig?.label || conn.providerId,
-            providerUsername: conn.providerUsername,
-            scopes: conn.scopes,
-            status: LobehubSkillStatus.CONNECTED,
-            tokenExpiresAt: conn.tokenExpiresAt,
-          };
-        });
+          throw error;
+        }
       },
       {
         fallbackData: [],

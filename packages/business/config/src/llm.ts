@@ -41,4 +41,7 @@ export const DEFAULT_LLM_CONFIG = genUserLLMConfig({
   openai: {
     enabled: true,
   },
+  openrouter: {
+    enabled: true,
+  },
 });

@@ -15,7 +15,7 @@ import { getRedisConfig } from '@/envs/redis';
 import { initializeRedis } from '@/libs/redis';
 
 interface GovernanceInput {
-  domain: 'audio' | 'content' | 'image' | 'marketplace' | 'pricing' | 'video';
+  domain: 'audio' | 'content' | 'image' | 'marketplace' | 'pricing' | 'provider' | 'video';
   target: string;
   userId?: string;
 }
@@ -138,6 +138,51 @@ export const writeGovernanceEnforcementAudit = async (
     targetId: payload.targetId,
     targetType: 'governance_enforcement',
   });
+};
+
+export const enforceProviderAvailability = async (
+  db: any,
+  input: {
+    model?: string;
+    provider: string;
+    userId: string;
+  },
+) => {
+  const modelTarget = input.model ? `provider:${input.provider}:model:${input.model}` : undefined;
+  const modelPolicy = modelTarget
+    ? await enforceGovernancePolicy(db, {
+        domain: 'provider',
+        target: modelTarget,
+        userId: input.userId,
+      })
+    : undefined;
+  const policy =
+    modelPolicy?.allowed === false
+      ? modelPolicy
+      : await enforceGovernancePolicy(db, {
+          domain: 'provider',
+          target: input.provider,
+          userId: input.userId,
+        });
+
+  if (!policy.allowed) {
+    await writeGovernanceEnforcementAudit(db, {
+      action: policy.mode === 'throttle' ? 'governance.policy_throttle' : 'governance.policy_block',
+      metadata: {
+        domain: 'provider',
+        mode: policy.mode,
+        policyId: policy.policyId,
+        requestModel: input.model,
+        requestTarget: input.provider,
+        resolvedTarget: policy.target,
+      },
+      reason: policy.reason,
+      targetId: policy.policyId,
+      userId: input.userId,
+    });
+  }
+
+  return policy;
 };
 
 const containsMatch = (text: string, needle: string) =>

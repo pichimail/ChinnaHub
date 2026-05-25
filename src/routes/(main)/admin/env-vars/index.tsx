@@ -52,7 +52,6 @@ const AdminEnvVarsPage = () => {
   const { mutate } = useSWRConfig();
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
-
   const openQuickAdd = (record: RuntimeCatalogRow) => {
     form.setFieldsValue({
       description: record.description,

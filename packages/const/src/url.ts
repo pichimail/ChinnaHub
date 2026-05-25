@@ -2,7 +2,7 @@ import urlJoin from 'url-join';
 
 const isDev = process.env.NODE_ENV === 'production';
 
-export const OFFICIAL_URL = 'https://chat.itsmechinna.com';
+export const OFFICIAL_URL = 'https://app.itsmechinna.com';
 export const OFFICIAL_SITE = 'https://itsmechinna.com';
 export const OFFICIAL_DOMAIN = 'itsmechinna.com';
 
@@ -33,10 +33,10 @@ export const TERMS_URL = urlJoin(OFFICIAL_SITE, '/terms');
 export const PLUGINS_INDEX_URL = 'https://chat-plugins.lobehub.com';
 
 export const MORE_MODEL_PROVIDER_REQUEST_URL =
-  'https://github.com/lobehub/lobe-chat/discussions/6157';
+  'https://github.com/pichimail/chinnahub/discussions/6157';
 
 export const MORE_FILE_PREVIEW_REQUEST_URL =
-  'https://github.com/lobehub/lobe-chat/discussions/3684';
+  'https://github.com/pichimail/chinnahub/discussions/3684';
 
 export const AGENTS_INDEX_GITHUB = 'https://github.com/lobehub/lobe-chat-agents';
 export const AGENTS_INDEX_GITHUB_ISSUE = urlJoin(AGENTS_INDEX_GITHUB, 'issues/new');
@@ -79,5 +79,5 @@ export const CHANGELOG_URL = urlJoin(OFFICIAL_SITE, 'changelog/versions');
 export const DOWNLOAD_URL = {
   android: 'https://play.google.com/store/apps/details?id=com.itsmechinna.app',
   default: urlJoin(OFFICIAL_SITE, '/downloads'),
-  ios: 'https://testflight.apple.com/join/2ZbjX4Qp',
+  // ios: 'https://testflight.apple.com/join/2ZbjX4Qp',
 } as const;

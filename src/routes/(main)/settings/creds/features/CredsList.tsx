@@ -43,8 +43,9 @@ const CredsList: FC = () => {
   const [viewingCred, setViewingCred] = useState<UserCredSummary | null>(null);
   const { isAuthenticated, isLoading: isAuthLoading, signIn } = useMarketAuth();
 
-  const { data, isLoading, refetch } = lambdaQuery.market.creds.list.useQuery(undefined, {
+  const { data, error, isLoading, refetch } = lambdaQuery.market.creds.list.useQuery(undefined, {
     enabled: isAuthenticated,
+    retry: false,
   });
 
   const deleteMutation = useMutation({
@@ -75,6 +76,17 @@ const CredsList: FC = () => {
     return (
       <div className={styles.signInPrompt}>
         <Empty description={t('creds.signInRequired')} />
+        <Button icon={LogIn} type="primary" onClick={() => signIn()}>
+          {t('creds.signIn')}
+        </Button>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.signInPrompt}>
+        <Empty description={error.message || t('creds.signInRequired')} />
         <Button icon={LogIn} type="primary" onClick={() => signIn()}>
           {t('creds.signIn')}
         </Button>

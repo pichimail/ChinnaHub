@@ -3,14 +3,15 @@
 import { type CSSProperties } from 'react';
 import { memo } from 'react';
 
+import MediaFilePreview from '@/components/MediaFilePreview';
 import { type FileListItem } from '@/types/files';
+import { isAudioFile, isVideoFile } from '@/utils/mediaFile';
 
 import NotSupport from './NotSupport';
 import CodeViewer from './Renderer/Code';
 import ImageViewer from './Renderer/Image';
 import MSDocViewer from './Renderer/MSDoc';
 import PDFViewer from './Renderer/PDF';
-import VideoViewer from './Renderer/Video';
 
 // File type definitions
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'];
@@ -22,9 +23,6 @@ const IMAGE_MIME_TYPES = new Set([
   'image/gif',
   'image/bmp',
 ]);
-
-const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.ogg'];
-const VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/webm', 'video/ogg', 'mp4', 'webm', 'ogg']);
 
 const CODE_EXTENSIONS = [
   // JavaScript/TypeScript
@@ -250,9 +248,9 @@ const FileViewer = memo<FileViewerProps>(({ id, style, fileType, url, name }) =>
     return <ImageViewer fileId={id} url={url} />;
   }
 
-  // Video files
-  if (matchesFileType(fileType, name, VIDEO_EXTENSIONS, VIDEO_MIME_TYPES)) {
-    return <VideoViewer fileId={id} url={url} />;
+  // Audio and video files
+  if (isAudioFile(fileType, name) || isVideoFile(fileType, name)) {
+    return <MediaFilePreview fileType={fileType} name={name} size={'full'} url={url} />;
   }
 
   // Archive files (zip, rar, 7z, etc.) - not supported for preview

@@ -15,6 +15,7 @@ import { resolveContext } from '@/server/routers/lambda/_helpers/resolveContext'
 import {
   enforceContentTextPolicy,
   enforceGovernancePolicy,
+  enforceProviderAvailability,
   writeGovernanceEnforcementAudit,
 } from '@/server/services/admin/runtimeGovernance';
 import { AiChatService } from '@/server/services/aiChat';
@@ -65,6 +66,19 @@ export const aiChatRouter = router({
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: pricingPolicy.reason || 'Chat generation not available for current policy',
+      });
+    }
+
+    const providerPolicy = await enforceProviderAvailability(ctx.serverDB, {
+      model: input.model,
+      provider: input.provider,
+      userId: ctx.userId,
+    });
+
+    if (!providerPolicy.allowed) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: providerPolicy.reason || 'AI provider is disabled by admin policy',
       });
     }
 
@@ -147,6 +161,22 @@ export const aiChatRouter = router({
           code: 'FORBIDDEN',
           message: pricingPolicy.reason || 'Chat generation not available for current policy',
         });
+      }
+
+      const assistantProvider = input.newAssistantMessage.provider;
+      if (assistantProvider) {
+        const providerPolicy = await enforceProviderAvailability(ctx.serverDB, {
+          model: input.newAssistantMessage.model,
+          provider: assistantProvider,
+          userId: ctx.userId,
+        });
+
+        if (!providerPolicy.allowed) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: providerPolicy.reason || 'AI provider is disabled by admin policy',
+          });
+        }
       }
 
       const contentPolicy = await enforceContentTextPolicy(ctx.serverDB, {

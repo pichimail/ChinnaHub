@@ -17,6 +17,7 @@ import { createAsyncCaller } from '@/server/routers/async/caller';
 import {
   enforceContentTextPolicy,
   enforceGovernancePolicy,
+  enforceProviderAvailability,
   enforceUserFeatureAccess,
   writeGovernanceEnforcementAudit,
 } from '@/server/services/admin/runtimeGovernance';
@@ -82,6 +83,18 @@ export const imageRouter = router({
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: featureAccess.reason || 'Image generation is not available for your plan',
+      });
+    }
+
+    const providerPolicy = await enforceProviderAvailability(serverDB, {
+      model: resolvedModelId,
+      provider,
+      userId,
+    });
+    if (!providerPolicy.allowed) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: providerPolicy.reason || 'AI provider is disabled by admin policy',
       });
     }
 

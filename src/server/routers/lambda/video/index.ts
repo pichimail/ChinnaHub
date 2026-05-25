@@ -33,6 +33,7 @@ import { initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
 import {
   enforceContentTextPolicy,
   enforceGovernancePolicy,
+  enforceProviderAvailability,
   enforceUserFeatureAccess,
   writeGovernanceEnforcementAudit,
 } from '@/server/services/admin/runtimeGovernance';
@@ -92,6 +93,18 @@ export const videoRouter = router({
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: featureAccess.reason || 'Video generation is not available for your plan',
+      });
+    }
+
+    const providerPolicy = await enforceProviderAvailability(serverDB, {
+      model: resolvedModelId,
+      provider,
+      userId,
+    });
+    if (!providerPolicy.allowed) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: providerPolicy.reason || 'AI provider is disabled by admin policy',
       });
     }
 
