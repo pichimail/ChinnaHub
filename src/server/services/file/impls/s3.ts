@@ -172,8 +172,9 @@ export class S3StaticFileImpl implements FileServiceImpl {
           return pathname.startsWith('/') ? pathname.slice(1) : pathname;
         }
         const bucketPrefix = `/${fileEnv.S3_BUCKET}/`;
-        if (pathname.startsWith(bucketPrefix)) {
-          return pathname.slice(bucketPrefix.length);
+        const bucketPrefixIndex = pathname.indexOf(bucketPrefix);
+        if (bucketPrefixIndex >= 0) {
+          return pathname.slice(bucketPrefixIndex + bucketPrefix.length);
         }
         return pathname.startsWith('/') ? pathname.slice(1) : pathname;
       }

@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { fileEnv } from '@/envs/file';
 import { YEAR } from '@/utils/units';
 
-const getBrowserReachableS3Endpoint = () =>
+export const getBrowserReachableS3Endpoint = () =>
   fileEnv.S3_PUBLIC_DOMAIN || process.env.NEXT_PUBLIC_S3_DOMAIN || fileEnv.S3_ENDPOINT;
 
 export const fileSchema = z.object({

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { appEnv } from '@/envs/app';
 import { fileEnv } from '@/envs/file';
 import { authedProcedure, publicProcedure, router } from '@/libs/trpc/lambda';
-import { FileS3 } from '@/server/modules/S3';
+import { FileS3, getBrowserReachableS3Endpoint } from '@/server/modules/S3';
 
 // Supported file types for upload
 const SUPPORTED_FILE_TYPES = {
@@ -50,9 +50,6 @@ const privateHostPatterns = [
   /^172\.(1[6-9]|2\d|3[01])\./,
   /^192\.168\./,
 ];
-
-const getBrowserReachableS3Endpoint = () =>
-  fileEnv.S3_PUBLIC_DOMAIN || process.env.NEXT_PUBLIC_S3_DOMAIN || fileEnv.S3_ENDPOINT;
 
 const getBrowserUploadEndpointIssues = () => {
   const issues: string[] = [];

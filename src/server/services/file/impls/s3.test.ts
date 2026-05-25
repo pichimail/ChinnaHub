@@ -337,6 +337,16 @@ describe('S3StaticFileImpl', () => {
       config.S3_ENABLE_PATH_STYLE = false;
     });
 
+    it('should extract key from path-style URL with a proxy prefix', async () => {
+      config.S3_ENABLE_PATH_STYLE = true;
+      const s3Url = 'https://example.com/s3/my-bucket/path/to/file.jpg';
+
+      const result = await fileService.getKeyFromFullUrl(s3Url);
+
+      expect(result).toBe('path/to/file.jpg');
+      config.S3_ENABLE_PATH_STYLE = false;
+    });
+
     it('should return null for invalid URL', async () => {
       const invalidUrl = 'not-a-valid-url';
 
