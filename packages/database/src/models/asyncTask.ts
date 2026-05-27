@@ -6,7 +6,7 @@ import {
   AsyncTaskStatus,
   AsyncTaskType,
 } from '@lobechat/types';
-import { and, eq, inArray, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
 
 import type { AsyncTaskSelectItem, NewAsyncTaskItem } from '../schemas';
 import { asyncTasks } from '../schemas';
@@ -46,6 +46,17 @@ export class AsyncTaskModel {
     return db.query.asyncTasks.findFirst({
       where: eq(asyncTasks.inferenceId, inferenceId),
     });
+  };
+
+  static findLatestByMetadataTaskId = async (db: LobeChatDatabase, taskId: string) => {
+    const [row] = await db
+      .select()
+      .from(asyncTasks)
+      .where(sql`${asyncTasks.metadata} ->> 'taskId' = ${taskId}`)
+      .orderBy(desc(asyncTasks.createdAt))
+      .limit(1);
+
+    return row;
   };
 
   update(taskId: string, value: Partial<AsyncTaskSelectItem>) {

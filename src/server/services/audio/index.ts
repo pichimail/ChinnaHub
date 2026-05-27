@@ -2,8 +2,8 @@ import debug from 'debug';
 
 const log = debug('lobe-audio:service');
 
-const MUSIC_API_BASE_URL = 'https://api.kie.ai/api/v1/suno';
-const MUSIC_MODEL = 'music-generation-v5.5'; // V5.5 model
+const MUSIC_API_BASE_URL = 'https://api.kie.ai/api/v1';
+const MUSIC_MODEL = 'V5_5';
 
 export interface AudioGenerationParams {
   makeInstrumental?: boolean;
@@ -35,26 +35,32 @@ export class KieAiAudioService {
     this.apiKey = apiKey;
   }
 
-  async createMusic(params: AudioGenerationParams): Promise<AudioGenerationResponse> {
+  async createMusic(
+    params: AudioGenerationParams,
+    options?: { callBackUrl?: string },
+  ): Promise<AudioGenerationResponse> {
     log('Creating music with params: %O', params);
 
     try {
+      const customMode = Boolean(params.style?.trim() || params.title?.trim());
+
       const payload = {
-        custom_mode: false,
-        gpt_description_prompt: params.prompt,
+        ...(options?.callBackUrl ? { callBackUrl: options.callBackUrl } : {}),
+        customMode,
         instrumental: params.makeInstrumental ?? false,
-        make_instrumental: params.makeInstrumental ?? false,
         model: MUSIC_MODEL,
-        mv: 'default',
         prompt: params.prompt || params.title || 'instrumental music',
-        style: params.style,
-        tags: params.style ? [params.style] : [],
-        title: params.title || 'Generated Audio Track',
+        ...(customMode
+          ? {
+              style: params.style?.trim() || 'Instrumental',
+              title: params.title?.trim() || 'Generated Audio Track',
+            }
+          : {}),
       };
 
       log('Sending request to KIE AI API: %O', payload);
 
-      const response = await fetch(`${MUSIC_API_BASE_URL}/v4/music`, {
+      const response = await fetch(`${MUSIC_API_BASE_URL}/generate`, {
         body: JSON.stringify(payload),
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
@@ -70,10 +76,14 @@ export class KieAiAudioService {
       }
 
       const data = (await response.json()) as any;
-      const taskId = data.id || data.taskId || data.data?.id || data.data?.taskId || '';
+      if (data?.code !== 200) {
+        throw new Error(data?.msg || 'KIE AI API returned non-success response');
+      }
+
+      const taskId =
+        data?.data?.taskId || data?.data?.task_id || data?.taskId || data?.task_id || '';
       log('Task created successfully: %O', {
-        id: taskId,
-        status: data.status || data.data?.status,
+        id: taskId || '(empty)',
       });
 
       return {
@@ -89,13 +99,16 @@ export class KieAiAudioService {
   async pollMusicStatus(taskId: string): Promise<AudioGenerationResponse> {
     log('Polling music status for task: %s', taskId);
 
-    const response = await fetch(`${MUSIC_API_BASE_URL}/task/${taskId}`, {
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
+    const response = await fetch(
+      `${MUSIC_API_BASE_URL}/generate/record-info?taskId=${encodeURIComponent(taskId)}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'GET',
       },
-      method: 'GET',
-    });
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -104,36 +117,56 @@ export class KieAiAudioService {
     }
 
     const data = (await response.json()) as any;
-    const payload = data.data || data;
-    const status = payload.status || data.status;
-    log('Poll result: %O', { id: taskId, status });
+    if (data?.code && data.code !== 200) {
+      throw new Error(data?.msg || `Poll error: code ${String(data?.code)}`);
+    }
 
-    if (['succeeded', 'success', 'completed', 'complete'].includes(status)) {
+    const payload = data?.data || {};
+    const responsePayload = payload?.response || {};
+    const status = String(payload?.status || '').toUpperCase();
+    const sunoData = Array.isArray(responsePayload?.sunoData) ? responsePayload.sunoData : [];
+    const firstTrack = sunoData.find(
+      (item: any) =>
+        item?.audioUrl ||
+        item?.audio_url ||
+        item?.streamAudioUrl ||
+        item?.stream_audio_url ||
+        item?.url,
+    );
+
+    log('Poll result: %O', { id: taskId, status, trackCount: sunoData.length });
+
+    if (status === 'SUCCESS' || status === 'FIRST_SUCCESS') {
       return {
         audioUrl:
-          payload.audio_url ||
-          payload.audioUrl ||
-          payload.audio ||
-          payload.url ||
-          payload.response?.audioUrl ||
+          firstTrack?.audioUrl ||
+          firstTrack?.audio_url ||
+          firstTrack?.streamAudioUrl ||
+          firstTrack?.stream_audio_url ||
+          firstTrack?.url ||
           '',
-        duration: payload.duration,
+        duration: firstTrack?.duration,
         id: taskId,
         metadata: {
-          clipId: payload.clip_id,
+          clipId: firstTrack?.id,
           raw: data,
-          seedId: payload.seed_id,
-          title: payload.title,
+          title: firstTrack?.title,
         },
         status: 'completed',
-        title: payload.title,
+        title: firstTrack?.title,
       };
     }
 
-    if (['error', 'failed', 'failure'].includes(status)) {
+    if (
+      [
+        'CREATE_TASK_FAILED',
+        'GENERATE_AUDIO_FAILED',
+        'CALLBACK_EXCEPTION',
+        'SENSITIVE_WORD_ERROR',
+      ].includes(status)
+    ) {
       return {
-        error:
-          payload.error_message || payload.error || payload.message || 'Music generation failed',
+        error: payload?.errorMessage || payload?.msg || 'Music generation failed',
         id: taskId,
         status: 'failed',
       };

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 import { AsyncTaskStatus, AsyncTaskType, FileSource } from '@lobechat/types';
 import { TRPCError } from '@trpc/server';
@@ -28,7 +28,7 @@ import {
 import { FileService } from '@/server/services/file';
 
 const CLASSIC_PROVIDER = 'kie-ai';
-const CLASSIC_MODEL = 'music-generation-v5.5';
+const CLASSIC_MODEL = 'V5_5';
 const LYRIA_PROVIDER = 'openrouter';
 const DEFAULT_LYRIA_MODEL = 'google/lyria-002';
 
@@ -42,6 +42,7 @@ type AudioTaskMetadata = {
   provider: string;
   providerMode: AudioProviderMode;
   taskId: string;
+  webhookToken?: string;
 };
 
 const audioProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
@@ -201,7 +202,7 @@ export const audioRouter = router({
         const target =
           providerMode === 'lyria'
             ? 'provider:openrouter:model:lyria'
-            : 'provider:kie-ai:model:music-generation-v5.5';
+            : `provider:kie-ai:model:${CLASSIC_MODEL}`;
 
         const audioPolicy = await enforceGovernancePolicy(ctx.serverDB, {
           domain: 'audio',
@@ -305,7 +306,17 @@ export const audioRouter = router({
           });
         }
 
-        const musicResponse = await service.createMusic(input.parameters);
+        const webhookToken =
+          providerMode === 'classic' ? randomBytes(32).toString('hex') : undefined;
+        const callbackBaseUrl = process.env.WEBHOOK_PROXY_URL || process.env.APP_URL;
+        const callbackUrl =
+          providerMode === 'classic' && callbackBaseUrl
+            ? `${callbackBaseUrl.replace(/\/+$/, '')}/api/webhooks/audio/kie?token=${webhookToken}`
+            : undefined;
+
+        const musicResponse = await service.createMusic(input.parameters, {
+          callBackUrl: callbackUrl,
+        });
 
         if (!musicResponse.id) {
           throw new TRPCError({
@@ -321,6 +332,7 @@ export const audioRouter = router({
             provider,
             providerMode,
             taskId: musicResponse.id,
+            webhookToken,
           } satisfies AudioTaskMetadata,
           status:
             musicResponse.status === 'completed'
@@ -353,6 +365,7 @@ export const audioRouter = router({
               provider,
               providerMode,
               taskId: musicResponse.id,
+              webhookToken,
             },
             response: musicResponse,
           });
