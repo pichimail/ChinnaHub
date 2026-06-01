@@ -257,14 +257,14 @@ export const agentBotProviderRouter = router({
 
   whatsappGetQrCode: authedProcedure
     .input(z.object({ sessionId: z.string().optional() }).optional())
-    .mutation(async ({ input }) => {
-      return startWhatsAppQrSession(input?.sessionId);
+    .mutation(async ({ ctx, input }) => {
+      return startWhatsAppQrSession(ctx.userId, input?.sessionId);
     }),
 
   whatsappPollQrStatus: authedProcedure
     .input(z.object({ sessionId: z.string() }))
-    .query(async ({ input }) => {
-      return pollWhatsAppQrSession(input.sessionId);
+    .query(async ({ ctx, input }) => {
+      return pollWhatsAppQrSession(ctx.userId, input.sessionId);
     }),
 
   update: agentBotProviderProcedure

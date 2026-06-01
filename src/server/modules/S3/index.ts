@@ -29,7 +29,9 @@ export type FileType = z.infer<typeof fileSchema>;
 const DEFAULT_S3_REGION = 'us-east-1';
 
 export class S3 {
-  private readonly client: S3Client;
+  protected readonly client: S3Client;
+
+  protected readonly signingClient: S3Client;
 
   private readonly bucket: string;
 
@@ -43,6 +45,7 @@ export class S3 {
       bucket?: string;
       forcePathStyle?: boolean;
       region?: string;
+      signingEndpoint?: string;
       setAcl?: boolean;
     },
   ) {
@@ -53,18 +56,31 @@ export class S3 {
     this.bucket = options?.bucket;
     this.setAcl = options?.setAcl || false;
 
-    this.client = new S3Client({
+    const clientConfig = {
       credentials: {
         accessKeyId,
         secretAccessKey,
       },
-      endpoint,
       forcePathStyle: options?.forcePathStyle,
       region: options?.region || DEFAULT_S3_REGION,
       // refs: https://github.com/lobehub/lobe-chat/pull/5479
       requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
+    } as const;
+
+    this.client = new S3Client({
+      ...clientConfig,
+      endpoint,
     });
+
+    if (options?.signingEndpoint && options.signingEndpoint !== endpoint) {
+      this.signingClient = new S3Client({
+        ...clientConfig,
+        endpoint: options.signingEndpoint,
+      });
+    } else {
+      this.signingClient = this.client;
+    }
   }
 
   public async deleteFile(key: string) {
@@ -143,7 +159,7 @@ export class S3 {
       Key: key,
     });
 
-    return getSignedUrl(this.client, command, { expiresIn: 3600 });
+    return getSignedUrl(this.signingClient, command, { expiresIn: 3600 });
   }
 
   public async createPreSignedUrlForPreview(key: string, expiresIn?: number): Promise<string> {
@@ -152,7 +168,7 @@ export class S3 {
       Key: key,
     });
 
-    return getSignedUrl(this.client, command, {
+    return getSignedUrl(this.signingClient, command, {
       expiresIn: expiresIn ?? fileEnv.S3_PREVIEW_URL_EXPIRE_IN,
     });
   }
@@ -209,11 +225,17 @@ export class S3 {
 
 export class FileS3 extends S3 {
   constructor() {
-    super(fileEnv.S3_ACCESS_KEY_ID, fileEnv.S3_SECRET_ACCESS_KEY, getBrowserReachableS3Endpoint(), {
-      bucket: fileEnv.S3_BUCKET,
-      forcePathStyle: fileEnv.S3_ENABLE_PATH_STYLE,
-      region: fileEnv.S3_REGION,
-      setAcl: fileEnv.S3_SET_ACL,
-    });
+    super(
+      fileEnv.S3_ACCESS_KEY_ID,
+      fileEnv.S3_SECRET_ACCESS_KEY,
+      fileEnv.S3_ENDPOINT || getBrowserReachableS3Endpoint(),
+      {
+        bucket: fileEnv.S3_BUCKET,
+        forcePathStyle: fileEnv.S3_ENABLE_PATH_STYLE,
+        region: fileEnv.S3_REGION,
+        signingEndpoint: getBrowserReachableS3Endpoint(),
+        setAcl: fileEnv.S3_SET_ACL,
+      },
+    );
   }
 }

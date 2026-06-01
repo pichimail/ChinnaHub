@@ -5,6 +5,7 @@ import { createStaticStyles } from 'antd-style';
 import isEqual from 'fast-deep-equal';
 import { memo } from 'react';
 
+import { getModelDisplayName } from '@/components/ModelSelect/modelDisplay';
 import { useAgentStore } from '@/store/agent';
 import { builtinAgentSelectors } from '@/store/agent/selectors';
 import { isDev } from '@/utils/env';
@@ -42,7 +43,7 @@ const Usage = memo<UsageProps>(({ model, usage, performance, provider }) => {
     >
       <Center horizontal gap={4} style={{ fontSize: 12 }}>
         <ModelIcon model={model as string} type={'mono'} />
-        {model}
+        {getModelDisplayName(model, model)}
       </Center>
 
       {!!usage?.totalTokens && (

@@ -14,6 +14,8 @@ import type {
 } from 'react';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
+import { getModelDisplayName } from '@/components/ModelSelect/modelDisplay';
+
 import OverlayAvatar from './Avatar';
 import * as styles from './chatPanel.css.ts';
 import { cn } from './cn';
@@ -512,8 +514,8 @@ const ChatPanel = memo<ChatPanelProps>(
                     <span className={styles.modelIconBoxFallback} />
                   )}
                   <span className={styles.chipLabel}>
-                    {currentModel?.displayName ??
-                      currentModel?.id ??
+                    {getModelDisplayName(currentModel?.id || '', currentModel?.displayName) ||
+                      currentModel?.id ||
                       OVERLAY_COPY.modelSelectPlaceholder}
                   </span>
                   <ChevronDownIcon className={styles.chevron} size={12} strokeWidth={2} />
@@ -527,7 +529,7 @@ const ChatPanel = memo<ChatPanelProps>(
                     {!hasModels && <option value="">{OVERLAY_COPY.modelSelectPlaceholder}</option>}
                     {models?.map((item) => (
                       <option key={item.id} value={item.id}>
-                        {item.displayName ?? item.id}
+                        {getModelDisplayName(item.id, item.displayName)}
                       </option>
                     ))}
                   </select>

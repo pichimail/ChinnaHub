@@ -1,5 +1,6 @@
 'use client';
 
+import { DEFAULT_ONBOARDING_MODEL, DEFAULT_ONBOARDING_PROVIDER } from '@lobechat/business-const';
 import { Button, Flexbox, Text } from '@lobehub/ui';
 import { cssVar } from 'antd-style';
 import { Undo2Icon } from 'lucide-react';
@@ -70,7 +71,12 @@ const ProSettingsStep = memo<ProSettingsStepProps>(({ onBack }) => {
           showAbility={false}
           size="large"
           style={{ width: '100%' }}
-          value={defaultAgentConfig}
+          value={
+            defaultAgentConfig || {
+              model: DEFAULT_ONBOARDING_MODEL,
+              provider: DEFAULT_ONBOARDING_PROVIDER,
+            }
+          }
           onChange={handleModelChange}
         />
       </Flexbox>

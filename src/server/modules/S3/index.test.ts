@@ -126,6 +126,23 @@ describe('S3', () => {
         }),
       );
     });
+
+    it('should initialize a separate signing client when signing endpoint is provided', () => {
+      new S3('test-access-key', 'test-secret-key', 'https://internal-s3.example.com', {
+        bucket: 'test-bucket',
+        signingEndpoint: 'https://public-s3.example.com',
+      });
+
+      expect(S3Client).toHaveBeenCalledTimes(2);
+      expect(S3Client).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ endpoint: 'https://internal-s3.example.com' }),
+      );
+      expect(S3Client).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ endpoint: 'https://public-s3.example.com' }),
+      );
+    });
   });
 });
 
@@ -371,6 +388,7 @@ describe('FileS3', () => {
       expect(PutObjectCommand).toHaveBeenCalledWith({
         ACL: 'public-read',
         Bucket: 'test-bucket',
+        ContentType: 'application/octet-stream',
         Key: 'upload-file.txt',
       });
       expect(mockGetSignedUrl).toHaveBeenCalledWith(expect.anything(), expect.anything(), {

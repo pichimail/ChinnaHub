@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import { getModelDisplayName } from '@/components/ModelSelect/modelDisplay';
 import { type EnabledProviderWithModels } from '@/types/aiProvider';
 
 export const useCurrentModelName = (
@@ -10,9 +11,9 @@ export const useCurrentModelName = (
     for (const providerItem of enabledList) {
       const modelItem = providerItem.children.find((m) => m.id === model);
       if (modelItem) {
-        return modelItem.displayName || modelItem.id;
+        return getModelDisplayName(modelItem.id, modelItem.displayName);
       }
     }
-    return model;
+    return getModelDisplayName(model, model);
   }, [enabledList, model]);
 };
