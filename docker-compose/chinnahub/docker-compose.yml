@@ -20,7 +20,7 @@ services:
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
-      - PORT=3210
+      - PORT=3000
       - NEXT_TELEMETRY_DISABLED=1
       - AUTH_TRUST_HOST=true
       - KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}
@@ -28,7 +28,7 @@ services:
       - APP_URL=${APP_URL}
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@chinnahub-postgres:5432/${LOBE_DB_NAME}
       - DATABASE_DRIVER=node
-      - INTERNAL_APP_URL=http://localhost:3210
+      - INTERNAL_APP_URL=http://localhost:3000
       - REDIS_URL=redis://:${REDIS_PASSWORD}@chinnahub-redis:6379
       - REDIS_PREFIX=chinnahub
       - REDIS_TLS=0
