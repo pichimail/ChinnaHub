@@ -371,6 +371,7 @@ export function defineConfig(config: CustomNextConfig) {
       'pdfjs-dist',
       'ajv',
       'oidc-provider',
+      'yauzl',
     ],
 
     transpilePackages: ['mermaid', 'better-auth-harmony'],
