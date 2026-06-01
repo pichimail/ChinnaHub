@@ -29,11 +29,11 @@ fi
 
 # Backup docker volumes (postgres + redis + rustfs)
 for VOL in chinnahub_postgres_data chinnahub_redis_data chinnahub_rustfs_data; do
-  if docker volume inspect "$VOL" &>/dev/null; then
+  if docker volume inspect "$VOL" &> /dev/null; then
     docker run --rm \
       -v "$VOL":/data:ro \
       -v "$BACKUP_DIR":/backup \
-      alpine tar czf "/backup/${VOL}.$TIMESTAMP.bck.tar.gz" -C /data . 2>/dev/null \
+      alpine tar czf "/backup/${VOL}.$TIMESTAMP.bck.tar.gz" -C /data . 2> /dev/null \
       && echo "  ✓ Volume $VOL backed up" \
       || echo "  ⚠ Volume $VOL backup skipped (empty or not found)"
   fi
@@ -55,7 +55,7 @@ fi
 # ── 3. ENSURE NETWORK EXISTS ─────────────────
 echo ""
 echo "▶ [3/7] Ensuring Docker networks..."
-docker network inspect chinnahub-net &>/dev/null || docker network create chinnahub-net
+docker network inspect chinnahub-net &> /dev/null || docker network create chinnahub-net
 echo "  ✓ chinnahub-net ready"
 
 # Connect Caddy to chinnahub-net if not already
@@ -76,7 +76,7 @@ echo "  ✓ Image built: chinnahub-app:latest"
 # ── 5. STOP EXISTING CONTAINERS ──────────────
 echo ""
 echo "▶ [5/7] Stopping existing Chinna Hub containers..."
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down --remove-orphans 2> /dev/null || true
 echo "  ✓ Old containers stopped"
 
 # ── 6. START SERVICES ────────────────────────

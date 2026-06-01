@@ -16,8 +16,10 @@ import { getImageStoreState } from '@/store/image/store';
 const log = debug('lobe-image:lambda-client');
 const isCustomDeploymentHost =
   typeof window !== 'undefined' && !/(?:\.|^)lobehub\.com$/.test(window.location.hostname);
+const isMarketAuthExplicitlyEnabled = process.env.NEXT_PUBLIC_ENABLE_MARKET_AUTH === '1';
 const isMarketAuthDisabled =
-  process.env.NEXT_PUBLIC_DISABLE_MARKET_AUTH === '1' || isCustomDeploymentHost;
+  process.env.NEXT_PUBLIC_DISABLE_MARKET_AUTH === '1' ||
+  (isCustomDeploymentHost && !isMarketAuthExplicitlyEnabled);
 const NON_RETRYABLE_ERROR_PATTERNS = [
   'S3 environment variables are not set completely',
   'Klavis API key is not configured on server',

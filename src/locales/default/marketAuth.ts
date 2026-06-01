@@ -1,15 +1,16 @@
 export default {
-  'authorize.cancel': 'Not Now',
+  'authorize.cancel': 'Not now',
   'authorize.confirm': 'Create Your Profile',
-  'authorize.description': 'Your community profile is separate from your {{appName}} user account.',
+  'authorize.description':
+    'Your ChinnaHub Connect profile is separate from your {{appName}} user account.',
   'authorize.footer.agreement':
     'By continuing, you confirm that you have read and agree to the <terms>Terms and Conditions</terms> and <privacy>Privacy Policy</privacy>.',
   'authorize.footer.privacy': 'Privacy Policy',
   'authorize.footer.terms': 'Terms of Service',
   'authorize.subtitle':
-    'Create a community profile to submit and manage listings within the community.',
-  'authorize.title': 'Create Community Profile',
-  'callback.buttons.close': 'Close Window',
+    'Create a ChinnaHub Connect profile to manage integrations, tools, and shared resources.',
+  'authorize.title': 'Create ChinnaHub Connect Profile',
+  'callback.buttons.close': 'Close window',
   'claimResources.claim': 'Claim Selected',
   'claimResources.description': 'We found resources linked to your account that you can claim:',
   'claimResources.error': 'Failed to claim resources. Please try again.',
@@ -26,7 +27,7 @@ export default {
     '{{message}} The window will close automatically in {{countdown}} seconds',
   'callback.messages.successWithRedirect': 'Authorization successful! Redirecting...',
   'callback.titles.error': 'Authorization Failed',
-  'callback.titles.loading': 'ChinnaHub Market Authorization',
+  'callback.titles.loading': 'ChinnaHub Connect Authorization',
   'callback.titles.success': 'Authorization Successful',
   'errors.authorizationFailed': 'Authorization failed, please try again.',
   'errors.browserOnly': 'The authorization process can only be initiated in a browser.',
@@ -46,7 +47,7 @@ export default {
   'errors.stateMissing': 'Authorization state not found. Please try again.',
   'messages.authorizationFailed':
     'Authorization ran into an issue. Retry, or check if you finished signing in in your browser.',
-  'messages.authorized': 'Project-M service authorized successfully',
+  'messages.authorized': 'ChinnaHub Connect authorized successfully',
   'messages.handoffTimeout': 'Authorization timed out. Finish it in your browser, then retry.',
   'messages.loading': 'Starting authorization process...',
   'messages.success.cloudMcpInstall':
@@ -54,8 +55,8 @@ export default {
   'messages.success.submit': 'Authorization successful! You can now publish your agent.',
   'messages.success.upload': 'Authorization successful! You can now publish a new version.',
   'profileSetup.cancel': 'Cancel',
-  'profileSetup.descriptionEdit': 'Update your community profile information.',
-  'profileSetup.descriptionFirstTime': 'Set up your profile to complete your community profile.',
+  'profileSetup.descriptionEdit': 'Update your ChinnaHub Connect profile information.',
+  'profileSetup.descriptionFirstTime': 'Set up your profile to complete ChinnaHub Connect.',
   'profileSetup.errors.fileTooLarge': 'File size cannot exceed 2MB',
   'profileSetup.errors.notAuthenticated': 'Please sign in first',
   'profileSetup.errors.updateFailed': 'Failed to update profile. Please try again',

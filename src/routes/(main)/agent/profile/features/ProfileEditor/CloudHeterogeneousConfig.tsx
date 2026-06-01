@@ -3,13 +3,14 @@
 import { type HeterogeneousProviderConfig, type UserCredSummary } from '@lobechat/types';
 import { Github } from '@lobehub/icons';
 import { Flexbox } from '@lobehub/ui';
-import { Avatar, Button, Input, Select, Spin, Tag, Typography } from 'antd';
+import { Avatar, Button, Empty, Input, Select, Spin, Tag, Typography } from 'antd';
 import { createStyles } from 'antd-style';
-import { CheckCircle2, KeyRound, X } from 'lucide-react';
+import { CheckCircle2, KeyRound, LogIn, X } from 'lucide-react';
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { useMarketAuth } from '@/layout/AuthProvider/MarketAuth';
 import { lambdaClient, lambdaQuery } from '@/libs/trpc/client';
 
 // Fixed cred key for Claude Code OAuth token — never changes
@@ -239,7 +240,9 @@ const RepoListSection = memo<RepoListSectionProps>(({ repos, onReposChange }) =>
                 {repo}
               </Typography.Text>
               <button
+                aria-label={`Remove ${repo}`}
                 className={`${styles.repoDeleteBtn} repo-delete-btn`}
+                title={`Remove ${repo}`}
                 onClick={(e) => removeRepo(repo, e)}
               >
                 <X size={12} />
@@ -271,6 +274,7 @@ const CloudHeterogeneousConfig = memo<CloudHeterogeneousConfigProps>(
     const { t } = useTranslation('setting');
     const { styles } = useStyles();
     const navigate = useNavigate();
+    const { isAuthenticated, isLoading: isAuthLoading, signIn } = useMarketAuth();
 
     const currentEnv = provider.env ?? {};
     const storedGithubCredKey = currentEnv.GITHUB_CRED_KEY ?? '';
@@ -286,7 +290,10 @@ const CloudHeterogeneousConfig = memo<CloudHeterogeneousConfigProps>(
       data: credsData,
       isLoading,
       refetch,
-    } = lambdaQuery.market.creds.list.useQuery(undefined);
+    } = lambdaQuery.market.creds.list.useQuery(undefined, {
+      enabled: isAuthenticated,
+      retry: false,
+    });
     const allCreds: UserCredSummary[] = credsData?.data ?? [];
 
     const claudeTokenCred = allCreds.find((c) => c.key === CLAUDE_TOKEN_CRED_KEY);
@@ -301,6 +308,25 @@ const CloudHeterogeneousConfig = memo<CloudHeterogeneousConfigProps>(
     const handleReposChange = (nextRepos: string[]) => {
       saveEnv({ GITHUB_REPOS: JSON.stringify(nextRepos) });
     };
+
+    if (isAuthLoading) {
+      return (
+        <Flexbox align="center" justify="center" style={{ paddingBlock: 32 }}>
+          <Spin size="small" />
+        </Flexbox>
+      );
+    }
+
+    if (!isAuthenticated) {
+      return (
+        <Flexbox align="center" justify="center" style={{ paddingBlock: 32, gap: 12 }}>
+          <Empty description={t('creds.signInRequired')} />
+          <Button icon={<LogIn size={14} />} type="primary" onClick={() => signIn()}>
+            {t('creds.signIn')}
+          </Button>
+        </Flexbox>
+      );
+    }
 
     if (isLoading) {
       return (

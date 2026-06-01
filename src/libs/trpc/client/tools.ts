@@ -11,8 +11,10 @@ let lastMarket401Time = 0;
 const MIN_401_INTERVAL = 5000; // 5 seconds
 const isCustomDeploymentHost =
   typeof window !== 'undefined' && !/(?:\.|^)lobehub\.com$/.test(window.location.hostname);
+const isMarketAuthExplicitlyEnabled = process.env.NEXT_PUBLIC_ENABLE_MARKET_AUTH === '1';
 const isMarketAuthDisabled =
-  process.env.NEXT_PUBLIC_DISABLE_MARKET_AUTH === '1' || isCustomDeploymentHost;
+  process.env.NEXT_PUBLIC_DISABLE_MARKET_AUTH === '1' ||
+  (isCustomDeploymentHost && !isMarketAuthExplicitlyEnabled);
 
 const getAuthHeaders = async () => {
   try {

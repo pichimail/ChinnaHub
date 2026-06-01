@@ -20,6 +20,14 @@ const CONTENT_TYPE_MAP: Record<string, string> = {
   webp: 'image/webp',
 };
 
+const FALLBACK_AVATAR_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <rect width="256" height="256" rx="128" fill="#0F172A"/>
+  <circle cx="128" cy="104" r="44" fill="#334155"/>
+  <path d="M56 212c14-34 43-54 72-54s58 20 72 54" fill="#334155"/>
+</svg>
+`.trim();
+
 // Determine content type based on file extension
 function getContentType(filename: string): string {
   const extension = filename.split('.').pop()?.toLowerCase() || '';
@@ -34,8 +42,12 @@ export const GET = async (req: Request, segmentData: { params: Params }) => {
 
     const userAvatar = await userService.getUserAvatar(params.id, params.image);
     if (!userAvatar) {
-      return new Response('Avatar not found', {
-        status: 404,
+      return new Response(FALLBACK_AVATAR_SVG, {
+        headers: {
+          'Cache-Control': 'public, max-age=300',
+          'Content-Type': 'image/svg+xml',
+        },
+        status: 200,
       });
     }
 
