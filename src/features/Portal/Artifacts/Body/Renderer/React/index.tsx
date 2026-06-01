@@ -8,10 +8,12 @@ import { createTemplateFiles } from './template';
 
 interface ReactRendererProps {
   code: string;
+  title?: string;
 }
 
-const ReactRenderer = memo<ReactRendererProps>(({ code }) => {
-  const title = useChatStore(chatPortalSelectors.artifactTitle);
+const ReactRenderer = memo<ReactRendererProps>(({ code, title: titleProp }) => {
+  const artifactTitle = useChatStore(chatPortalSelectors.artifactTitle);
+  const title = titleProp || artifactTitle;
 
   return (
     <SandpackProvider

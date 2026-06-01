@@ -6,6 +6,7 @@ import path from 'path-browserify-esm';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import CodePreview, { getCodePreviewType } from '@/components/CodePreview';
 import { LocalFile, LocalFolder } from '@/features/LocalFile';
 
 import OutOfScopeWarning from '../OutOfScopeWarning';
@@ -36,6 +37,7 @@ const WriteFile = memo<BuiltinInterventionProps<WriteLocalFileParams>>(({ args }
   }, [ext]);
 
   const contentLength = args.content?.length || 0;
+  const previewType = getCodePreviewType({ fileName: base, language: ext.replace('.', '') });
 
   return (
     <Flexbox gap={12}>
@@ -55,14 +57,24 @@ const WriteFile = memo<BuiltinInterventionProps<WriteLocalFileParams>>(({ args }
         </Flexbox>
 
         {args.content && (
-          <Highlighter
-            language={language}
-            showLanguage={false}
-            style={{ maxHeight: 400, overflow: 'auto', padding: '8px' }}
-            variant={'outlined'}
-          >
-            {args.content}
-          </Highlighter>
+          <Flexbox gap={8}>
+            {previewType && (
+              <CodePreview
+                content={args.content}
+                fileName={base}
+                height={320}
+                language={ext.replace('.', '')}
+              />
+            )}
+            <Highlighter
+              language={language}
+              showLanguage={false}
+              style={{ maxHeight: 400, overflow: 'auto', padding: '8px' }}
+              variant={'outlined'}
+            >
+              {args.content}
+            </Highlighter>
+          </Flexbox>
         )}
       </Flexbox>
     </Flexbox>

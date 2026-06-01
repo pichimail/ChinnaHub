@@ -4,6 +4,8 @@ import type { BuiltinInterventionProps } from '@lobechat/types';
 import { Flexbox, Highlighter, Text } from '@lobehub/ui';
 import { memo } from 'react';
 
+import CodePreview, { getCodePreviewType } from '@/components/CodePreview';
+
 interface WriteLocalFileParams {
   content: string;
   createDirectories?: boolean;
@@ -12,11 +14,14 @@ interface WriteLocalFileParams {
 
 const WriteFile = memo<BuiltinInterventionProps<WriteLocalFileParams>>(({ args }) => {
   const { path, content } = args;
+  const ext = path.split('.').pop()?.toLowerCase();
+  const previewType = getCodePreviewType({ fileName: path, language: ext });
   const preview = content.length > 500 ? content.slice(0, 500) + '\n...(truncated)' : content;
 
   return (
     <Flexbox gap={8}>
       <Text>Write to file: {path}</Text>
+      {previewType && <CodePreview content={content} fileName={path} height={320} language={ext} />}
       <Highlighter
         wrap
         language={'text'}

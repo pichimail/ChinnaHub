@@ -6,6 +6,7 @@ import { ChevronRight } from 'lucide-react';
 import path from 'path-browserify-esm';
 import { memo } from 'react';
 
+import CodePreview, { getCodePreviewType } from '@/components/CodePreview';
 import { LocalFile, LocalFolder } from '@/features/LocalFile';
 
 const styles = createStaticStyles(({ css, cssVar }) => ({
@@ -39,20 +40,26 @@ const WriteFile = memo<BuiltinRenderProps<WriteLocalFileParams>>(({ args }) => {
   const { base, dir } = path.parse(args.path);
   const ext = path.extname(args.path).slice(1).toLowerCase();
   const isMarkdown = ext === 'md' || ext === 'mdx';
+  const previewType = getCodePreviewType({ fileName: base, language: ext });
 
   // Code-type files render as a "new file" unified diff so the visual is
   // consistent with EditLocalFile's PatchDiff. Markdown keeps its rendered
   // preview because a rendered doc reads better than an all-green diff.
   if (!isMarkdown && args.content) {
     return (
-      <PatchDiff
-        fileName={base}
-        language={ext || undefined}
-        patch={buildNewFilePatch(args.path, args.content)}
-        showHeader={false}
-        variant={'borderless'}
-        viewMode={'unified'}
-      />
+      <Flexbox gap={12}>
+        {previewType && (
+          <CodePreview content={args.content} fileName={base} height={320} language={ext} />
+        )}
+        <PatchDiff
+          fileName={base}
+          language={ext || undefined}
+          patch={buildNewFilePatch(args.path, args.content)}
+          showHeader={false}
+          variant={'borderless'}
+          viewMode={'unified'}
+        />
+      </Flexbox>
     );
   }
 

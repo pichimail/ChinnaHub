@@ -4,6 +4,8 @@ import type { BuiltinRenderProps } from '@lobechat/types';
 import { Block, Highlighter } from '@lobehub/ui';
 import { memo } from 'react';
 
+import CodePreview, { getCodePreviewType } from '@/components/CodePreview';
+
 import type { WriteLocalFileState } from '../../../types';
 
 interface WriteLocalFileParams {
@@ -55,9 +57,19 @@ const WriteFile = memo<BuiltinRenderProps<WriteLocalFileParams, WriteLocalFileSt
 
     const ext = getFileExtension(args.path);
     const language = getLanguageFromExtension(ext);
+    const previewType = getCodePreviewType({ fileName: args.path, language: ext });
 
     return (
       <Block padding={8} variant={'outlined'}>
+        {previewType && (
+          <CodePreview
+            content={args.content}
+            fileName={args.path}
+            height={320}
+            language={ext}
+            style={{ marginBottom: 8 }}
+          />
+        )}
         <Highlighter
           showLanguage
           wrap

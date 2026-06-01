@@ -6,6 +6,7 @@ import { AlignLeft, Asterisk, ExternalLink, FolderOpen } from 'lucide-react';
 import React, { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import CodePreview, { getCodePreviewType } from '@/components/CodePreview';
 import FileIcon from '@/components/FileIcon';
 
 const styles = createStaticStyles(({ css, cssVar }) => ({
@@ -116,6 +117,7 @@ const ReadFileView = memo<ReadFileState>(
       : undefined;
 
     const displayPath = displayRelativePath ? displayRelativePath(path) : path;
+    const previewType = getCodePreviewType({ fileName: filename, language: fileType });
 
     return (
       <Flexbox className={styles.container} gap={12}>
@@ -192,7 +194,11 @@ const ReadFileView = memo<ReadFileState>(
           </Text>
         </Flexbox>
 
-        <Flexbox className={styles.previewBox} style={{ maxHeight: 240 }}>
+        {previewType && content && (
+          <CodePreview content={content} fileName={filename} height={320} language={fileType} />
+        )}
+
+        <Flexbox className={styles.previewBox} style={{ maxHeight: previewType ? 200 : 240 }}>
           {fileType === 'md' ? (
             <Markdown style={{ overflow: 'auto' }}>{content}</Markdown>
           ) : (

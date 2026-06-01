@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { memo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import CodePreview from '@/components/CodePreview';
 import { useIsDark } from '@/hooks/useIsDark';
 import { useChatStore } from '@/store/chat';
 import { chatPortalSelectors, messageStateSelectors } from '@/store/chat/selectors';
@@ -76,6 +77,9 @@ const Render = memo<ArtifactProps>(({ identifier, title, type, language, childre
     openArtifact({ id, identifier, language, title, type });
   };
 
+  const previewLanguage =
+    type === 'text/html' ? 'html' : type === 'application/lobe.artifacts.react' ? 'tsx' : language;
+
   useEffect(() => {
     if (!hasChildren || !isGenerating) return;
 
@@ -125,6 +129,16 @@ const Render = memo<ArtifactProps>(({ identifier, title, type, language, childre
           )}
         </Flexbox>
       </Flexbox>
+      {hasChildren && isArtifactTagClosed && (
+        <CodePreview
+          content={str}
+          fileName={title}
+          height={280}
+          language={previewLanguage}
+          style={{ margin: '0 12px 12px' }}
+          title={title}
+        />
+      )}
     </Flexbox>
   );
 });
