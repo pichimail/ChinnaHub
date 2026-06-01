@@ -13,7 +13,7 @@
   "consent.redirecting": "అనుమతి విజయవంతమైంది, దారిమళ్లిస్తోంది...",
   "consent.scope.email": "మీ ఇమెయిల్ చిరునామాను యాక్సెస్ చేయండి",
   "consent.scope.offline_access": "క్లయింట్ మీ డేటాను యాక్సెస్ చేయడానికి అనుమతించండి",
-  "consent.scope.openid": "మీ LobeHub ఖాతాను ఉపయోగించి ధృవీకరించండి",
+  "consent.scope.openid": "మీ ChinnaHub ఖాతాను ఉపయోగించి ధృవీకరించండి",
   "consent.scope.profile": "మీ ప్రాథమిక ప్రొఫైల్ సమాచారాన్ని యాక్సెస్ చేయండి (పేరు, అవతార్, మొదలైనవి)",
   "consent.scope.sync-read": "మీ సమకాలీకరించిన డేటాను చదవండి",
   "consent.scope.sync-write": "మీ సమకాలీకరించిన డేటాను వ్రాయండి మరియు నవీకరించండి",

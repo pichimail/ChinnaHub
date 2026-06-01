@@ -95,7 +95,7 @@ echo "  ✓ Migrations done"
 echo ""
 echo "▶ Verifying public routes..."
 for ROUTE in / /admin /admin/api-keys /admin/feature-flags /admin/plans /image /video /audio; do
-  STATUS=$(curl --location --silent --output /dev/null --write-out "%{http_code}" "$APP_URL$ROUTE")
+  STATUS=$(curl --insecure --location --silent --output /dev/null --write-out "%{http_code}" "$APP_URL$ROUTE")
   if [ "$STATUS" != "200" ]; then
     echo "  ✗ $APP_URL$ROUTE returned HTTP $STATUS"
     exit 1
