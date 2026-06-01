@@ -36,7 +36,7 @@ const toMarketCredsError = (error: unknown, fallbackMessage: string) => {
     return new TRPCError({
       cause: error,
       code: 'UNAUTHORIZED',
-      message: 'Market access token is invalid or expired. Please sign in to Market again.',
+      message: 'ChinnaHub Connect session is invalid or expired. Please sign in again.',
     });
   }
 

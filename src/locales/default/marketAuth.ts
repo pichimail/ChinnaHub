@@ -2,13 +2,13 @@ export default {
   'authorize.cancel': 'Not now',
   'authorize.confirm': 'Create Your Profile',
   'authorize.description':
-    'Your ChinnaHub Connect profile is separate from your {{appName}} user account.',
+    'Your ChinnaHub Connect profile unlocks marketplace features for your {{appName}} account.',
   'authorize.footer.agreement':
     'By continuing, you confirm that you have read and agree to the <terms>Terms and Conditions</terms> and <privacy>Privacy Policy</privacy>.',
   'authorize.footer.privacy': 'Privacy Policy',
   'authorize.footer.terms': 'Terms of Service',
   'authorize.subtitle':
-    'Create a ChinnaHub Connect profile to manage integrations, tools, and shared resources.',
+    'Create a ChinnaHub Connect profile to manage marketplace integrations, tools, and shared resources.',
   'authorize.title': 'Create ChinnaHub Connect Profile',
   'callback.buttons.close': 'Close window',
   'claimResources.claim': 'Claim Selected',
@@ -25,10 +25,10 @@ export default {
   'callback.messages.processing': 'Processing authorization...',
   'callback.messages.successWithCountdown':
     '{{message}} The window will close automatically in {{countdown}} seconds',
-  'callback.messages.successWithRedirect': 'Authorization successful! Redirecting...',
-  'callback.titles.error': 'Authorization Failed',
+  'callback.messages.successWithRedirect': 'ChinnaHub Connect authorized. Redirecting...',
+  'callback.titles.error': 'ChinnaHub Connect Authorization Failed',
   'callback.titles.loading': 'ChinnaHub Connect Authorization',
-  'callback.titles.success': 'Authorization Successful',
+  'callback.titles.success': 'ChinnaHub Connect Authorized',
   'errors.authorizationFailed': 'Authorization failed, please try again.',
   'errors.browserOnly': 'The authorization process can only be initiated in a browser.',
   'errors.codeConsumed': 'The authorization code has already been used. Please try again.',

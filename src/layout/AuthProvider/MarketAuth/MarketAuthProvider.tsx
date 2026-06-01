@@ -134,12 +134,7 @@ const checkNeedsProfileSetup = async (username: string): Promise<boolean> => {
 export const MarketAuthProvider = ({ children, isDesktop }: MarketAuthProviderProps) => {
   const { message } = App.useApp();
   const { t } = useTranslation('marketAuth');
-  const isCustomDeploymentHost =
-    typeof window !== 'undefined' && !/(?:\.|^)lobehub\.com$/.test(window.location.hostname);
-  const isMarketAuthExplicitlyEnabled = process.env.NEXT_PUBLIC_ENABLE_MARKET_AUTH === '1';
-  const isMarketAuthDisabled =
-    process.env.NEXT_PUBLIC_DISABLE_MARKET_AUTH === '1' ||
-    (isCustomDeploymentHost && !isMarketAuthExplicitlyEnabled);
+  const isMarketAuthDisabled = process.env.NEXT_PUBLIC_DISABLE_MARKET_AUTH === '1';
 
   const [session, setSession] = useState<MarketAuthSession | null>(null);
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
@@ -164,6 +159,7 @@ export const MarketAuthProvider = ({ children, isDesktop }: MarketAuthProviderPr
 
   // Subscribe to user store init state; when isUserStateInit is true, settings data is fully loaded
   const isUserStateInit = useUserStore((s) => s.isUserStateInit);
+  const isAppSignedIn = useUserStore((s) => s.isSignedIn);
 
   // Check if Market Trusted Client authentication is enabled
   const enableMarketTrustedClient = useServerConfigStore(
@@ -405,13 +401,17 @@ export const MarketAuthProvider = ({ children, isDesktop }: MarketAuthProviderPr
    */
   const signIn = useCallback(async (): Promise<number | null> => {
     if (isMarketAuthDisabled) return null;
+    if (enableMarketTrustedClient && status !== 'authenticated') {
+      await useUserStore.getState().openLogin();
+      return null;
+    }
 
     return new Promise<number | null>((resolve, reject) => {
       setPendingSignInResolve(() => resolve);
       setPendingSignInReject(() => reject);
       setShowConfirmModal(true);
     });
-  }, [isMarketAuthDisabled]);
+  }, [enableMarketTrustedClient, isMarketAuthDisabled, status]);
 
   /**
    * Handle authorization confirmation
@@ -689,7 +689,7 @@ export const MarketAuthProvider = ({ children, isDesktop }: MarketAuthProviderPr
       initializeSession();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isUserStateInit, enableMarketTrustedClient]);
+  }, [isUserStateInit, enableMarketTrustedClient, isAppSignedIn]);
 
   /**
    * Auto-refresh token before expiration
@@ -757,9 +757,8 @@ export const MarketAuthProvider = ({ children, isDesktop }: MarketAuthProviderPr
     getCurrentUserInfo,
     getRefreshToken,
     handleUnauthorized,
-    // When Trusted Client authentication is enabled, automatically treat as authenticated (backend uses trustedClientToken)
-    isAuthenticated:
-      isMarketAuthDisabled || enableMarketTrustedClient || status === 'authenticated',
+    // Trusted Client still needs an app session so the backend can mint the Market token.
+    isAuthenticated: isMarketAuthDisabled || status === 'authenticated',
     isLoading: !isMarketAuthDisabled && status === 'loading',
     openProfileSetup,
     refreshToken,

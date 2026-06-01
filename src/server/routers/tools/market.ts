@@ -315,7 +315,7 @@ export const marketRouter = router({
           if (!userAccessToken) {
             throw new TRPCError({
               code: 'UNAUTHORIZED',
-              message: 'User access token not found. Please sign in to Market first.',
+              message: 'ChinnaHub Connect session not found. Please sign in first.',
             });
           }
         } else {
