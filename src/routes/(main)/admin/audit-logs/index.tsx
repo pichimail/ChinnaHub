@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import useSWR from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
+import AdminLabel, { adminIcons } from '@/routes/(main)/admin/components/AdminLabel';
 
 const AdminAuditLogs = () => {
   const { t } = useTranslation();
@@ -27,27 +28,27 @@ const AdminAuditLogs = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date: string) => new Date(date).toLocaleString(),
-      title: t('timestamp', { ns: 'admin' }),
+      title: <AdminLabel icon={adminIcons.updated}>{t('timestamp', { ns: 'admin' })}</AdminLabel>,
     },
     {
       dataIndex: 'adminEmail',
       key: 'adminEmail',
-      title: t('admin', { ns: 'admin' }),
+      title: <AdminLabel icon={adminIcons.email}>{t('admin', { ns: 'admin' })}</AdminLabel>,
     },
     {
       dataIndex: 'action',
       key: 'action',
-      title: t('action', { ns: 'admin' }),
+      title: <AdminLabel icon={adminIcons.actions}>{t('action', { ns: 'admin' })}</AdminLabel>,
     },
     {
       dataIndex: 'targetType',
       key: 'targetType',
-      title: t('targetType', { ns: 'admin' }),
+      title: <AdminLabel icon={adminIcons.target}>Target Type</AdminLabel>,
     },
     {
       dataIndex: 'targetId',
       key: 'targetId',
-      title: t('targetId', { ns: 'admin' }),
+      title: <AdminLabel icon={adminIcons.key}>{t('targetId', { ns: 'admin' })}</AdminLabel>,
       render: (id: string) => (
         <span style={{ fontSize: '12px', color: 'var(--colorTextSecondary)' }}>
           {id?.slice(0, 8)}...
@@ -58,7 +59,9 @@ const AdminAuditLogs = () => {
 
   return (
     <div>
-      <h2>{t('auditLogs', { ns: 'admin' })}</h2>
+      <h2>
+        <AdminLabel icon={adminIcons.auditLogs}>{t('auditLogs', { ns: 'admin' })}</AdminLabel>
+      </h2>
       <Table
         columns={columns}
         dataSource={logsData || []}

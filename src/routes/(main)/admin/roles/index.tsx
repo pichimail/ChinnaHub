@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import useSWR, { useSWRConfig } from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
+import AdminLabel, { adminIcons } from '@/routes/(main)/admin/components/AdminLabel';
 
 const roleOptions = [
   { label: 'user', value: 'user' },
@@ -40,17 +41,29 @@ const AdminRolesPage = () => {
 
   return (
     <div>
-      <h2>{t('roleManagement', { ns: 'admin' })}</h2>
+      <h2>
+        <AdminLabel icon={adminIcons.roleManagement}>
+          {t('roleManagement', { ns: 'admin' })}
+        </AdminLabel>
+      </h2>
       <Table
         dataSource={userData?.users || []}
         pagination={{ pageSize: 20 }}
         rowKey="id"
         columns={[
-          { dataIndex: 'email', key: 'email', title: t('email', { ns: 'admin' }) },
+          {
+            dataIndex: 'email',
+            key: 'email',
+            title: <AdminLabel icon={adminIcons.email}>{t('email', { ns: 'admin' })}</AdminLabel>,
+          },
           {
             dataIndex: 'role',
             key: 'role',
-            title: t('roleManagement', { ns: 'admin' }),
+            title: (
+              <AdminLabel icon={adminIcons.roleManagement}>
+                {t('roleManagement', { ns: 'admin' })}
+              </AdminLabel>
+            ),
             render: (role: string, record: any) => (
               <Space>
                 <Select
@@ -66,14 +79,16 @@ const AdminRolesPage = () => {
           {
             dataIndex: 'id',
             key: 'id',
-            title: 'ID',
+            title: <AdminLabel icon={adminIcons.key}>ID</AdminLabel>,
             render: (id: string) => id?.slice(0, 8),
           },
         ]}
       />
 
       <div style={{ marginTop: 12 }}>
-        <Button onClick={() => mutate('admin:roles:users')}>Refresh</Button>
+        <Button onClick={() => mutate('admin:roles:users')}>
+          <AdminLabel icon={adminIcons.updated}>Refresh</AdminLabel>
+        </Button>
       </div>
     </div>
   );

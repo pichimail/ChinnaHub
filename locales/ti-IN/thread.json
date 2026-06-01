@@ -1,5 +1,5 @@
 {
-  "actions.confirmRemoveThread": "Meeru ippudu delete this subtopic. Delete ayyaka recover cheyyalem. please proceed with caution.",
+  "actions.confirmRemoveThread": "Meeru unnaru gurinchi ki delete cheyyi ee subtopic. Once deleted, idi cannot be recovered. Dayachesi proceed tho caution.",
   "newPortalThread.includeContext": "Include topic context",
-  "newPortalThread.title": "Start a new subtopic"
+  "newPortalThread.title": "Start cheyyi a new subtopic"
 }

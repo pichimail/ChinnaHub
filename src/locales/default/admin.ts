@@ -31,6 +31,7 @@ export default {
   marketplace: 'Marketplace',
   mediaAccess: 'Media Access',
   governance: 'Governance',
+  governancePolicies: 'Governance Policies',
   notAuthorized: 'Not authorized to access admin console',
   no: 'No',
   overview: 'Overview',

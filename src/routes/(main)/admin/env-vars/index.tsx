@@ -18,6 +18,7 @@ import { useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
+import AdminLabel, { adminIcons } from '@/routes/(main)/admin/components/AdminLabel';
 
 type EnvVarRow = {
   domain: string;
@@ -117,34 +118,44 @@ const AdminEnvVarsPage = () => {
     <div>
       <Space style={{ marginBottom: 12 }}>
         <Button type="primary" onClick={() => setOpen(true)}>
-          Add Environment Variable
+          <AdminLabel icon={adminIcons.envVars}>Add Environment Variable</AdminLabel>
         </Button>
-        <Button onClick={importRuntime}>Import Existing Runtime Values</Button>
+        <Button onClick={importRuntime}>
+          <AdminLabel icon={adminIcons.values}>Import Existing Runtime Values</AdminLabel>
+        </Button>
       </Space>
 
       <Tabs
         items={[
           {
             key: 'catalog',
-            label: 'Required Runtime Variables',
+            label: <AdminLabel icon={adminIcons.envVars}>Required Runtime Variables</AdminLabel>,
             children: (
               <Table
                 dataSource={catalog || []}
                 rowKey={(row) => `${row.domain}:${row.key}`}
                 columns={[
-                  { dataIndex: 'domain', key: 'domain', title: 'Domain' },
-                  { dataIndex: 'key', key: 'key', title: 'Key' },
+                  {
+                    dataIndex: 'domain',
+                    key: 'domain',
+                    title: <AdminLabel icon={adminIcons.domain}>Domain</AdminLabel>,
+                  },
+                  {
+                    dataIndex: 'key',
+                    key: 'key',
+                    title: <AdminLabel icon={adminIcons.key}>Key</AdminLabel>,
+                  },
                   {
                     dataIndex: 'source',
                     key: 'source',
-                    title: 'Source',
+                    title: <AdminLabel icon={adminIcons.source}>Source</AdminLabel>,
                     render: (source: RuntimeCatalogRow['source']) => (
                       <Tag color={sourceColor[source]}>{source.toUpperCase()}</Tag>
                     ),
                   },
                   {
                     key: 'values',
-                    title: 'Values',
+                    title: <AdminLabel icon={adminIcons.values}>Values</AdminLabel>,
                     render: (_: unknown, record: RuntimeCatalogRow) =>
                       `Admin ${record.adminValueMasked || '-'} / Runtime ${
                         record.processValueMasked || '-'
@@ -153,13 +164,13 @@ const AdminEnvVarsPage = () => {
                   {
                     dataIndex: 'requiredFor',
                     key: 'requiredFor',
-                    title: 'Used For',
+                    title: <AdminLabel icon={adminIcons.usedFor}>Used For</AdminLabel>,
                     render: (items: string[]) => items.map((item) => <Tag key={item}>{item}</Tag>),
                   },
                   {
                     dataIndex: 'issues',
                     key: 'issues',
-                    title: 'Status',
+                    title: <AdminLabel icon={adminIcons.status}>Status</AdminLabel>,
                     render: (issues: string[]) =>
                       issues.length > 0 ? (
                         <Alert showIcon message={issues.join(' ')} type="warning" />
@@ -167,10 +178,14 @@ const AdminEnvVarsPage = () => {
                         <Tag color="green">Ready</Tag>
                       ),
                   },
-                  { dataIndex: 'description', key: 'description', title: 'Description' },
+                  {
+                    dataIndex: 'description',
+                    key: 'description',
+                    title: <AdminLabel icon={adminIcons.description}>Description</AdminLabel>,
+                  },
                   {
                     key: 'actions',
-                    title: 'Actions',
+                    title: <AdminLabel icon={adminIcons.actions}>Actions</AdminLabel>,
                     render: (_: unknown, record: RuntimeCatalogRow) =>
                       record.source === 'missing' ? (
                         <Button size="small" type="primary" onClick={() => openQuickAdd(record)}>
@@ -188,30 +203,38 @@ const AdminEnvVarsPage = () => {
           },
           {
             key: 'saved',
-            label: 'Saved Variables',
+            label: <AdminLabel icon={adminIcons.values}>Saved Variables</AdminLabel>,
             children: (
               <Table
                 dataSource={(data || []) as EnvVarRow[]}
                 rowKey="id"
                 columns={[
-                  { dataIndex: 'domain', key: 'domain', title: 'Domain' },
-                  { dataIndex: 'key', key: 'key', title: 'Key' },
+                  {
+                    dataIndex: 'domain',
+                    key: 'domain',
+                    title: <AdminLabel icon={adminIcons.domain}>Domain</AdminLabel>,
+                  },
+                  {
+                    dataIndex: 'key',
+                    key: 'key',
+                    title: <AdminLabel icon={adminIcons.key}>Key</AdminLabel>,
+                  },
                   {
                     dataIndex: 'value',
                     key: 'value',
-                    title: 'Value',
+                    title: <AdminLabel icon={adminIcons.value}>Value</AdminLabel>,
                     render: (value: string, record: EnvVarRow) =>
                       record.isSecret ? '********' : value,
                   },
                   {
                     dataIndex: 'isActive',
                     key: 'isActive',
-                    title: 'Active',
+                    title: <AdminLabel icon={adminIcons.featureFlags}>Active</AdminLabel>,
                     render: (v: boolean) => (v ? 'Yes' : 'No'),
                   },
                   {
                     key: 'actions',
-                    title: 'Actions',
+                    title: <AdminLabel icon={adminIcons.actions}>Actions</AdminLabel>,
                     render: (_: unknown, record: EnvVarRow) => (
                       <Space>
                         <Button danger size="small" onClick={() => remove(record.id)}>
@@ -229,7 +252,7 @@ const AdminEnvVarsPage = () => {
 
       <Modal
         open={open}
-        title="Environment Variable"
+        title={<AdminLabel icon={adminIcons.envVars}>Environment Variable</AdminLabel>}
         onOk={submit}
         onCancel={() => {
           setOpen(false);
@@ -241,22 +264,22 @@ const AdminEnvVarsPage = () => {
           initialValues={{ domain: 'global', isActive: true, isSecret: true }}
           layout="vertical"
         >
-          <Form.Item label="Domain" name="domain" rules={[{ required: true }]}>
+          <Form.Item label={<AdminLabel icon={adminIcons.domain}>Domain</AdminLabel>} name="domain" rules={[{ required: true }]}>
             <Input placeholder="global | ai | marketplace" />
           </Form.Item>
-          <Form.Item label="Key" name="key" rules={[{ required: true }]}>
+          <Form.Item label={<AdminLabel icon={adminIcons.key}>Key</AdminLabel>} name="key" rules={[{ required: true }]}>
             <Input placeholder="OPENAI_API_KEY" />
           </Form.Item>
-          <Form.Item label="Value" name="value" rules={[{ required: true }]}>
+          <Form.Item label={<AdminLabel icon={adminIcons.value}>Value</AdminLabel>} name="value" rules={[{ required: true }]}>
             <Input.Password />
           </Form.Item>
-          <Form.Item label="Description" name="description">
+          <Form.Item label={<AdminLabel icon={adminIcons.description}>Description</AdminLabel>} name="description">
             <Input.TextArea rows={3} />
           </Form.Item>
-          <Form.Item label="Active" name="isActive" valuePropName="checked">
+          <Form.Item label={<AdminLabel icon={adminIcons.featureFlags}>Active</AdminLabel>} name="isActive" valuePropName="checked">
             <Switch />
           </Form.Item>
-          <Form.Item label="Secret" name="isSecret" valuePropName="checked">
+          <Form.Item label={<AdminLabel icon={adminIcons.key}>Secret</AdminLabel>} name="isSecret" valuePropName="checked">
             <Switch />
           </Form.Item>
         </Form>

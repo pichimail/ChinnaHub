@@ -18,6 +18,7 @@ import { useMemo, useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
+import AdminLabel, { adminIcons } from '@/routes/(main)/admin/components/AdminLabel';
 
 const AdminPlansPage = () => {
   const { mutate } = useSWRConfig();
@@ -126,28 +127,42 @@ const AdminPlansPage = () => {
     <div>
       <Space style={{ marginBottom: 16 }}>
         <Button type="primary" onClick={() => openPlanEditor()}>
-          Create or Edit Plan
+          <AdminLabel icon={adminIcons.plans}>Create or Edit Plan</AdminLabel>
         </Button>
-        <Button onClick={() => setAssignOpen(true)}>Assign User Plan</Button>
+        <Button onClick={() => setAssignOpen(true)}>
+          <AdminLabel icon={adminIcons.users}>Assign User Plan</AdminLabel>
+        </Button>
       </Space>
 
       <Tabs
         items={[
           {
             key: 'plans',
-            label: 'Plans',
+            label: <AdminLabel icon={adminIcons.plans}>Plans</AdminLabel>,
             children: (
               <Table
                 dataSource={data?.plans || []}
                 rowKey="key"
                 columns={[
-                  { dataIndex: 'label', key: 'label', title: 'Plan' },
-                  { dataIndex: 'key', key: 'key', title: 'Key' },
-                  { dataIndex: 'description', key: 'description', title: 'Description' },
+                  {
+                    dataIndex: 'label',
+                    key: 'label',
+                    title: <AdminLabel icon={adminIcons.plan}>Plan</AdminLabel>,
+                  },
+                  {
+                    dataIndex: 'key',
+                    key: 'key',
+                    title: <AdminLabel icon={adminIcons.key}>Key</AdminLabel>,
+                  },
+                  {
+                    dataIndex: 'description',
+                    key: 'description',
+                    title: <AdminLabel icon={adminIcons.description}>Description</AdminLabel>,
+                  },
                   {
                     dataIndex: 'monthlyCredits',
                     key: 'monthlyCredits',
-                    title: 'Monthly Credits',
+                    title: <AdminLabel icon={adminIcons.value}>Monthly Credits</AdminLabel>,
                     render: (credits: any) =>
                       [
                         `Chat ${credits?.chat || 0}`,
@@ -156,11 +171,20 @@ const AdminPlansPage = () => {
                         `Audio ${credits?.audio || 0}`,
                       ].join(' / '),
                   },
-                  { dataIndex: 'sortOrder', key: 'sortOrder', title: 'Order' },
-                  { dataIndex: 'isActive', key: 'isActive', title: 'Active', render: Boolean },
+                  {
+                    dataIndex: 'sortOrder',
+                    key: 'sortOrder',
+                    title: <AdminLabel icon={adminIcons.updated}>Order</AdminLabel>,
+                  },
+                  {
+                    dataIndex: 'isActive',
+                    key: 'isActive',
+                    title: <AdminLabel icon={adminIcons.featureFlags}>Active</AdminLabel>,
+                    render: Boolean,
+                  },
                   {
                     key: 'actions',
-                    title: 'Actions',
+                    title: <AdminLabel icon={adminIcons.actions}>Actions</AdminLabel>,
                     render: (_: unknown, record: any) => (
                       <Button size="small" onClick={() => openPlanEditor(record)}>
                         Edit
@@ -173,24 +197,28 @@ const AdminPlansPage = () => {
           },
           {
             key: 'features',
-            label: 'Plan Features',
+            label: <AdminLabel icon={adminIcons.featureFlags}>Plan Features</AdminLabel>,
             children: (
               <Table
                 dataSource={data?.planFeatures || []}
                 rowKey="id"
                 columns={[
-                  { dataIndex: 'planKey', key: 'planKey', title: 'Plan' },
+                  {
+                    dataIndex: 'planKey',
+                    key: 'planKey',
+                    title: <AdminLabel icon={adminIcons.plan}>Plan</AdminLabel>,
+                  },
                   {
                     dataIndex: 'flagKey',
                     key: 'flagKey',
-                    title: 'Feature',
+                    title: <AdminLabel icon={adminIcons.featureFlags}>Feature</AdminLabel>,
                     render: (flagKey: string) =>
                       `${flagLabelByKey.get(flagKey) || flagKey} (${flagKey})`,
                   },
                   {
                     dataIndex: 'enabled',
                     key: 'enabled',
-                    title: 'Enabled',
+                    title: <AdminLabel icon={adminIcons.featureFlags}>Enabled</AdminLabel>,
                     render: (enabled: boolean, record: any) => (
                       <Switch
                         checked={enabled}
@@ -204,15 +232,27 @@ const AdminPlansPage = () => {
           },
           {
             key: 'assignments',
-            label: 'User Assignments',
+            label: <AdminLabel icon={adminIcons.users}>User Assignments</AdminLabel>,
             children: (
               <Table
                 dataSource={data?.userPlans || []}
                 rowKey="id"
                 columns={[
-                  { dataIndex: 'userId', key: 'userId', title: 'User ID' },
-                  { dataIndex: 'planKey', key: 'planKey', title: 'Plan' },
-                  { dataIndex: 'notes', key: 'notes', title: 'Notes' },
+                  {
+                    dataIndex: 'userId',
+                    key: 'userId',
+                    title: <AdminLabel icon={adminIcons.users}>User ID</AdminLabel>,
+                  },
+                  {
+                    dataIndex: 'planKey',
+                    key: 'planKey',
+                    title: <AdminLabel icon={adminIcons.plan}>Plan</AdminLabel>,
+                  },
+                  {
+                    dataIndex: 'notes',
+                    key: 'notes',
+                    title: <AdminLabel icon={adminIcons.description}>Notes</AdminLabel>,
+                  },
                 ]}
               />
             ),
@@ -222,41 +262,41 @@ const AdminPlansPage = () => {
 
       <Modal
         open={planOpen}
-        title="Pricing Plan"
+        title={<AdminLabel icon={adminIcons.plans}>Pricing Plan</AdminLabel>}
         onCancel={() => setPlanOpen(false)}
         onOk={savePlan}
       >
         <Form form={planForm} initialValues={{ isActive: true, sortOrder: 100 }} layout="vertical">
-          <Form.Item label="Key" name="key" rules={[{ required: true }]}>
+          <Form.Item label={<AdminLabel icon={adminIcons.key}>Key</AdminLabel>} name="key" rules={[{ required: true }]}>
             <Input placeholder="starter" />
           </Form.Item>
-          <Form.Item label="Label" name="label" rules={[{ required: true }]}>
+          <Form.Item label={<AdminLabel icon={adminIcons.email}>Label</AdminLabel>} name="label" rules={[{ required: true }]}>
             <Input placeholder="Starter" />
           </Form.Item>
-          <Form.Item label="Description" name="description">
+          <Form.Item label={<AdminLabel icon={adminIcons.description}>Description</AdminLabel>} name="description">
             <Input.TextArea rows={2} />
           </Form.Item>
           <Space.Compact block>
-            <Form.Item label="Chat" name="chatCredits" style={{ width: '25%' }}>
+            <Form.Item label={<AdminLabel icon={adminIcons.value}>Chat</AdminLabel>} name="chatCredits" style={{ width: '25%' }}>
               <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item label="Image" name="imageCredits" style={{ width: '25%' }}>
+            <Form.Item label={<AdminLabel icon={adminIcons.value}>Image</AdminLabel>} name="imageCredits" style={{ width: '25%' }}>
               <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item label="Video" name="videoCredits" style={{ width: '25%' }}>
+            <Form.Item label={<AdminLabel icon={adminIcons.value}>Video</AdminLabel>} name="videoCredits" style={{ width: '25%' }}>
               <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
-            <Form.Item label="Audio" name="audioCredits" style={{ width: '25%' }}>
+            <Form.Item label={<AdminLabel icon={adminIcons.value}>Audio</AdminLabel>} name="audioCredits" style={{ width: '25%' }}>
               <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
           </Space.Compact>
-          <Form.Item label="Sort Order" name="sortOrder">
+          <Form.Item label={<AdminLabel icon={adminIcons.updated}>Sort Order</AdminLabel>} name="sortOrder">
             <InputNumber style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item label="Config JSON" name="config">
+          <Form.Item label={<AdminLabel icon={adminIcons.description}>Config JSON</AdminLabel>} name="config">
             <Input.TextArea placeholder='{"support":"priority"}' rows={3} />
           </Form.Item>
-          <Form.Item label="Active" name="isActive" valuePropName="checked">
+          <Form.Item label={<AdminLabel icon={adminIcons.featureFlags}>Active</AdminLabel>} name="isActive" valuePropName="checked">
             <Switch />
           </Form.Item>
         </Form>
@@ -264,12 +304,12 @@ const AdminPlansPage = () => {
 
       <Modal
         open={assignOpen}
-        title="Assign User Plan"
+        title={<AdminLabel icon={adminIcons.users}>Assign User Plan</AdminLabel>}
         onCancel={() => setAssignOpen(false)}
         onOk={assignPlan}
       >
         <Form form={assignForm} layout="vertical">
-          <Form.Item label="User" name="userId" rules={[{ required: true }]}>
+          <Form.Item label={<AdminLabel icon={adminIcons.users}>User</AdminLabel>} name="userId" rules={[{ required: true }]}>
             <Select
               showSearch
               options={(usersData || []).map((u: any) => ({
@@ -278,10 +318,10 @@ const AdminPlansPage = () => {
               }))}
             />
           </Form.Item>
-          <Form.Item label="Plan" name="planKey" rules={[{ required: true }]}>
+          <Form.Item label={<AdminLabel icon={adminIcons.plan}>Plan</AdminLabel>} name="planKey" rules={[{ required: true }]}>
             <Select options={planOptions} />
           </Form.Item>
-          <Form.Item label="Notes" name="notes">
+          <Form.Item label={<AdminLabel icon={adminIcons.description}>Notes</AdminLabel>} name="notes">
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>

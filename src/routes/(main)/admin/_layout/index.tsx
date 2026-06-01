@@ -5,66 +5,191 @@ import { createStaticStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
+import AdminLabel, { adminIcons } from '@/routes/(main)/admin/components/AdminLabel';
 import { useUserStore } from '@/store/user';
 
-const styles = createStaticStyles(({ css, cssVar }) => ({
+const styles = createStaticStyles(({ css }) => ({
   container: css`
     overflow: auto;
     height: 100%;
-    background: ${cssVar.colorBgLayout};
+    padding: 16px;
+
+    background:
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.05), transparent 34%),
+      linear-gradient(180deg, #050505 0%, #070707 100%);
   `,
   panel: css`
-    margin: 16px;
-    border: 1px solid ${cssVar.colorBorderSecondary};
-    border-radius: 12px;
-    background: ${cssVar.colorBgContainer};
+    overflow: hidden;
+
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 18px;
+    background: rgba(4, 4, 4, 0.78);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.02) inset,
+      0 16px 48px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(18px);
   `,
   header: css`
-    padding-block: 16px;
+    padding-block: 20px 16px;
     padding-inline: 24px;
-    border-block-end: 1px solid ${cssVar.colorBorderSecondary};
+    border-block-end: 1px solid rgba(255, 255, 255, 0.08);
   `,
   title: css`
     margin: 0;
 
-    font-size: 24px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 800;
     line-height: 1.2;
-    color: ${cssVar.colorText};
+    letter-spacing: -0.02em;
+    color: #fff;
   `,
   tabs: css`
-    padding-block: 0;
-    padding-inline: 12px;
+    padding-inline: 16px;
+    border-block-end: 1px solid rgba(255, 255, 255, 0.08);
 
-    .ant-tabs-tab {
-      padding-block: 14px;
-      color: ${cssVar.colorTextSecondary};
-      transition:
-        color 0.2s ease,
-        background 0.2s ease;
+    :global(.ant-tabs-nav) {
+      margin: 0;
+    }
+
+    :global(.ant-tabs-nav::before) {
+      border-block-end-color: transparent;
+    }
+
+    :global(.ant-tabs-tab) {
+      padding-block: 16px;
+      margin: 0 20px 0 0;
+      color: rgba(255, 255, 255, 0.58);
+      transition: color 0.2s ease;
 
       &:hover {
-        color: ${cssVar.colorText};
+        color: rgba(255, 255, 255, 0.92);
       }
     }
 
-    .ant-tabs-tab-active .ant-tabs-tab-btn {
-      color: ${cssVar.colorText} !important;
+    :global(.ant-tabs-tab-btn) {
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+    }
+
+    :global(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+      color: #fff !important;
       text-shadow: none;
     }
 
-    .ant-tabs-ink-bar {
+    :global(.ant-tabs-ink-bar) {
       height: 2px;
       border-radius: 999px;
-      background: ${cssVar.colorText};
+      background: rgba(255, 255, 255, 0.92);
     }
   `,
   content: css`
-    padding: 16px;
+    padding: 24px;
+    color: rgba(255, 255, 255, 0.92);
+
+    :global(.ant-card) {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.02);
+      box-shadow: none;
+      color: #fff;
+    }
+
+    :global(.ant-card-head) {
+      border-block-end-color: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    :global(.ant-card-body) {
+      background: transparent;
+    }
+
+    :global(.ant-input),
+    :global(.ant-input-affix-wrapper),
+    :global(.ant-input-number),
+    :global(.ant-select-selector),
+    :global(.ant-picker),
+    :global(.ant-textarea-affix-wrapper) {
+      border-color: rgba(255, 255, 255, 0.1) !important;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.03) !important;
+      box-shadow: none !important;
+    }
+
+    :global(.ant-input::placeholder),
+    :global(.ant-select-selection-placeholder),
+    :global(.ant-input-number-input::placeholder) {
+      color: rgba(255, 255, 255, 0.42);
+    }
+
+    :global(.ant-input-number-input),
+    :global(.ant-select-selection-item) {
+      color: #fff;
+    }
+
+    :global(.ant-select-arrow),
+    :global(.ant-input-suffix),
+    :global(.ant-input-prefix) {
+      color: rgba(255, 255, 255, 0.72);
+    }
+
+    :global(.ant-modal-content) {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: #0b0b0b;
+      color: #fff;
+    }
+
+    :global(.ant-modal-header) {
+      background: transparent;
+      border-block-end-color: rgba(255, 255, 255, 0.08);
+    }
+
+    :global(.ant-modal-title) {
+      color: #fff;
+    }
+
+    :global(.ant-modal-close) {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    :global(.ant-table) {
+      background: transparent;
+      color: #fff;
+    }
+
+    :global(.ant-table-container) {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    :global(.ant-table-thead > tr > th) {
+      border-block-end-color: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      color: rgba(255, 255, 255, 0.82);
+      font-weight: 600;
+    }
+
+    :global(.ant-table-tbody > tr > td) {
+      border-block-end-color: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.92);
+    }
+
+    :global(.ant-table-tbody > tr:hover > td) {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    :global(.ant-tag) {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    :global(.ant-spin) {
+      color: #fff;
+    }
   `,
   unauthorized: css`
     padding: 32px;
-    color: ${cssVar.colorText};
+    color: #fff;
     text-align: center;
   `,
 }));
@@ -87,36 +212,62 @@ const AdminLayout = () => {
   }
 
   const items = [
-    { key: 'overview', label: t('overview', { ns: 'admin' }), path: '/admin' },
-    { key: 'users', label: t('users', { ns: 'admin' }), path: '/admin/users' },
-    { key: 'roles', label: t('roleManagement', { ns: 'admin' }), path: '/admin/roles' },
-    { key: 'api-keys', label: t('apiKeys', { ns: 'admin' }), path: '/admin/api-keys' },
+    {
+      key: 'overview',
+      label: <AdminLabel icon={adminIcons.overview}>{t('overview', { ns: 'admin' })}</AdminLabel>,
+      path: '/admin',
+    },
+    {
+      key: 'users',
+      label: <AdminLabel icon={adminIcons.users}>{t('users', { ns: 'admin' })}</AdminLabel>,
+      path: '/admin/users',
+    },
+    {
+      key: 'roles',
+      label: (
+        <AdminLabel icon={adminIcons.roleManagement}>
+          {t('roleManagement', { ns: 'admin' })}
+        </AdminLabel>
+      ),
+      path: '/admin/roles',
+    },
+    {
+      key: 'api-keys',
+      label: <AdminLabel icon={adminIcons.apiKeys}>{t('apiKeys', { ns: 'admin' })}</AdminLabel>,
+      path: '/admin/api-keys',
+    },
     {
       key: 'providers',
-      label: t('providerManagement', { ns: 'admin' }),
+      label: <AdminLabel icon={adminIcons.providers}>{t('providerManagement', { ns: 'admin' })}</AdminLabel>,
       path: '/admin/providers',
     },
     {
       key: 'feature-flags',
-      label: t('featureFlags', { ns: 'admin' }),
+      label: (
+        <AdminLabel icon={adminIcons.featureFlags}>{t('featureFlags', { ns: 'admin' })}</AdminLabel>
+      ),
       path: '/admin/feature-flags',
     },
     {
       key: 'plans',
-      label: t('plans', { ns: 'admin' }),
+      label: <AdminLabel icon={adminIcons.plans}>{t('plans', { ns: 'admin' })}</AdminLabel>,
       path: '/admin/plans',
     },
     {
       key: 'env-vars',
-      label: t('envVars', { ns: 'admin' }),
+      label: <AdminLabel icon={adminIcons.envVars}>{t('envVars', { ns: 'admin' })}</AdminLabel>,
       path: '/admin/env-vars',
     },
     {
       key: 'governance',
-      label: t('governance', { ns: 'admin' }),
+      label: <AdminLabel icon={adminIcons.governance}>{t('governance', { ns: 'admin' })}</AdminLabel>,
       path: '/admin/governance',
     },
-    { key: 'audit-logs', label: t('auditLogs', { ns: 'admin' }), path: '/admin/audit-logs' },
+    {
+      key: 'audit-logs',
+      label: <AdminLabel icon={adminIcons.auditLogs}>{t('auditLogs', { ns: 'admin' })}</AdminLabel>,
+      path: '/admin/audit-logs',
+    },
   ];
 
   const currentTab =
@@ -132,7 +283,9 @@ const AdminLayout = () => {
     <div className={styles.container}>
       <div className={styles.panel}>
         <div className={styles.header}>
-          <h1 className={styles.title}>{t('adminConsole', { ns: 'admin' })}</h1>
+          <h1 className={styles.title}>
+            <AdminLabel icon={adminIcons.overview}>{t('adminConsole', { ns: 'admin' })}</AdminLabel>
+          </h1>
         </div>
 
         <Tabs

@@ -2,6 +2,7 @@ import { BRANDING_NAME, ORG_NAME } from '@lobechat/business-const';
 import { OG_URL } from '@lobechat/const';
 
 import { DEFAULT_LANG } from '@/const/locale';
+import { DEFAULT_BRANDING_LOGO_URL } from '@/const/branding';
 import { OFFICIAL_URL } from '@/const/url';
 import { isCustomORG } from '@/const/version';
 import { appEnv } from '@/envs/app';
@@ -9,9 +10,9 @@ import { translation } from '@/server/translation';
 import { type DynamicLayoutProps } from '@/types/next';
 import { RouteVariants } from '@/utils/server/routeVariants';
 
-const DEFAULT_APPLE_TOUCH_ICON = '/icons/icon-bot-192.png';
-const DEFAULT_FAVICON_ICON = '/icons/icon-bot-192.png';
-const DEFAULT_SHORTCUT_ICON = '/icons/icon-bot-192.png';
+const DEFAULT_APPLE_TOUCH_ICON = DEFAULT_BRANDING_LOGO_URL;
+const DEFAULT_FAVICON_ICON = DEFAULT_BRANDING_LOGO_URL;
+const DEFAULT_SHORTCUT_ICON = DEFAULT_BRANDING_LOGO_URL;
 
 const brandingIconSources = {
   apple: appEnv.BRANDING_APPLE_TOUCH_ICON_URL || appEnv.BRANDING_APP_ICON_192_URL,

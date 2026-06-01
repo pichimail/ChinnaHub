@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import useSWR, { useSWRConfig } from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
+import AdminLabel, { adminIcons } from '@/routes/(main)/admin/components/AdminLabel';
 
 const AdminApiKeysPage = () => {
   const { t } = useTranslation();
@@ -53,7 +54,7 @@ const AdminApiKeysPage = () => {
     <div>
       <div style={{ marginBottom: 12 }}>
         <Button type="primary" onClick={() => setOpen(true)}>
-          {t('apiKeys', { ns: 'admin' })}
+          <AdminLabel icon={adminIcons.apiKeys}>{t('apiKeys', { ns: 'admin' })}</AdminLabel>
         </Button>
       </div>
 
@@ -61,27 +62,35 @@ const AdminApiKeysPage = () => {
         dataSource={data || []}
         rowKey="id"
         columns={[
-          { dataIndex: 'service', key: 'service', title: 'Service' },
-          { dataIndex: 'label', key: 'label', title: t('label', { ns: 'admin' }) },
+          {
+            dataIndex: 'service',
+            key: 'service',
+            title: <AdminLabel icon={adminIcons.service}>Service</AdminLabel>,
+          },
+          {
+            dataIndex: 'label',
+            key: 'label',
+            title: <AdminLabel icon={adminIcons.key}>{t('label', { ns: 'admin' })}</AdminLabel>,
+          },
           {
             dataIndex: 'isActive',
             key: 'isActive',
-            title: 'Active',
+            title: <AdminLabel icon={adminIcons.featureFlags}>Active</AdminLabel>,
             render: (v: boolean) => (v ? t('yes', { ns: 'admin' }) : t('no', { ns: 'admin' })),
           },
           {
             dataIndex: 'updatedAt',
             key: 'updatedAt',
-            title: 'Updated',
+            title: <AdminLabel icon={adminIcons.updated}>Updated</AdminLabel>,
             render: (d: string) => (d ? new Date(d).toLocaleString() : '-'),
           },
           {
             key: 'actions',
-            title: t('actions', { ns: 'admin' }),
+            title: <AdminLabel icon={adminIcons.actions}>{t('actions', { ns: 'admin' })}</AdminLabel>,
             render: (_: unknown, record: any) => (
               <Space>
                 <Button danger size="small" onClick={() => remove(record.id)}>
-                  {t('delete', { ns: 'admin' })}
+                  <AdminLabel icon={adminIcons.actions}>{t('delete', { ns: 'admin' })}</AdminLabel>
                 </Button>
               </Space>
             ),
@@ -91,7 +100,9 @@ const AdminApiKeysPage = () => {
 
       <Modal
         open={open}
-        title={t('apiKeys', { ns: 'admin' })}
+        title={
+          <AdminLabel icon={adminIcons.apiKeys}>{t('apiKeys', { ns: 'admin' })}</AdminLabel>
+        }
         onCancel={() => setOpen(false)}
         onOk={submit}
       >

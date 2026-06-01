@@ -2,7 +2,6 @@
 
 import {
   Avatar,
-  Badge,
   Button,
   Form,
   Input,
@@ -20,6 +19,7 @@ import { useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
+import AdminLabel, { adminIcons } from '@/routes/(main)/admin/components/AdminLabel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -124,7 +124,7 @@ const GlobalProvidersTab = () => {
         columns={[
           {
             key: 'provider',
-            title: 'Provider',
+            title: <AdminLabel icon={adminIcons.providers}>Provider</AdminLabel>,
             width: 260,
             render: (_: unknown, record: GlobalProvider) => (
               <Space>
@@ -147,20 +147,20 @@ const GlobalProvidersTab = () => {
           {
             dataIndex: 'id',
             key: 'id',
-            title: 'Provider ID',
+            title: <AdminLabel icon={adminIcons.key}>Provider ID</AdminLabel>,
             width: 180,
             render: (id: string) => <code>{id}</code>,
           },
           {
             dataIndex: 'originalName',
             key: 'originalName',
-            title: 'Original Name',
+            title: <AdminLabel icon={adminIcons.email}>Original Name</AdminLabel>,
             width: 160,
           },
           {
             dataIndex: 'enabled',
             key: 'enabled',
-            title: 'Global Status',
+            title: <AdminLabel icon={adminIcons.featureFlags}>Global Status</AdminLabel>,
             width: 140,
             render: (enabled: boolean, record: GlobalProvider) => (
               <Tooltip
@@ -178,7 +178,7 @@ const GlobalProvidersTab = () => {
           },
           {
             key: 'actions',
-            title: 'Edit',
+            title: <AdminLabel icon={adminIcons.actions}>Edit</AdminLabel>,
             width: 100,
             render: (_: unknown, record: GlobalProvider) => (
               <Button size="small" onClick={() => openEdit(record)}>
@@ -194,7 +194,9 @@ const GlobalProvidersTab = () => {
         title={
           <Space>
             {editingProvider?.logo && <Avatar size={24} src={editingProvider.logo} />}
-            Edit Provider: {editingProvider?.originalName}
+            <AdminLabel icon={adminIcons.providers}>
+              {`Edit Provider: ${editingProvider?.originalName || ''}`}
+            </AdminLabel>
           </Space>
         }
         onCancel={() => {
@@ -204,7 +206,11 @@ const GlobalProvidersTab = () => {
         onOk={saveEdit}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item label="Global Status" name="enabled" valuePropName="checked">
+          <Form.Item
+            label={<AdminLabel icon={adminIcons.featureFlags}>Global Status</AdminLabel>}
+            name="enabled"
+            valuePropName="checked"
+          >
             <Switch
               checkedChildren="Enabled for users"
               unCheckedChildren="Disabled for all users"
@@ -212,14 +218,14 @@ const GlobalProvidersTab = () => {
           </Form.Item>
           <Form.Item
             extra={`Leave blank to use the original name: "${editingProvider?.originalName}"`}
-            label="Custom Display Name"
+            label={<AdminLabel icon={adminIcons.email}>Custom Display Name</AdminLabel>}
             name="customLabel"
           >
             <Input placeholder={editingProvider?.originalName} />
           </Form.Item>
           <Form.Item
             extra="Paste an image URL (https://...) to override the default provider icon"
-            label="Custom Logo URL"
+            label={<AdminLabel icon={adminIcons.value}>Custom Logo URL</AdminLabel>}
             name="customLogo"
           >
             <Input placeholder="https://example.com/logo.png" />
@@ -296,19 +302,27 @@ const OpenRouterModelsTab = () => {
       loading={isModelLoading}
       rowKey={(row) => `${row.type}:${row.id}`}
       columns={[
-        { dataIndex: 'name', key: 'name', title: 'Model' },
-        { dataIndex: 'id', key: 'id', title: 'Model ID' },
+        {
+          dataIndex: 'name',
+          key: 'name',
+          title: <AdminLabel icon={adminIcons.plan}>Model</AdminLabel>,
+        },
+        {
+          dataIndex: 'id',
+          key: 'id',
+          title: <AdminLabel icon={adminIcons.key}>Model ID</AdminLabel>,
+        },
         {
           dataIndex: 'type',
           key: 'type',
-          title: 'Generation Type',
+          title: <AdminLabel icon={adminIcons.featureFlags}>Generation Type</AdminLabel>,
           render: (type: OpenRouterModelRow['type']) => (
             <Tag color={type === 'video' ? 'purple' : 'cyan'}>{type.toUpperCase()}</Tag>
           ),
         },
         {
           key: 'available',
-          title: 'Available to Users',
+          title: <AdminLabel icon={adminIcons.featureFlags}>Available to Users</AdminLabel>,
           render: (_: unknown, record: OpenRouterModelRow) => (
             <Switch
               checked={isModelAvailable(record.type, record.id)}
@@ -316,7 +330,11 @@ const OpenRouterModelsTab = () => {
             />
           ),
         },
-        { dataIndex: 'description', key: 'description', title: 'Description' },
+        {
+          dataIndex: 'description',
+          key: 'description',
+          title: <AdminLabel icon={adminIcons.description}>Description</AdminLabel>,
+        },
       ]}
     />
   );
@@ -333,16 +351,15 @@ const AdminProvidersPage = () => (
           children: <GlobalProvidersTab />,
           key: 'global-providers',
           label: (
-            <Space>
-              <Badge color="blue" />
-              Global Provider Control
-            </Space>
+            <AdminLabel icon={adminIcons.providers}>Global Provider Control</AdminLabel>
           ),
         },
         {
           children: <OpenRouterModelsTab />,
           key: 'openrouter-models',
-          label: 'OpenRouter Generation Models',
+          label: (
+            <AdminLabel icon={adminIcons.plan}>OpenRouter Generation Models</AdminLabel>
+          ),
         },
       ]}
     />

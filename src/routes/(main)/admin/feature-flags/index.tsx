@@ -5,6 +5,7 @@ import { useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
+import AdminLabel, { adminIcons } from '@/routes/(main)/admin/components/AdminLabel';
 
 const AdminFeatureFlags = () => {
   const { mutate } = useSWRConfig();
@@ -77,9 +78,11 @@ const AdminFeatureFlags = () => {
       <div style={{ marginBottom: '16px' }}>
         <Space>
           <Button type="primary" onClick={() => setIsCreating(true)}>
-            Create Flag
+            <AdminLabel icon={adminIcons.featureFlags}>Create Flag</AdminLabel>
           </Button>
-          <Button onClick={() => setOverrideOpen(true)}>Per-user Override</Button>
+          <Button onClick={() => setOverrideOpen(true)}>
+            <AdminLabel icon={adminIcons.featureOverrides}>Per-user Override</AdminLabel>
+          </Button>
         </Space>
       </div>
 
@@ -87,23 +90,35 @@ const AdminFeatureFlags = () => {
         dataSource={flagsData || []}
         rowKey="id"
         columns={[
-          { dataIndex: 'key', key: 'key', title: 'Flag Key' },
-          { dataIndex: 'label', key: 'label', title: 'Label' },
-          { dataIndex: 'description', key: 'description', title: 'Description' },
+          {
+            dataIndex: 'key',
+            key: 'key',
+            title: <AdminLabel icon={adminIcons.key}>Flag Key</AdminLabel>,
+          },
+          {
+            dataIndex: 'label',
+            key: 'label',
+            title: <AdminLabel icon={adminIcons.email}>Label</AdminLabel>,
+          },
+          {
+            dataIndex: 'description',
+            key: 'description',
+            title: <AdminLabel icon={adminIcons.description}>Description</AdminLabel>,
+          },
           {
             dataIndex: 'defaultEnabled',
             key: 'defaultEnabled',
-            title: 'Default Enabled',
+            title: <AdminLabel icon={adminIcons.featureFlags}>Default Enabled</AdminLabel>,
             render: (enabled: boolean, record: any) => (
               <Switch checked={enabled} onChange={(next) => handleUpdateFlag(record, next)} />
             ),
           },
           {
             key: 'actions',
-            title: 'Actions',
+            title: <AdminLabel icon={adminIcons.actions}>Actions</AdminLabel>,
             render: (_: unknown, record: any) => (
               <Button danger size="small" type="link" onClick={() => handleDeleteFlag(record.id)}>
-                Delete
+                <AdminLabel icon={adminIcons.actions}>Delete</AdminLabel>
               </Button>
             ),
           },
@@ -112,7 +127,7 @@ const AdminFeatureFlags = () => {
 
       <Modal
         open={isCreating}
-        title="Create Flag"
+        title={<AdminLabel icon={adminIcons.featureFlags}>Create Flag</AdminLabel>}
         onOk={() => form.submit()}
         onCancel={() => {
           setIsCreating(false);
@@ -137,7 +152,9 @@ const AdminFeatureFlags = () => {
 
       <Modal
         open={overrideOpen}
-        title="Per-user Flag Override"
+        title={
+          <AdminLabel icon={adminIcons.featureOverrides}>Per-user Flag Override</AdminLabel>
+        }
         onCancel={() => setOverrideOpen(false)}
         onOk={handleOverride}
       >

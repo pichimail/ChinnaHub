@@ -9,11 +9,12 @@ import { createStaticStyles } from 'antd-style';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ProductLogo } from '@/components/Branding';
 import { CHANGELOG_URL, MANUAL_UPGRADE_URL, OFFICIAL_SITE } from '@/const/url';
+import { DEFAULT_BRANDING_LOGO_URL } from '@/const/branding';
 import { CURRENT_VERSION } from '@/const/version';
 import { useNewVersion } from '@/features/User/UserPanel/useNewVersion';
 import { autoUpdateService } from '@/services/electron/autoUpdate';
+import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 import { useGlobalStore } from '@/store/global';
 
 import { APP_VERSION } from './appVersion';
@@ -26,6 +27,7 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 
 const Version = memo<{ mobile?: boolean }>(({ mobile }) => {
   const hasNewVersion = useNewVersion();
+  const branding = useServerConfigStore(serverConfigSelectors.branding);
   const [latestVersion, serverVersion, useCheckServerVersion] = useGlobalStore((s) => [
     s.latestVersion,
     s.serverVersion,
@@ -37,6 +39,8 @@ const Version = memo<{ mobile?: boolean }>(({ mobile }) => {
 
   const showServerVersion = serverVersion && serverVersion !== CURRENT_VERSION;
   const isDesktop = useMemo(() => !!getElectronIpc(), []);
+  const logoUrl =
+    branding?.logo || branding?.appIcon192 || branding?.favicon || DEFAULT_BRANDING_LOGO_URL;
 
   const [updaterState, setUpdaterState] = useState<UpdaterState>({ stage: 'idle' });
   const [buildChannel, setBuildChannel] = useState<string | null>(null);
@@ -125,15 +129,25 @@ const Version = memo<{ mobile?: boolean }>(({ mobile }) => {
             clickable
             align={'center'}
             className={styles.logo}
+            style={{ background: 'transparent', border: '1px solid rgba(255, 255, 255, 0.08)' }}
             height={64}
             justify={'center'}
             width={64}
           >
-            <ProductLogo size={52} />
+            <img
+              alt={BRANDING_NAME}
+              draggable={false}
+              src={logoUrl}
+              style={{
+                display: 'block',
+                height: '72%',
+                objectFit: 'contain',
+                width: '72%',
+              }}
+            />
           </Block>
         </a>
         <Flexbox align={'flex-start'} gap={6}>
-          <div style={{ fontSize: 18, fontWeight: 'bolder' }}>{BRANDING_NAME}</div>
           <Flexbox gap={6} horizontal={!mobile}>
             <Tag>v{APP_VERSION}</Tag>
 

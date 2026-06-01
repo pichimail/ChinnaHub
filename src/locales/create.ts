@@ -6,6 +6,7 @@ import { isRtlLang } from 'rtl-detect';
 
 import chat from '@/../locales/en-US/chat.json';
 import common from '@/../locales/en-US/common.json';
+import admin from '@/../locales/en-US/admin.json';
 import error from '@/../locales/en-US/error.json';
 import home from '@/../locales/en-US/home.json';
 import { DEFAULT_LANG } from '@/const/locale';
@@ -14,6 +15,7 @@ import { getDebugConfig } from '@/envs/debug';
 // Use src/locales/default/*.ts as the runtime fallback source, then overlay
 // locales/en-US/*.json so dev-preview JSON can still customize English copy
 // without dropping newly added default keys.
+import defaultAdmin from '@/locales/default/admin';
 import defaultChat from '@/locales/default/chat';
 import defaultCommon from '@/locales/default/common';
 import defaultError from '@/locales/default/error';
@@ -33,6 +35,7 @@ const mergeNamespace = (
 });
 
 const createBundledResources = () => ({
+  admin: mergeNamespace(defaultAdmin, admin),
   chat: mergeNamespace(defaultChat, chat),
   common: mergeNamespace(defaultCommon, common),
   error: mergeNamespace(defaultError, error),

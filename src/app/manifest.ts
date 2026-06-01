@@ -1,9 +1,10 @@
 import { type MetadataRoute } from 'next';
 
+import { DEFAULT_BRANDING_LOGO_URL } from '@/const/branding';
 import { appEnv } from '@/envs/app';
 
-const DEFAULT_APP_ICON_192 = '/icons/icon-bot-192.png';
-const DEFAULT_APP_ICON_512 = '/icons/icon-bot-512.png';
+const DEFAULT_APP_ICON_192 = DEFAULT_BRANDING_LOGO_URL;
+const DEFAULT_APP_ICON_512 = DEFAULT_BRANDING_LOGO_URL;
 
 const appIcon192 = appEnv.BRANDING_APP_ICON_192_URL || DEFAULT_APP_ICON_192;
 const appIcon512 = appEnv.BRANDING_APP_ICON_512_URL || DEFAULT_APP_ICON_512;
@@ -19,7 +20,6 @@ const manifest = async (): Promise<MetadataRoute.Manifest> => {
         {
           sizes: '192x192',
           src: appIcon192,
-          type: 'image/png',
         },
       ],
       name: 'Project-M',

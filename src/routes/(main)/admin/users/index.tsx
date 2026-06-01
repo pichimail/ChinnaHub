@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import useSWR, { useSWRConfig } from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
+import AdminLabel, { adminIcons } from '@/routes/(main)/admin/components/AdminLabel';
 
 type AdminUserRow = {
   banned: boolean;
@@ -123,13 +124,13 @@ const AdminUsers = () => {
     {
       dataIndex: 'email',
       key: 'email',
-      title: t('email', { ns: 'admin' }),
+      title: <AdminLabel icon={adminIcons.email}>{t('email', { ns: 'admin' })}</AdminLabel>,
     },
     {
       dataIndex: 'banned',
       key: 'banned',
       render: (banned: boolean) => (banned ? t('yes', { ns: 'admin' }) : t('no', { ns: 'admin' })),
-      title: t('banned', { ns: 'admin' }),
+      title: <AdminLabel icon={adminIcons.bannedUsers}>{t('banned', { ns: 'admin' })}</AdminLabel>,
     },
     {
       dataIndex: 'role',
@@ -146,7 +147,7 @@ const AdminUsers = () => {
           onChange={(value) => updateRole(record.id, value)}
         />
       ),
-      title: 'Role',
+      title: <AdminLabel icon={adminIcons.roleManagement}>Role</AdminLabel>,
     },
     {
       dataIndex: 'planKey',
@@ -159,7 +160,7 @@ const AdminUsers = () => {
           onChange={(value) => updatePlan(record.id, value)}
         />
       ),
-      title: 'Plan',
+      title: <AdminLabel icon={adminIcons.plan}>Plan</AdminLabel>,
     },
     {
       key: 'featureOverrides',
@@ -188,7 +189,7 @@ const AdminUsers = () => {
           </Space>
         </Space>
       ),
-      title: 'Feature Overrides',
+      title: <AdminLabel icon={adminIcons.featureOverrides}>Feature Overrides</AdminLabel>,
     },
     {
       key: 'actions',
@@ -196,7 +197,7 @@ const AdminUsers = () => {
         <Space>
           {!record.banned ? (
             <Button danger size="small" onClick={() => setSelectedUserId(record.id)}>
-              {t('ban', { ns: 'admin' })}
+              <AdminLabel icon={adminIcons.bannedUsers}>{t('ban', { ns: 'admin' })}</AdminLabel>
             </Button>
           ) : (
             <Popconfirm
@@ -206,18 +207,22 @@ const AdminUsers = () => {
               title={t('confirm', { ns: 'admin' })}
               onConfirm={() => handleUnbanUser(record.id)}
             >
-              <Button size="small">{t('unban', { ns: 'admin' })}</Button>
+              <Button size="small">
+                <AdminLabel icon={adminIcons.users}>{t('unban', { ns: 'admin' })}</AdminLabel>
+              </Button>
             </Popconfirm>
           )}
         </Space>
       ),
-      title: t('actions', { ns: 'admin' }),
+      title: <AdminLabel icon={adminIcons.actions}>{t('actions', { ns: 'admin' })}</AdminLabel>,
     },
   ];
 
   return (
     <div>
-      <h2>{t('users', { ns: 'admin' })}</h2>
+      <h2>
+        <AdminLabel icon={adminIcons.users}>{t('users', { ns: 'admin' })}</AdminLabel>
+      </h2>
       <Table
         columns={columns}
         dataSource={userData?.users || []}
@@ -230,7 +235,9 @@ const AdminUsers = () => {
 
       <Modal
         open={!!selectedUserId}
-        title={t('banUser', { ns: 'admin' })}
+        title={
+          <AdminLabel icon={adminIcons.bannedUsers}>{t('banUser', { ns: 'admin' })}</AdminLabel>
+        }
         onOk={() => selectedUserId && handleBanUser(selectedUserId)}
         onCancel={() => {
           setSelectedUserId(null);

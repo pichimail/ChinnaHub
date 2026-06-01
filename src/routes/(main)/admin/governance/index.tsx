@@ -5,6 +5,7 @@ import { useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
+import AdminLabel, { adminIcons } from '@/routes/(main)/admin/components/AdminLabel';
 
 const domainOptions = ['content', 'pricing', 'marketplace', 'image', 'video', 'audio', 'provider'];
 const modeOptions = ['allow', 'deny', 'review', 'throttle'];
@@ -112,7 +113,7 @@ const AdminGovernancePage = () => {
     <div>
       <Space direction="vertical" size={12} style={{}}>
         <Button type="primary" onClick={openAdd}>
-          Add Governance Policy
+          <AdminLabel icon={adminIcons.governance}>Add Governance Policy</AdminLabel>
         </Button>
       </Space>
 
@@ -123,21 +124,29 @@ const AdminGovernancePage = () => {
           {
             dataIndex: 'domain',
             key: 'domain',
-            title: 'Domain',
+            title: <AdminLabel icon={adminIcons.domain}>Domain</AdminLabel>,
             render: (d: string) => <Tag color="purple">{d}</Tag>,
           },
-          { dataIndex: 'target', key: 'target', title: 'Target' },
+          {
+            dataIndex: 'target',
+            key: 'target',
+            title: <AdminLabel icon={adminIcons.target}>Target</AdminLabel>,
+          },
           {
             dataIndex: 'mode',
             key: 'mode',
-            title: 'Mode',
+            title: <AdminLabel icon={adminIcons.featureFlags}>Mode</AdminLabel>,
             render: (m: string) => <Tag color={modeColor[m] ?? 'default'}>{m.toUpperCase()}</Tag>,
           },
-          { dataIndex: 'priority', key: 'priority', title: 'Priority' },
+          {
+            dataIndex: 'priority',
+            key: 'priority',
+            title: <AdminLabel icon={adminIcons.updated}>Priority</AdminLabel>,
+          },
           {
             dataIndex: 'isActive',
             key: 'isActive',
-            title: 'Active',
+            title: <AdminLabel icon={adminIcons.featureFlags}>Active</AdminLabel>,
             render: (v: boolean, record: PolicyRow) => (
               <Switch checked={v} size="small" onChange={() => toggleActive(record)} />
             ),
@@ -145,12 +154,12 @@ const AdminGovernancePage = () => {
           {
             dataIndex: 'notes',
             key: 'notes',
-            title: 'Notes',
+            title: <AdminLabel icon={adminIcons.description}>Notes</AdminLabel>,
             render: (n: string | null) => n || '—',
           },
           {
             key: 'actions',
-            title: 'Actions',
+            title: <AdminLabel icon={adminIcons.actions}>Actions</AdminLabel>,
             render: (_: unknown, record: PolicyRow) => (
               <Space>
                 <Button size="small" onClick={() => openEdit(record)}>
@@ -167,7 +176,11 @@ const AdminGovernancePage = () => {
 
       <Modal
         open={open}
-        title={editingId ? 'Edit Governance Policy' : 'Add Governance Policy'}
+        title={
+          <AdminLabel icon={adminIcons.governance}>
+            {editingId ? 'Edit Governance Policy' : 'Add Governance Policy'}
+          </AdminLabel>
+        }
         onOk={submit}
         onCancel={() => {
           setOpen(false);
@@ -180,25 +193,25 @@ const AdminGovernancePage = () => {
           initialValues={{ domain: 'content', isActive: true, mode: 'allow', priority: 100 }}
           layout="vertical"
         >
-          <Form.Item label="Domain" name="domain" rules={[{ required: true }]}>
+          <Form.Item label={<AdminLabel icon={adminIcons.domain}>Domain</AdminLabel>} name="domain" rules={[{ required: true }]}>
             <Select options={domainOptions.map((d) => ({ label: d, value: d }))} />
           </Form.Item>
-          <Form.Item label="Target" name="target" rules={[{ required: true }]}>
+          <Form.Item label={<AdminLabel icon={adminIcons.target}>Target</AdminLabel>} name="target" rules={[{ required: true }]}>
             <Input placeholder="model:gpt-4.1 | plan:free | openai | *" />
           </Form.Item>
-          <Form.Item label="Mode" name="mode" rules={[{ required: true }]}>
+          <Form.Item label={<AdminLabel icon={adminIcons.featureFlags}>Mode</AdminLabel>} name="mode" rules={[{ required: true }]}>
             <Select options={modeOptions.map((m) => ({ label: m, value: m }))} />
           </Form.Item>
-          <Form.Item label="Priority" name="priority" rules={[{ required: true }]}>
+          <Form.Item label={<AdminLabel icon={adminIcons.updated}>Priority</AdminLabel>} name="priority" rules={[{ required: true }]}>
             <Input type="number" />
           </Form.Item>
-          <Form.Item label="Config JSON" name="config">
+          <Form.Item label={<AdminLabel icon={adminIcons.description}>Config JSON</AdminLabel>} name="config">
             <Input.TextArea placeholder='{"maxPerMinute":30}' rows={4} />
           </Form.Item>
-          <Form.Item label="Notes" name="notes">
+          <Form.Item label={<AdminLabel icon={adminIcons.description}>Notes</AdminLabel>} name="notes">
             <Input.TextArea rows={2} />
           </Form.Item>
-          <Form.Item label="Active" name="isActive" valuePropName="checked">
+          <Form.Item label={<AdminLabel icon={adminIcons.featureFlags}>Active</AdminLabel>} name="isActive" valuePropName="checked">
             <Switch />
           </Form.Item>
         </Form>

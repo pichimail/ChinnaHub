@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import useSWR from 'swr';
 
 import { lambdaClient } from '@/libs/trpc/client';
+import AdminLabel, { adminIcons } from '@/routes/(main)/admin/components/AdminLabel';
 
 const AdminOverview = () => {
   const { t } = useTranslation();
@@ -23,12 +24,16 @@ const AdminOverview = () => {
 
   return (
     <div>
-      <h2>{t('systemStatistics', { ns: 'admin' })}</h2>
+      <h2>
+        <AdminLabel icon={adminIcons.systemStatistics}>
+          {t('systemStatistics', { ns: 'admin' })}
+        </AdminLabel>
+      </h2>
       <Row gutter={16}>
         <Col md={6} sm={12} xs={24}>
           <Card>
             <Statistic
-              title={t('totalUsers', { ns: 'admin' })}
+              title={<AdminLabel icon={adminIcons.totalUsers}>{t('totalUsers', { ns: 'admin' })}</AdminLabel>}
               value={statsData?.totalUserCount || 0}
             />
           </Card>
@@ -36,7 +41,7 @@ const AdminOverview = () => {
         <Col md={6} sm={12} xs={24}>
           <Card>
             <Statistic
-              title={t('bannedUsers', { ns: 'admin' })}
+              title={<AdminLabel icon={adminIcons.bannedUsers}>{t('bannedUsers', { ns: 'admin' })}</AdminLabel>}
               value={statsData?.bannedUserCount || 0}
               valueStyle={{ color: '#ff4d4f' }}
             />
@@ -44,13 +49,20 @@ const AdminOverview = () => {
         </Col>
         <Col md={6} sm={12} xs={24}>
           <Card>
-            <Statistic title="Env Vars" value={statsData?.envVarCount || 0} />
+            <Statistic
+              title={<AdminLabel icon={adminIcons.envVars}>{t('envVars', { ns: 'admin' })}</AdminLabel>}
+              value={statsData?.envVarCount || 0}
+            />
           </Card>
         </Col>
         <Col md={6} sm={12} xs={24}>
           <Card>
             <Statistic
-              title="Governance Policies"
+              title={
+                <AdminLabel icon={adminIcons.governance}>
+                  {t('governancePolicies', { ns: 'admin' })}
+                </AdminLabel>
+              }
               value={statsData?.activeGovernancePolicyCount || 0}
             />
           </Card>

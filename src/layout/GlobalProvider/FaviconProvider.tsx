@@ -3,6 +3,9 @@
 import { type ReactNode } from 'react';
 import { createContext, memo, use, useCallback, useMemo, useState } from 'react';
 
+import { DEFAULT_BRANDING_LOGO_URL } from '@/const/branding';
+import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
+
 export type FaviconState = 'default' | 'done' | 'error' | 'progress';
 
 interface FaviconStateContextValue {
@@ -41,14 +44,23 @@ const stateToFileName: Record<FaviconState, string> = {
   progress: '-progress',
 };
 
-const getFaviconPath = (state: FaviconState, isDev: boolean, size?: '32x32'): string => {
+const getFaviconPath = (
+  state: FaviconState,
+  isDev: boolean,
+  defaultIconUrl: string,
+  size?: '32x32',
+): string => {
+  if (state === 'default') {
+    return defaultIconUrl;
+  }
+
   const devSuffix = isDev ? '-dev' : '';
   const stateSuffix = stateToFileName[state];
   const sizeSuffix = size ? `-${size}` : '';
   return `/favicon${sizeSuffix}${stateSuffix}${devSuffix}.ico`;
 };
 
-const updateFaviconDOM = (state: FaviconState, isDev: boolean) => {
+const updateFaviconDOM = (state: FaviconState, isDev: boolean, defaultIconUrl: string) => {
   if (typeof document === 'undefined') return;
 
   const head = document.head;
@@ -60,12 +72,12 @@ const updateFaviconDOM = (state: FaviconState, isDev: boolean) => {
     // No favicon links found — create them
     const iconLink = document.createElement('link');
     iconLink.rel = 'icon';
-    iconLink.href = `${getFaviconPath(state, isDev)}?v=${Date.now()}`;
+    iconLink.href = `${getFaviconPath(state, isDev, defaultIconUrl)}?v=${Date.now()}`;
     head.append(iconLink);
 
     const shortcutLink = document.createElement('link');
     shortcutLink.rel = 'shortcut icon';
-    shortcutLink.href = `${getFaviconPath(state, isDev, '32x32')}?v=${Date.now()}`;
+    shortcutLink.href = `${getFaviconPath(state, isDev, defaultIconUrl, '32x32')}?v=${Date.now()}`;
     head.append(shortcutLink);
     return;
   }
@@ -82,30 +94,38 @@ const updateFaviconDOM = (state: FaviconState, isDev: boolean) => {
     // Create new link with cache-busting query param
     const newLink = document.createElement('link');
     newLink.rel = rel;
-    newLink.href = `${getFaviconPath(state, isDev, is32 ? '32x32' : undefined)}?v=${Date.now()}`;
+    newLink.href = `${getFaviconPath(
+      state,
+      isDev,
+      defaultIconUrl,
+      is32 ? '32x32' : undefined,
+    )}?v=${Date.now()}`;
     head.append(newLink);
   });
 };
 
 export const FaviconProvider = memo<{ children: ReactNode }>(({ children }) => {
+  const branding = useServerConfigStore(serverConfigSelectors.branding);
   const [currentState, setCurrentState] = useState<FaviconState>('default');
   const [isDevMode, setIsDevModeState] = useState<boolean>(__DEV__);
+  const defaultIconUrl =
+    branding?.favicon || branding?.appIcon192 || branding?.logo || DEFAULT_BRANDING_LOGO_URL;
 
   const setFavicon = useCallback((state: FaviconState) => {
     setCurrentState(state);
     setIsDevModeState((isDev) => {
-      updateFaviconDOM(state, isDev);
+      updateFaviconDOM(state, isDev, defaultIconUrl);
       return isDev;
     });
-  }, []);
+  }, [defaultIconUrl]);
 
   const setIsDevMode = useCallback((isDev: boolean) => {
     setIsDevModeState(isDev);
     setCurrentState((state) => {
-      updateFaviconDOM(state, isDev);
+      updateFaviconDOM(state, isDev, defaultIconUrl);
       return state;
     });
-  }, []);
+  }, [defaultIconUrl]);
 
   const stateValue = useMemo(() => ({ currentState, isDevMode }), [currentState, isDevMode]);
 
