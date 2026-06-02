@@ -321,6 +321,52 @@ describe('chatDockSlice', () => {
     });
   });
 
+  describe('openCodePreview', () => {
+    it('should push CodePreview view and open portal', () => {
+      const { result } = renderHook(() => useChatStore());
+
+      act(() => {
+        result.current.openCodePreview({
+          content: '<html></html>',
+          fileName: 'index.html',
+          language: 'html',
+          title: 'Preview',
+        });
+      });
+
+      expect(result.current.portalStack).toHaveLength(1);
+      expect(result.current.portalStack[0]).toEqual({
+        type: PortalViewType.CodePreview,
+        codePreview: {
+          content: '<html></html>',
+          fileName: 'index.html',
+          language: 'html',
+          title: 'Preview',
+        },
+      });
+      expect(result.current.showPortal).toBe(true);
+    });
+
+    it('should close CodePreview view', () => {
+      const { result } = renderHook(() => useChatStore());
+
+      act(() => {
+        result.current.openCodePreview({
+          content: 'print("hello")',
+          fileName: 'preview.py',
+          language: 'python',
+        });
+      });
+
+      act(() => {
+        result.current.closeCodePreview();
+      });
+
+      expect(result.current.portalStack).toHaveLength(0);
+      expect(result.current.showPortal).toBe(false);
+    });
+  });
+
   describe('openLocalFile', () => {
     it('should add entry to openLocalFiles, set active, and push LocalFile view', () => {
       const { result } = renderHook(() => useChatStore());

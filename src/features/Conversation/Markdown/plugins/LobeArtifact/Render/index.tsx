@@ -1,10 +1,10 @@
 import { Center, Flexbox, Icon } from '@lobehub/ui';
 import { createStaticStyles, cx } from 'antd-style';
 import { Loader2 } from 'lucide-react';
-import { memo, useEffect } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import CodePreview from '@/components/CodePreview';
+import CodePreview, { COMPACT_CODE_PREVIEW_HEIGHT } from '@/components/CodePreview';
 import { useIsDark } from '@/hooks/useIsDark';
 import { useChatStore } from '@/store/chat';
 import { chatPortalSelectors, messageStateSelectors } from '@/store/chat/selectors';
@@ -73,9 +73,9 @@ const Render = memo<ArtifactProps>(({ identifier, title, type, language, childre
     ];
   });
 
-  const openArtifactUI = () => {
+  const openArtifactUI = useCallback(() => {
     openArtifact({ id, identifier, language, title, type });
-  };
+  }, [id, identifier, language, openArtifact, title, type]);
 
   const previewLanguage =
     type === 'text/html' ? 'html' : type === 'application/lobe.artifacts.react' ? 'tsx' : language;
@@ -84,7 +84,7 @@ const Render = memo<ArtifactProps>(({ identifier, title, type, language, childre
     if (!hasChildren || !isGenerating) return;
 
     openArtifactUI();
-  }, [isGenerating, hasChildren, str, identifier, title, type, id, language]);
+  }, [isGenerating, hasChildren, str, openArtifactUI]);
 
   return (
     <Flexbox
@@ -133,7 +133,7 @@ const Render = memo<ArtifactProps>(({ identifier, title, type, language, childre
         <CodePreview
           content={str}
           fileName={title}
-          height={280}
+          height={COMPACT_CODE_PREVIEW_HEIGHT}
           language={previewLanguage}
           style={{ margin: '0 12px 12px' }}
           title={title}

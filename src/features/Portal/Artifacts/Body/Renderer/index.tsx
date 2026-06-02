@@ -7,11 +7,18 @@ import HTMLRenderer from './HTML';
 import SVGRender from './SVG';
 
 const ReactRenderer = dynamic(() => import('./React'), { ssr: false });
+const PythonRenderer = dynamic(() => import('@/components/CodePreview/PythonRenderer'), {
+  ssr: false,
+});
 
 const Renderer = memo<{ content: string; type?: string }>(({ content, type }) => {
   switch (type) {
     case 'application/lobe.artifacts.react': {
       return <ReactRenderer code={content} />;
+    }
+
+    case 'python': {
+      return <PythonRenderer code={content} />;
     }
 
     case 'image/svg+xml': {

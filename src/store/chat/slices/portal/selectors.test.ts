@@ -177,6 +177,42 @@ describe('chatDockSelectors', () => {
     });
   });
 
+  describe('showCodePreview', () => {
+    it('should return false when no CodePreview view on stack', () => {
+      expect(chatPortalSelectors.showCodePreview(createState())).toBe(false);
+    });
+
+    it('should return true when CodePreview view is on stack', () => {
+      const state = createState({
+        portalStack: [
+          {
+            type: PortalViewType.CodePreview,
+            codePreview: { content: '<html></html>', fileName: 'index.html' },
+          },
+        ],
+      });
+      expect(chatPortalSelectors.showCodePreview(state)).toBe(true);
+    });
+  });
+
+  describe('currentCodePreview', () => {
+    it('should return undefined when no CodePreview view on stack', () => {
+      expect(chatPortalSelectors.currentCodePreview(createState())).toBeUndefined();
+    });
+
+    it('should return the code preview when CodePreview view is on stack', () => {
+      const codePreview = {
+        content: 'print("hello")',
+        fileName: 'preview.py',
+        language: 'python',
+      };
+      const state = createState({
+        portalStack: [{ type: PortalViewType.CodePreview, codePreview }],
+      });
+      expect(chatPortalSelectors.currentCodePreview(state)).toEqual(codePreview);
+    });
+  });
+
   describe('previewFileId', () => {
     it('should return undefined when no FilePreview view on stack', () => {
       expect(chatPortalSelectors.previewFileId(createState())).toBeUndefined();

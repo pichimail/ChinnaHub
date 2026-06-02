@@ -3,7 +3,7 @@ import { type ChatStoreState } from '@/store/chat';
 import { type PortalArtifact } from '@/types/artifact';
 
 import { dbMessageSelectors } from '../message/selectors';
-import { type PortalFile, type PortalViewData } from './initialState';
+import { type PortalCodePreview, type PortalFile, type PortalViewData } from './initialState';
 import { PortalViewType } from './initialState';
 
 // ============== Core Stack Selectors ==============
@@ -30,6 +30,7 @@ const showPortal = (s: ChatStoreState) => s.showPortal;
 // ============== View Type Guards ==============
 
 const showArtifactUI = (s: ChatStoreState) => currentViewType(s) === PortalViewType.Artifact;
+const showCodePreview = (s: ChatStoreState) => currentViewType(s) === PortalViewType.CodePreview;
 const showDocument = (s: ChatStoreState) => currentViewType(s) === PortalViewType.Document;
 const showNotebook = (s: ChatStoreState) => currentViewType(s) === PortalViewType.Notebook;
 const showFilePreview = (s: ChatStoreState) => currentViewType(s) === PortalViewType.FilePreview;
@@ -104,6 +105,12 @@ const isArtifactTagClosed = (id: string, identifier?: string) => (s: ChatStoreSt
   return ARTIFACT_TAG_CLOSED_REGEX.test(content || '');
 };
 
+// Code preview selectors
+const currentCodePreview = (s: ChatStoreState): PortalCodePreview | undefined => {
+  const view = getViewData(s, PortalViewType.CodePreview);
+  return view?.codePreview;
+};
+
 // Document selectors
 const portalDocumentId = (s: ChatStoreState): string | undefined => {
   const view = getViewData(s, PortalViewType.Document);
@@ -168,6 +175,7 @@ export const chatPortalSelectors = {
 
   // View type guards
   showArtifactUI,
+  showCodePreview,
   showDocument,
   showNotebook,
   showFilePreview,
@@ -185,6 +193,9 @@ export const chatPortalSelectors = {
   artifactCode,
   artifactMessageContent,
   isArtifactTagClosed,
+
+  // Code preview data
+  currentCodePreview,
 
   // Document data
   portalDocumentId,

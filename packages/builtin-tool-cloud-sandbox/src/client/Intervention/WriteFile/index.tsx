@@ -4,7 +4,10 @@ import type { BuiltinInterventionProps } from '@lobechat/types';
 import { Flexbox, Highlighter, Text } from '@lobehub/ui';
 import { memo } from 'react';
 
-import CodePreview, { getCodePreviewType } from '@/components/CodePreview';
+import CodePreview, {
+  COMPACT_CODE_PREVIEW_HEIGHT,
+  getCodePreviewType,
+} from '@/components/CodePreview';
 
 interface WriteLocalFileParams {
   content: string;
@@ -21,7 +24,14 @@ const WriteFile = memo<BuiltinInterventionProps<WriteLocalFileParams>>(({ args }
   return (
     <Flexbox gap={8}>
       <Text>Write to file: {path}</Text>
-      {previewType && <CodePreview content={content} fileName={path} height={320} language={ext} />}
+      {previewType && (
+        <CodePreview
+          content={content}
+          fileName={path}
+          height={COMPACT_CODE_PREVIEW_HEIGHT}
+          language={ext}
+        />
+      )}
       <Highlighter
         wrap
         language={'text'}

@@ -9,6 +9,7 @@ export enum ArtifactDisplayMode {
 
 export enum PortalViewType {
   Artifact = 'artifact',
+  CodePreview = 'codePreview',
   Document = 'document',
   FilePreview = 'filePreview',
   GroupThread = 'groupThread',
@@ -26,9 +27,17 @@ export interface PortalFile {
   fileId: string;
 }
 
+export interface PortalCodePreview {
+  content: string;
+  fileName?: string;
+  language?: string;
+  title?: string;
+}
+
 export type PortalViewData =
   | { type: PortalViewType.Home }
   | { artifact: PortalArtifact; type: PortalViewType.Artifact }
+  | { codePreview: PortalCodePreview; type: PortalViewType.CodePreview }
   | { documentId: string; type: PortalViewType.Document }
   | { type: PortalViewType.Notebook }
   | { file: PortalFile; type: PortalViewType.FilePreview }

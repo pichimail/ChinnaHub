@@ -2,7 +2,7 @@ import { type ChatStore } from '@/store/chat/store';
 import { type StoreSetter } from '@/store/types';
 import { type PortalArtifact } from '@/types/artifact';
 
-import { type PortalFile, type PortalViewData } from './initialState';
+import { type PortalCodePreview, type PortalFile, type PortalViewData } from './initialState';
 import { PortalViewType } from './initialState';
 
 // Helper to get current view type from stack
@@ -32,6 +32,13 @@ export class ChatPortalActionImpl {
   closeArtifact = (): void => {
     const { portalStack } = this.#get();
     if (getCurrentViewType(portalStack) === PortalViewType.Artifact) {
+      this.#get().popPortalView();
+    }
+  };
+
+  closeCodePreview = (): void => {
+    const { portalStack } = this.#get();
+    if (getCurrentViewType(portalStack) === PortalViewType.CodePreview) {
       this.#get().popPortalView();
     }
   };
@@ -167,6 +174,10 @@ export class ChatPortalActionImpl {
 
   openArtifact = (artifact: PortalArtifact): void => {
     this.#get().pushPortalView({ artifact, type: PortalViewType.Artifact });
+  };
+
+  openCodePreview = (codePreview: PortalCodePreview): void => {
+    this.#get().pushPortalView({ codePreview, type: PortalViewType.CodePreview });
   };
 
   openDocument = (documentId: string): void => {

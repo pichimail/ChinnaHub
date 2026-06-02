@@ -63,15 +63,16 @@ describe('FileViewer', () => {
     ['App.tsx', 'text/plain'],
     ['demo.app.jsx', 'text/plain'],
     ['demo.app.tsx', 'text/plain'],
-  ])('renders previewable web code for %s', (name, fileType) => {
+    ['script.py', 'text/x-python'],
+  ])('renders previewable code for %s', (name, fileType) => {
     render(<FileViewer {...createFile(name, fileType)} />);
 
     expect(screen.getByTestId('previewable-code')).toHaveTextContent(name);
   });
 
-  it('renders non-web code through the source viewer', () => {
-    render(<FileViewer {...createFile('script.py', 'text/x-python')} />);
+  it('renders non-previewable code through the source viewer', () => {
+    render(<FileViewer {...createFile('main.go', 'text/x-go')} />);
 
-    expect(screen.getByTestId('code')).toHaveTextContent('script.py');
+    expect(screen.getByTestId('code')).toHaveTextContent('main.go');
   });
 });

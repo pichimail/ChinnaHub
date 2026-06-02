@@ -6,7 +6,10 @@ import path from 'path-browserify-esm';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import CodePreview, { getCodePreviewType } from '@/components/CodePreview';
+import CodePreview, {
+  COMPACT_CODE_PREVIEW_HEIGHT,
+  getCodePreviewType,
+} from '@/components/CodePreview';
 import { LocalFile, LocalFolder } from '@/features/LocalFile';
 
 import OutOfScopeWarning from '../OutOfScopeWarning';
@@ -62,14 +65,14 @@ const WriteFile = memo<BuiltinInterventionProps<WriteLocalFileParams>>(({ args }
               <CodePreview
                 content={args.content}
                 fileName={base}
-                height={320}
+                height={COMPACT_CODE_PREVIEW_HEIGHT}
                 language={ext.replace('.', '')}
               />
             )}
             <Highlighter
               language={language}
               showLanguage={false}
-              style={{ maxHeight: 400, overflow: 'auto', padding: '8px' }}
+              style={{ maxHeight: previewType ? 220 : 400, overflow: 'auto', padding: '8px' }}
               variant={'outlined'}
             >
               {args.content}

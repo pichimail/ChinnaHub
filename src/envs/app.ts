@@ -33,6 +33,12 @@ const ASSISTANT_INDEX_URL = 'https://registry.npmmirror.com/@lobehub/agents-inde
 
 const PLUGINS_INDEX_URL = 'https://registry.npmmirror.com/@lobehub/plugins-index/v1/files/public';
 
+const emptyStringToUndefined = (value: unknown) => {
+  if (value === '') return undefined;
+
+  return value;
+};
+
 export const getAppConfig = () => {
   return createEnv({
     clientPrefix: 'NEXT_PUBLIC_',
@@ -81,13 +87,16 @@ export const getAppConfig = () => {
        * Used to encrypt user payload for trusted client authentication
        * Generate with: openssl rand -hex 32
        */
-      MARKET_TRUSTED_CLIENT_SECRET: z.string().length(83).optional(),
+      MARKET_TRUSTED_CLIENT_SECRET: z.preprocess(
+        emptyStringToUndefined,
+        z.string().length(83).optional(),
+      ),
       /**
        * Trusted Client ID for Market API authentication
        * Must be registered in Market's TRUSTED_CLIENT_IDS whitelist
        * e.g., "lobechat-com", "lobehub-desktop"
        */
-      MARKET_TRUSTED_CLIENT_ID: z.string().optional(),
+      MARKET_TRUSTED_CLIENT_ID: z.preprocess(emptyStringToUndefined, z.string().optional()),
 
       AGENT_GATEWAY_SERVICE_TOKEN: z.string().optional(),
       AGENT_GATEWAY_URL: z.string().url().optional(),

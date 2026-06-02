@@ -39,6 +39,7 @@ const inferFileName = (
   if (
     normalizedLanguage === 'tsx' ||
     normalizedLanguage === 'typescriptreact' ||
+    normalizedLanguage === 'text/tsx' ||
     normalizedLanguage === 'react-tsx'
   ) {
     return 'App.tsx';
@@ -48,9 +49,19 @@ const inferFileName = (
     normalizedLanguage === 'jsx' ||
     normalizedLanguage === 'react' ||
     normalizedLanguage === 'javascriptreact' ||
+    normalizedLanguage === 'text/jsx' ||
     normalizedLanguage === 'react-jsx'
   ) {
     return 'App.jsx';
+  }
+
+  if (
+    normalizedLanguage === 'py' ||
+    normalizedLanguage === 'python' ||
+    normalizedLanguage === 'text/x-python' ||
+    normalizedLanguage === 'text/python'
+  ) {
+    return `preview-${index + 1}.py`;
   }
 };
 

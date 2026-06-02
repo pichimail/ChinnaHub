@@ -4,7 +4,10 @@ import type { BuiltinRenderProps } from '@lobechat/types';
 import { Block, Highlighter } from '@lobehub/ui';
 import { memo } from 'react';
 
-import CodePreview, { getCodePreviewType } from '@/components/CodePreview';
+import CodePreview, {
+  COMPACT_CODE_PREVIEW_HEIGHT,
+  getCodePreviewType,
+} from '@/components/CodePreview';
 
 import type { WriteLocalFileState } from '../../../types';
 
@@ -65,7 +68,7 @@ const WriteFile = memo<BuiltinRenderProps<WriteLocalFileParams, WriteLocalFileSt
           <CodePreview
             content={args.content}
             fileName={args.path}
-            height={320}
+            height={COMPACT_CODE_PREVIEW_HEIGHT}
             language={ext}
             style={{ marginBottom: 8 }}
           />
@@ -74,7 +77,7 @@ const WriteFile = memo<BuiltinRenderProps<WriteLocalFileParams, WriteLocalFileSt
           showLanguage
           wrap
           language={language}
-          style={{ maxHeight: 400, overflow: 'auto' }}
+          style={{ maxHeight: previewType ? 220 : 400, overflow: 'auto' }}
           variant={'borderless'}
         >
           {args.content}

@@ -6,7 +6,10 @@ import { ChevronRight } from 'lucide-react';
 import path from 'path-browserify-esm';
 import { memo } from 'react';
 
-import CodePreview, { getCodePreviewType } from '@/components/CodePreview';
+import CodePreview, {
+  COMPACT_CODE_PREVIEW_HEIGHT,
+  getCodePreviewType,
+} from '@/components/CodePreview';
 import { LocalFile, LocalFolder } from '@/features/LocalFile';
 
 const styles = createStaticStyles(({ css, cssVar }) => ({
@@ -49,7 +52,12 @@ const WriteFile = memo<BuiltinRenderProps<WriteLocalFileParams>>(({ args }) => {
     return (
       <Flexbox gap={12}>
         {previewType && (
-          <CodePreview content={args.content} fileName={base} height={320} language={ext} />
+          <CodePreview
+            content={args.content}
+            fileName={base}
+            height={COMPACT_CODE_PREVIEW_HEIGHT}
+            language={ext}
+          />
         )}
         <PatchDiff
           fileName={base}

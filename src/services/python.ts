@@ -10,9 +10,11 @@ class PythonService {
     files: File[],
   ): Promise<CodeInterpreterResponse | undefined> {
     if (typeof Worker === 'undefined') return;
-    const interpreter = await new PythonInterpreter!({
-      pyodideIndexUrl: pythonEnv.NEXT_PUBLIC_PYODIDE_INDEX_URL!,
-      pypiIndexUrl: pythonEnv.NEXT_PUBLIC_PYODIDE_PIP_INDEX_URL!,
+    if (!PythonInterpreter) return;
+
+    const interpreter = await new PythonInterpreter({
+      pyodideIndexUrl: pythonEnv.NEXT_PUBLIC_PYODIDE_INDEX_URL,
+      pypiIndexUrl: pythonEnv.NEXT_PUBLIC_PYODIDE_PIP_INDEX_URL,
     });
     await interpreter.init();
     await interpreter.installPackages(packages.filter((p) => p !== ''));

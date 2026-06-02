@@ -7,6 +7,7 @@ import { chatPortalSelectors } from '@/store/chat/selectors';
 import { PortalViewType } from '@/store/chat/slices/portal/initialState';
 
 import { Artifacts } from './Artifacts';
+import { CodePreview } from './CodePreview';
 import Header from './components/Header';
 import { Document } from './Document';
 import { FilePreview } from './FilePreview';
@@ -26,6 +27,7 @@ const VIEW_COMPONENTS: Record<PortalViewType, PortalImpl> = {
     Title: HomeTitle,
   },
   [PortalViewType.Artifact]: Artifacts,
+  [PortalViewType.CodePreview]: CodePreview,
   [PortalViewType.Document]: Document,
   [PortalViewType.Notebook]: Notebook,
   [PortalViewType.FilePreview]: FilePreview,
