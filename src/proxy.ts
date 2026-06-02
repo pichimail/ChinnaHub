@@ -38,6 +38,8 @@ export const config = {
     '/page(.*)',
     '/tasks',
     '/tasks(.*)',
+    '/studio',
+    '/studio(.*)',
     '/task',
     '/task(.*)',
     '/me',
