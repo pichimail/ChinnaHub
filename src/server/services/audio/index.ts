@@ -133,7 +133,7 @@ export class KieAiAudioService {
 
       let data: KieTaskResponse;
       try {
-        data = await postKieJson<KieTaskResponse>('/generate', payload);
+        data = await postKieJson<KieTaskResponse>(this.apiKey, '/generate', payload);
       } catch (error) {
         if (
           !params.makeInstrumental &&
@@ -147,7 +147,7 @@ export class KieAiAudioService {
           });
 
           log('Retrying KIE AI API request with compatibility payload: %O', fallbackPayload);
-          data = await postKieJson<KieTaskResponse>('/generate', fallbackPayload);
+          data = await postKieJson<KieTaskResponse>(this.apiKey, '/generate', fallbackPayload);
         } else {
           throw error;
         }
@@ -257,10 +257,14 @@ export class KieAiAudioService {
     metadata?: Record<string, unknown>;
     status: 'completed' | 'failed';
   }> {
-    const data = await postKieJson<KieTaskResponse>('/generate/get-timestamped-lyrics', {
-      audioId,
-      taskId,
-    });
+    const data = await postKieJson<KieTaskResponse>(
+      this.apiKey,
+      '/generate/get-timestamped-lyrics',
+      {
+        audioId,
+        taskId,
+      },
+    );
 
     const lyrics = data.data
       ? {
@@ -290,7 +294,7 @@ export class KieAiAudioService {
     taskId: string,
     options?: { callBackUrl?: string },
   ): Promise<AudioGenerationResponse> {
-    const data = await postKieJson<KieTaskResponse>('/suno/cover/generate', {
+    const data = await postKieJson<KieTaskResponse>(this.apiKey, '/suno/cover/generate', {
       ...(options?.callBackUrl ? { callBackUrl: options.callBackUrl } : {}),
       taskId,
     });
@@ -313,7 +317,7 @@ export class KieAiAudioService {
       type?: 'separate_vocal' | 'split_stem';
     },
   ): Promise<AudioGenerationResponse> {
-    const data = await postKieJson<KieTaskResponse>('/vocal-removal/generate', {
+    const data = await postKieJson<KieTaskResponse>(this.apiKey, '/vocal-removal/generate', {
       ...(options?.callBackUrl ? { callBackUrl: options.callBackUrl } : {}),
       audioId,
       taskId,
@@ -335,7 +339,7 @@ export class KieAiAudioService {
     audioId: string,
     options?: { author?: string; callBackUrl?: string; domainName?: string },
   ): Promise<AudioGenerationResponse> {
-    const data = await postKieJson<KieTaskResponse>('/mp4/generate', {
+    const data = await postKieJson<KieTaskResponse>(this.apiKey, '/mp4/generate', {
       ...(options?.author ? { author: options.author } : {}),
       ...(options?.callBackUrl ? { callBackUrl: options.callBackUrl } : {}),
       ...(options?.domainName ? { domainName: options.domainName } : {}),

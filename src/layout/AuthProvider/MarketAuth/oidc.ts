@@ -33,6 +33,18 @@ export class MarketOIDC {
     this.config = config;
   }
 
+  private readAuthorizationState(): string {
+    const state = sessionStorage.getItem('market_state');
+    if (!state) {
+      console.error('[MarketOIDC] Missing state parameter in session storage');
+      throw new MarketAuthError('stateMissing', {
+        message: 'Authorization state not found. Please try again.',
+      });
+    }
+
+    return state;
+  }
+
   /**
    * Generate PKCE code verifier
    */
@@ -187,18 +199,12 @@ export class MarketOIDC {
       });
     }
 
-    const state = sessionStorage.getItem('market_state');
-    if (!state) {
-      console.error('[MarketOIDC] Missing state parameter in session storage');
-      throw new MarketAuthError('stateMissing', {
-        message: 'Authorization state not found. Please try again.',
-      });
-    }
-
     // Open authorization page in a new window
     let popup: Window | null = null;
+    let state: string;
     if (isDesktop) {
       const authUrl = await this.buildAuthUrl();
+      state = this.readAuthorizationState();
 
       // Electron desktop: use IPC to call the main process to open the system browser
       console.info('[MarketOIDC] Desktop app detected, opening system browser via IPC');
@@ -240,6 +246,7 @@ export class MarketOIDC {
 
       try {
         const authUrl = await this.buildAuthUrl();
+        state = this.readAuthorizationState();
         popup.location.href = authUrl;
         popup.focus?.();
       } catch (error) {

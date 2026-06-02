@@ -124,9 +124,14 @@ describe('KieAiAudioService#createMusic', () => {
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [, init] = fetchMock.mock.calls[0]!;
+    const [url, init] = fetchMock.mock.calls[0]!;
     const payload = JSON.parse(init?.body as string) as Record<string, unknown>;
 
+    expect(url).toBe('https://api.kie.ai/api/v1/generate');
+    expect(init?.headers).toMatchObject({
+      'Authorization': 'Bearer test-api-key',
+      'Content-Type': 'application/json',
+    });
     expect(payload).toMatchObject({
       callBackUrl: 'https://app.itsmechinna.com/api/webhooks/audio/kie?token=test',
       customMode: false,
