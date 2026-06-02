@@ -2,9 +2,11 @@
 
 import { Flexbox } from '@lobehub/ui';
 import { createStaticStyles } from 'antd-style';
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 
 import CodePreview, { getCodePreviewType } from '@/components/CodePreview';
+import { useChatStore } from '@/store/chat';
+import { chatPortalSelectors } from '@/store/chat/selectors';
 
 const styles = createStaticStyles(({ css }) => ({
   container: css`
@@ -19,12 +21,27 @@ interface RunnableCodeFence {
 }
 
 const codeFenceRegex = /```([^\n`]*)\n([\S\s]*?)```/g;
+const fileNameRegex =
+  /(?:^|\s)(?:file(?:name)?|path|name)=["']?([^\s"']+\.(?:html?|jsx|tsx|py))["']?/i;
+const bareFileNameRegex = /(?:^|\s)([^\s"']+\.(?:html?|jsx|tsx|py))(?:\s|$)/i;
+
+const parseCodeFenceInfo = (info: string | undefined) => {
+  const normalizedInfo = info?.trim();
+  const language = normalizedInfo?.split(/\s+/)[0];
+  const fileName =
+    normalizedInfo?.match(fileNameRegex)?.[1] || normalizedInfo?.match(bareFileNameRegex)?.[1];
+
+  return { fileName, language };
+};
 
 const inferFileName = (
-  language: string | undefined,
+  info: string | undefined,
   code: string,
   index: number,
 ): string | undefined => {
+  const { fileName, language } = parseCodeFenceInfo(info);
+  if (fileName) return fileName;
+
   const normalizedLanguage = language?.trim().toLowerCase();
 
   if (
@@ -71,11 +88,12 @@ const extractRunnableCodeFences = (content: string): RunnableCodeFence[] => {
   const previews: RunnableCodeFence[] = [];
 
   for (const match of content.matchAll(codeFenceRegex)) {
-    const language = match[1]?.trim();
+    const info = match[1]?.trim();
+    const { language } = parseCodeFenceInfo(info);
     const code = match[2]?.trim();
     if (!code) continue;
 
-    const fileName = inferFileName(language, code, previews.length);
+    const fileName = inferFileName(info, code, previews.length);
     if (!fileName || !getCodePreviewType({ fileName, language })) continue;
 
     previews.push({ code, fileName, language });
@@ -85,11 +103,36 @@ const extractRunnableCodeFences = (content: string): RunnableCodeFence[] => {
 };
 
 interface RunnableCodePreviewsProps {
+  autoOpen?: boolean;
   content: string;
 }
 
-const RunnableCodePreviews = memo<RunnableCodePreviewsProps>(({ content }) => {
+const RunnableCodePreviews = memo<RunnableCodePreviewsProps>(({ autoOpen, content }) => {
   const previews = useMemo(() => extractRunnableCodeFences(content), [content]);
+  const [currentCodePreview, openCodePreview] = useChatStore((s) => [
+    chatPortalSelectors.currentCodePreview(s),
+    s.openCodePreview,
+  ]);
+  const primaryPreview = previews.at(-1);
+  const currentPreviewSignature = currentCodePreview
+    ? `${currentCodePreview.fileName || ''}:${currentCodePreview.language || ''}:${
+        currentCodePreview.content
+      }`
+    : '';
+  const primaryPreviewSignature = primaryPreview
+    ? `${primaryPreview.fileName}:${primaryPreview.language || ''}:${primaryPreview.code}`
+    : '';
+
+  useEffect(() => {
+    if (!autoOpen || !primaryPreview || currentPreviewSignature === primaryPreviewSignature) return;
+
+    openCodePreview({
+      content: primaryPreview.code,
+      fileName: primaryPreview.fileName,
+      language: primaryPreview.language,
+      title: primaryPreview.fileName,
+    });
+  }, [autoOpen, currentPreviewSignature, openCodePreview, primaryPreview, primaryPreviewSignature]);
 
   if (previews.length === 0) return null;
 

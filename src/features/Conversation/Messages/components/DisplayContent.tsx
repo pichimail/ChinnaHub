@@ -44,7 +44,7 @@ const DisplayContent = memo<{
     ) : (
       <>
         <MarkdownMessage {...markdownProps}>{message}</MarkdownMessage>
-        <RunnableCodePreviews content={content} />
+        <RunnableCodePreviews autoOpen={!!generating} content={content} />
       </>
     );
   },

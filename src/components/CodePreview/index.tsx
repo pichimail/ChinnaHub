@@ -1,9 +1,9 @@
 'use client';
 
-import { ActionIcon, Flexbox } from '@lobehub/ui';
+import { ActionIcon, CopyButton, Flexbox, Highlighter, Segmented, Text } from '@lobehub/ui';
 import { createStaticStyles, cx } from 'antd-style';
-import { Maximize2 } from 'lucide-react';
-import { type CSSProperties, memo } from 'react';
+import { Maximize2, MonitorPlay } from 'lucide-react';
+import { type CSSProperties, memo, useState } from 'react';
 
 import HTMLRenderer from '@/features/Portal/Artifacts/Body/Renderer/HTML';
 import dynamic from '@/libs/next/dynamic';
@@ -29,20 +29,27 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 
     background: ${cssVar.colorBgContainer};
   `,
-  openButton: css`
-    position: absolute;
-    z-index: 5;
-    inset-block-start: 8px;
-    inset-inline-end: 8px;
-
-    border: 1px solid ${cssVar.colorBorderSecondary};
-
-    opacity: 0.88;
+  previewArea: css`
+    overflow: hidden;
+    min-height: 0;
+  `,
+  source: css`
+    overflow: auto;
+    height: 100%;
+  `,
+  title: css`
+    overflow: hidden;
+    min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  `,
+  toolbar: css`
+    border-block-end: 1px solid ${cssVar.colorBorderSecondary};
     background: ${cssVar.colorBgElevated};
-
-    &:hover {
-      opacity: 1;
-    }
+  `,
+  toolbarButton: css`
+    border: 1px solid ${cssVar.colorBorderSecondary};
+    background: ${cssVar.colorBgElevated};
   `,
 }));
 
@@ -50,6 +57,42 @@ export type CodePreviewType = 'html' | 'python' | 'react';
 
 export const DEFAULT_CODE_PREVIEW_HEIGHT = 'min(720px, 70vh)';
 export const COMPACT_CODE_PREVIEW_HEIGHT = 'min(560px, 58vh)';
+
+type CodePreviewMode = 'preview' | 'source';
+
+const getPreviewTypeLabel = (previewType: CodePreviewType): string => {
+  switch (previewType) {
+    case 'html': {
+      return 'HTML preview';
+    }
+
+    case 'python': {
+      return 'Python preview';
+    }
+
+    case 'react': {
+      return 'React preview';
+    }
+  }
+};
+
+const getSourceLanguage = (previewType: CodePreviewType, language: string | undefined): string => {
+  if (language) return language;
+
+  switch (previewType) {
+    case 'html': {
+      return 'html';
+    }
+
+    case 'python': {
+      return 'python';
+    }
+
+    case 'react': {
+      return 'tsx';
+    }
+  }
+};
 
 interface GetCodePreviewTypeParams {
   fileName?: string;
@@ -60,10 +103,12 @@ export const getCodePreviewType = ({
   fileName,
   language,
 }: GetCodePreviewTypeParams): CodePreviewType | undefined => {
-  const normalizedLanguage = language?.toLowerCase();
+  const normalizedLanguage = language?.trim().toLowerCase();
+  const normalizedLanguageToken = normalizedLanguage?.split(/[\s,;]+/)[0];
   const normalizedFileName = fileName?.toLowerCase();
-  const ext = fileName?.split('.').pop()?.toLowerCase();
-  const candidates = [normalizedLanguage, ext];
+  const fileExt = fileName?.split('.').pop()?.toLowerCase();
+  const languageExt = normalizedLanguageToken?.split('.').pop();
+  const candidates = [normalizedLanguage, normalizedLanguageToken, fileExt, languageExt];
 
   if (candidates.some((type) => type === 'html' || type === 'htm' || type === 'text/html')) {
     return 'html';
@@ -138,6 +183,7 @@ const CodePreview = memo<CodePreviewProps>(
     title,
   }) => {
     const previewType = getCodePreviewType({ fileName, language });
+    const [mode, setMode] = useState<CodePreviewMode>('preview');
     const openCodePreview = useChatStore((s) => s.openCodePreview);
 
     if (!previewType) return null;
@@ -150,26 +196,66 @@ const CodePreview = memo<CodePreviewProps>(
         width={'100%'}
         onClick={(e) => e.stopPropagation()}
       >
-        {showOpenInPortal && (
-          <ActionIcon
-            aria-label="Open preview in side panel"
-            className={styles.openButton}
-            icon={Maximize2}
+        <Flexbox
+          horizontal
+          align={'center'}
+          className={styles.toolbar}
+          gap={8}
+          paddingBlock={8}
+          paddingInline={10}
+        >
+          <MonitorPlay size={16} />
+          <Flexbox flex={1} gap={2} style={{ minWidth: 0 }}>
+            <Text className={styles.title} style={{ fontSize: 13 }}>
+              {title || fileName || getPreviewTypeLabel(previewType)}
+            </Text>
+            <Text className={styles.title} style={{ fontSize: 11 }} type={'secondary'}>
+              {getPreviewTypeLabel(previewType)}
+            </Text>
+          </Flexbox>
+          <Segmented
             size={'small'}
-            title="Open preview in side panel"
-            onClick={(e) => {
-              e.stopPropagation();
-              openCodePreview({ content, fileName, language, title });
-            }}
+            value={mode}
+            options={[
+              { label: 'Preview', value: 'preview' },
+              { label: 'Source', value: 'source' },
+            ]}
+            onChange={(value) => setMode(value as CodePreviewMode)}
           />
-        )}
-        {previewType === 'html' ? (
-          <HTMLRenderer htmlContent={content} />
-        ) : previewType === 'react' ? (
-          <ReactRenderer code={content} title={title || fileName} />
-        ) : (
-          <PythonRenderer code={content} />
-        )}
+          <CopyButton content={content} size={'small'} />
+          {showOpenInPortal && (
+            <ActionIcon
+              aria-label="Open preview in side panel"
+              className={styles.toolbarButton}
+              icon={Maximize2}
+              size={'small'}
+              title="Open preview in side panel"
+              onClick={(e) => {
+                e.stopPropagation();
+                openCodePreview({ content, fileName, language, title });
+              }}
+            />
+          )}
+        </Flexbox>
+        <Flexbox className={styles.previewArea} flex={1}>
+          {mode === 'source' ? (
+            <Highlighter
+              className={styles.source}
+              copyable={false}
+              language={getSourceLanguage(previewType, language)}
+              showLanguage={false}
+              variant={'borderless'}
+            >
+              {content}
+            </Highlighter>
+          ) : previewType === 'html' ? (
+            <HTMLRenderer htmlContent={content} />
+          ) : previewType === 'react' ? (
+            <ReactRenderer code={content} title={title || fileName} />
+          ) : (
+            <PythonRenderer code={content} />
+          )}
+        </Flexbox>
       </Flexbox>
     );
   },
