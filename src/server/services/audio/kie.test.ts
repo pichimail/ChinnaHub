@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { KieAiAudioService } from './index';
 import {
   buildAudioAssetFromTrack,
   mapAudioModelVersionToKieModel,
@@ -94,5 +95,77 @@ describe('audio kie helpers', () => {
       model: 'V4_5ALL',
       modelVersion: 'V1.0',
     });
+  });
+});
+
+describe('KieAiAudioService#createMusic', () => {
+  const fetchMock = vi.spyOn(globalThis, 'fetch');
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+  });
+
+  it('sends the required callback URL and omits false instrumental flags', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: 200, data: { taskId: 'task-1' }, msg: 'success' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const service = new KieAiAudioService('test-api-key');
+    await service.createMusic(
+      {
+        prompt: 'A warm Telugu folk song with a driving rhythm',
+        providerMode: 'classic',
+        modelVersion: 'V3.0',
+      },
+      { callBackUrl: 'https://app.itsmechinna.com/api/webhooks/audio/kie?token=test' },
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = fetchMock.mock.calls[0]!;
+    const payload = JSON.parse(init?.body as string) as Record<string, unknown>;
+
+    expect(payload).toMatchObject({
+      callBackUrl: 'https://app.itsmechinna.com/api/webhooks/audio/kie?token=test',
+      customMode: false,
+      model: 'V5_5',
+      prompt: 'A warm Telugu folk song with a driving rhythm',
+    });
+    expect(payload).not.toHaveProperty('instrumental');
+    expect(payload).not.toHaveProperty('style');
+    expect(payload).not.toHaveProperty('title');
+  });
+
+  it('promotes instrumental requests to custom mode with explicit fields', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: 200, data: { taskId: 'task-2' }, msg: 'success' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const service = new KieAiAudioService('test-api-key');
+    await service.createMusic(
+      {
+        makeInstrumental: true,
+        prompt: 'cinematic ambient intro',
+        providerMode: 'classic',
+        title: 'Night Drive',
+      },
+      { callBackUrl: 'https://app.itsmechinna.com/api/webhooks/audio/kie?token=test' },
+    );
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    const payload = JSON.parse(init?.body as string) as Record<string, unknown>;
+
+    expect(payload).toMatchObject({
+      customMode: true,
+      instrumental: true,
+      prompt: 'cinematic ambient intro',
+      title: 'Night Drive',
+    });
+    expect(payload).toHaveProperty('style', 'Instrumental');
   });
 });

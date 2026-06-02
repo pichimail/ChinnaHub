@@ -94,22 +94,31 @@ export class KieAiAudioService {
     log('Creating music with params: %O', params);
 
     try {
-      const customMode = Boolean(params.style?.trim() || params.title?.trim());
-      const model = mapAudioModelVersionToKieModel(params.modelVersion);
+      if (!options?.callBackUrl) {
+        throw new Error('KIE music generation callback URL is required');
+      }
 
-      const payload = {
-        ...(options?.callBackUrl ? { callBackUrl: options.callBackUrl } : {}),
+      const customMode = Boolean(
+        params.style?.trim() || params.title?.trim() || params.makeInstrumental,
+      );
+      const model = mapAudioModelVersionToKieModel(params.modelVersion);
+      const prompt = params.prompt?.trim() || params.title?.trim() || 'instrumental music';
+
+      const payload: Record<string, unknown> = {
+        callBackUrl: options.callBackUrl,
         customMode,
-        instrumental: params.makeInstrumental ?? false,
         model,
-        prompt: params.prompt || params.title || 'instrumental music',
-        ...(customMode
-          ? {
-              style: params.style?.trim() || 'Instrumental',
-              title: params.title?.trim() || 'Generated Audio Track',
-            }
-          : {}),
+        prompt,
       };
+
+      if (params.makeInstrumental) {
+        payload.instrumental = true;
+      }
+
+      if (customMode) {
+        payload.style = params.style?.trim() || 'Instrumental';
+        payload.title = params.title?.trim() || 'Generated Audio Track';
+      }
 
       log('Sending request to KIE AI API: %O', payload);
 
