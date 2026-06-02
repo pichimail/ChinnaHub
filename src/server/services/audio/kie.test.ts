@@ -168,4 +168,55 @@ describe('KieAiAudioService#createMusic', () => {
     });
     expect(payload).toHaveProperty('style', 'Instrumental');
   });
+
+  it('retries prompt-only generations with a compatibility payload when Kie rejects the first request', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response('<html><body><h1>HTTP Status 400 – Bad Request</h1></body></html>', {
+          status: 400,
+          statusText: 'Bad Request',
+          headers: { 'Content-Type': 'text/html' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: 200, data: { taskId: 'task-3' }, msg: 'success' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+
+    const service = new KieAiAudioService('test-api-key');
+    const result = await service.createMusic(
+      {
+        prompt: 'A warm Telugu folk song with a driving rhythm',
+        providerMode: 'classic',
+        modelVersion: 'V3.0',
+      },
+      { callBackUrl: 'https://app.itsmechinna.com/api/webhooks/audio/kie?token=test' },
+    );
+
+    expect(result.id).toBe('task-3');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const firstPayload = JSON.parse(fetchMock.mock.calls[0]![1]?.body as string) as Record<
+      string,
+      unknown
+    >;
+    const secondPayload = JSON.parse(fetchMock.mock.calls[1]![1]?.body as string) as Record<
+      string,
+      unknown
+    >;
+
+    expect(firstPayload).toMatchObject({
+      customMode: false,
+      model: 'V5_5',
+      prompt: 'A warm Telugu folk song with a driving rhythm',
+    });
+    expect(secondPayload).toMatchObject({
+      customMode: false,
+      instrumental: false,
+      model: 'V5',
+      prompt: 'A warm Telugu folk song with a driving rhythm',
+    });
+  });
 });

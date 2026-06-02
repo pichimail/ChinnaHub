@@ -77,6 +77,35 @@ const toTaskId = (data: KieTaskResponse): string => {
   );
 };
 
+const buildKieGeneratePayload = (
+  params: AudioGenerationParams,
+  options: { callBackUrl: string },
+  overrides?: { model?: string; includeInstrumental?: boolean },
+): Record<string, unknown> => {
+  const customMode = Boolean(
+    params.style?.trim() || params.title?.trim() || params.makeInstrumental,
+  );
+  const prompt = params.prompt?.trim() || params.title?.trim() || 'instrumental music';
+
+  const payload: Record<string, unknown> = {
+    callBackUrl: options.callBackUrl,
+    customMode,
+    model: overrides?.model || mapAudioModelVersionToKieModel(params.modelVersion),
+    prompt,
+  };
+
+  if (params.makeInstrumental || overrides?.includeInstrumental) {
+    payload.instrumental = Boolean(params.makeInstrumental);
+  }
+
+  if (customMode) {
+    payload.style = params.style?.trim() || 'Instrumental';
+    payload.title = params.title?.trim() || 'Generated Audio Track';
+  }
+
+  return payload;
+};
+
 export class KieAiAudioService {
   private apiKey: string;
 
@@ -98,31 +127,32 @@ export class KieAiAudioService {
         throw new Error('KIE music generation callback URL is required');
       }
 
-      const customMode = Boolean(
-        params.style?.trim() || params.title?.trim() || params.makeInstrumental,
-      );
-      const model = mapAudioModelVersionToKieModel(params.modelVersion);
-      const prompt = params.prompt?.trim() || params.title?.trim() || 'instrumental music';
-
-      const payload: Record<string, unknown> = {
-        callBackUrl: options.callBackUrl,
-        customMode,
-        model,
-        prompt,
-      };
-
-      if (params.makeInstrumental) {
-        payload.instrumental = true;
-      }
-
-      if (customMode) {
-        payload.style = params.style?.trim() || 'Instrumental';
-        payload.title = params.title?.trim() || 'Generated Audio Track';
-      }
+      const payload = buildKieGeneratePayload(params, options);
 
       log('Sending request to KIE AI API: %O', payload);
 
-      const data = await postKieJson<KieTaskResponse>('/generate', payload);
+      let data: KieTaskResponse;
+      try {
+        data = await postKieJson<KieTaskResponse>('/generate', payload);
+      } catch (error) {
+        if (
+          !params.makeInstrumental &&
+          !params.style?.trim() &&
+          !params.title?.trim() &&
+          (error instanceof Error ? error.message.includes('KIE AI API error: 400') : false)
+        ) {
+          const fallbackPayload = buildKieGeneratePayload(params, options, {
+            includeInstrumental: true,
+            model: 'V5',
+          });
+
+          log('Retrying KIE AI API request with compatibility payload: %O', fallbackPayload);
+          data = await postKieJson<KieTaskResponse>('/generate', fallbackPayload);
+        } else {
+          throw error;
+        }
+      }
+
       const taskId = toTaskId(data);
 
       log('Task created successfully: %O', {
