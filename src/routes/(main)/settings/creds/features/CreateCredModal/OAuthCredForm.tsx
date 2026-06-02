@@ -2,11 +2,14 @@
 
 import { Button, Flexbox } from '@lobehub/ui';
 import { useMutation } from '@tanstack/react-query';
+import { TRPCClientError } from '@trpc/client';
 import { Avatar, Empty, Form, Input, Select, Spin } from 'antd';
 import { createStaticStyles } from 'antd-style';
+import { LogIn } from 'lucide-react';
 import { type FC } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useMarketAuth } from '@/layout/AuthProvider/MarketAuth';
 import { lambdaClient, lambdaQuery } from '@/libs/trpc/client';
 
 const styles = createStaticStyles(({ css, cssVar }) => ({
@@ -44,11 +47,21 @@ interface FormValues {
 const OAuthCredForm: FC<OAuthCredFormProps> = ({ onBack, onSuccess }) => {
   const { t } = useTranslation('setting');
   const [form] = Form.useForm<FormValues>();
+  const { isAuthenticated, isLoading: isAuthLoading, signIn } = useMarketAuth();
 
-  const { data: connectionsData, isLoading } =
-    lambdaQuery.market.creds.listOAuthConnections.useQuery();
+  const {
+    data: connectionsData,
+    error,
+    isLoading,
+    refetch,
+  } = lambdaQuery.market.creds.listOAuthConnections.useQuery(undefined, {
+    enabled: isAuthenticated,
+    retry: false,
+  });
 
   const connections = connectionsData?.connections ?? [];
+  const isUnauthorizedError =
+    error instanceof TRPCClientError && error.data?.code === 'UNAUTHORIZED';
 
   const createMutation = useMutation({
     mutationFn: (values: FormValues) => {
@@ -64,14 +77,51 @@ const OAuthCredForm: FC<OAuthCredFormProps> = ({ onBack, onSuccess }) => {
     },
   });
 
+  const handleSignIn = async () => {
+    try {
+      await signIn();
+      await refetch();
+    } catch (signInError) {
+      console.error('[OAuthCredForm] Market sign-in failed:', signInError);
+    }
+  };
+
   const handleSubmit = (values: FormValues) => {
     createMutation.mutate(values);
   };
 
-  if (isLoading) {
+  if (isAuthLoading || (isLoading && !error)) {
     return (
       <Flexbox align="center" justify="center" style={{ padding: 48 }}>
         <Spin />
+      </Flexbox>
+    );
+  }
+
+  if (!isAuthenticated || isUnauthorizedError) {
+    return (
+      <Flexbox align="center" gap={16} justify="center" style={{ padding: 48 }}>
+        <Empty description={t('creds.signInRequired')} />
+        <div className={styles.footer}>
+          <Button icon={LogIn} type="primary" onClick={handleSignIn}>
+            {t('creds.signIn')}
+          </Button>
+          <Button onClick={onBack}>{t('creds.form.back')}</Button>
+        </div>
+      </Flexbox>
+    );
+  }
+
+  if (error && !isUnauthorizedError) {
+    return (
+      <Flexbox align="center" gap={16} justify="center" style={{ padding: 48 }}>
+        <Empty description={error.message || t('creds.signInRequired')} />
+        <div className={styles.footer}>
+          <Button icon={LogIn} type="primary" onClick={handleSignIn}>
+            {t('creds.signIn')}
+          </Button>
+          <Button onClick={onBack}>{t('creds.form.back')}</Button>
+        </div>
       </Flexbox>
     );
   }

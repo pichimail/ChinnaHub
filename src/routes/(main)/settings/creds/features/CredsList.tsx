@@ -3,6 +3,7 @@
 import { type UserCredSummary } from '@lobechat/types';
 import { Button, Flexbox } from '@lobehub/ui';
 import { useMutation } from '@tanstack/react-query';
+import { TRPCClientError } from '@trpc/client';
 import { Empty, Spin } from 'antd';
 import { createStaticStyles } from 'antd-style';
 import { LogIn } from 'lucide-react';
@@ -47,6 +48,8 @@ const CredsList: FC = () => {
     enabled: isAuthenticated,
     retry: false,
   });
+  const isUnauthorizedError =
+    error instanceof TRPCClientError && error.data?.code === 'UNAUTHORIZED';
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => lambdaClient.market.creds.delete.mutate({ id }),
@@ -54,6 +57,15 @@ const CredsList: FC = () => {
       refetch();
     },
   });
+
+  const handleSignIn = async () => {
+    try {
+      await signIn();
+      await refetch();
+    } catch (signInError) {
+      console.error('[CredsList] Market sign-in failed:', signInError);
+    }
+  };
 
   const credentials = data?.data ?? [];
 
@@ -76,7 +88,18 @@ const CredsList: FC = () => {
     return (
       <div className={styles.signInPrompt}>
         <Empty description={t('creds.signInRequired')} />
-        <Button icon={LogIn} type="primary" onClick={() => signIn()}>
+        <Button icon={LogIn} type="primary" onClick={handleSignIn}>
+          {t('creds.signIn')}
+        </Button>
+      </div>
+    );
+  }
+
+  if (isUnauthorizedError) {
+    return (
+      <div className={styles.signInPrompt}>
+        <Empty description={t('creds.signInRequired')} />
+        <Button icon={LogIn} type="primary" onClick={handleSignIn}>
           {t('creds.signIn')}
         </Button>
       </div>
@@ -87,7 +110,7 @@ const CredsList: FC = () => {
     return (
       <div className={styles.signInPrompt}>
         <Empty description={error.message || t('creds.signInRequired')} />
-        <Button icon={LogIn} type="primary" onClick={() => signIn()}>
+        <Button icon={LogIn} type="primary" onClick={handleSignIn}>
           {t('creds.signIn')}
         </Button>
       </div>
