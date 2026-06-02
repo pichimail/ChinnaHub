@@ -50,6 +50,55 @@ describe('MarketOIDC.startAuthorization', () => {
     vi.useRealTimers();
   });
 
+  it('should open the popup before awaiting the auth url to avoid popup blockers', async () => {
+    const client = new MarketOIDC({
+      baseUrl: 'https://market.lobehub.com',
+      clientId: 'lobechat-com',
+      redirectUri: 'http://localhost:3010/market-auth-callback',
+      scope: 'openid profile email',
+    });
+
+    sessionStorage.setItem('market_state', 'state_value');
+
+    let resolveAuthUrl!: (value: string) => void;
+    const authUrlPromise = new Promise<string>((resolve) => {
+      resolveAuthUrl = resolve;
+    });
+
+    vi.spyOn(client, 'buildAuthUrl').mockReturnValue(authUrlPromise);
+
+    let isClosed = false;
+    const popup = {
+      focus: vi.fn(),
+      location: { href: '' },
+      get closed() {
+        return isClosed;
+      },
+    } as unknown as Window;
+
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(popup);
+
+    const authPromise = client.startAuthorization();
+
+    expect(openSpy).toHaveBeenCalledWith(
+      'about:blank',
+      'market_auth',
+      'width=580,height=720,scrollbars=yes,resizable=yes',
+    );
+    expect(openSpy).toHaveBeenCalledTimes(1);
+
+    resolveAuthUrl('https://market.lobehub.com/lobehub-oidc/auth');
+    await vi.advanceTimersByTimeAsync(0);
+
+    isClosed = true;
+    await vi.advanceTimersByTimeAsync(2000);
+
+    await expect(authPromise).rejects.toMatchObject({
+      code: 'popupClosed',
+      name: 'MarketAuthError',
+    });
+  });
+
   it('should reject promptly when popup closes without a handoff result', async () => {
     const client = new MarketOIDC({
       baseUrl: 'https://market.lobehub.com',

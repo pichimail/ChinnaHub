@@ -134,12 +134,7 @@ const checkNeedsProfileSetup = async (username: string): Promise<boolean> => {
 export const MarketAuthProvider = ({ children, isDesktop }: MarketAuthProviderProps) => {
   const { message } = App.useApp();
   const { t } = useTranslation('marketAuth');
-  const isCustomDeploymentHost =
-    typeof window !== 'undefined' && !/(?:\.|^)lobehub\.com$/.test(window.location.hostname);
-  const isMarketAuthExplicitlyEnabled = process.env.NEXT_PUBLIC_ENABLE_MARKET_AUTH === '1';
-  const isMarketAuthDisabled =
-    process.env.NEXT_PUBLIC_DISABLE_MARKET_AUTH === '1' ||
-    (isCustomDeploymentHost && !isMarketAuthExplicitlyEnabled);
+  const isMarketAuthDisabled = process.env.NEXT_PUBLIC_DISABLE_MARKET_AUTH === '1';
 
   const [session, setSession] = useState<MarketAuthSession | null>(null);
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');

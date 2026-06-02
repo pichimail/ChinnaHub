@@ -181,8 +181,6 @@ export class MarketOIDC {
    * Start authorization flow and return authorization result
    */
   async startAuthorization(): Promise<{ code: string; state: string }> {
-    const authUrl = await this.buildAuthUrl();
-
     if (typeof window === 'undefined') {
       throw new MarketAuthError('browserOnly', {
         message: 'Authorization can only be initiated in a browser environment.',
@@ -200,6 +198,8 @@ export class MarketOIDC {
     // Open authorization page in a new window
     let popup: Window | null = null;
     if (isDesktop) {
+      const authUrl = await this.buildAuthUrl();
+
       // Electron desktop: use IPC to call the main process to open the system browser
       console.info('[MarketOIDC] Desktop app detected, opening system browser via IPC');
       const { remoteServerService } = await import('@/services/electron/remoteServer');
@@ -224,9 +224,9 @@ export class MarketOIDC {
 
       return this.pollDesktopHandoff(state);
     } else {
-      // Browser environment: use window.open to open a popup
+      // Browser environment: open a popup synchronously so the browser keeps the user gesture.
       popup = window.open(
-        authUrl,
+        'about:blank',
         'market_auth',
         'width=580,height=720,scrollbars=yes,resizable=yes',
       );
@@ -236,6 +236,15 @@ export class MarketOIDC {
         throw new MarketAuthError('openPopupFailed', {
           message: 'Failed to open authorization popup. Please check popup blocker settings.',
         });
+      }
+
+      try {
+        const authUrl = await this.buildAuthUrl();
+        popup.location.href = authUrl;
+        popup.focus?.();
+      } catch (error) {
+        popup.close?.();
+        throw error;
       }
     }
 
