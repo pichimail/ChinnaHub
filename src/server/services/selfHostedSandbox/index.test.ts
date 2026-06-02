@@ -68,6 +68,73 @@ describe('SelfHostedSandboxService', () => {
     expect(result.result.exitCode).toBe(0);
   });
 
+  it('runs shell commands in the isolated workspace', async () => {
+    const sandbox = new SelfHostedSandboxService({
+      fileService: createFileService(),
+      root,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+
+    const result = await sandbox.callTool('runCommand', {
+      command: 'printf "hello" > result.txt && cat result.txt',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.result.stdout).toBe('hello');
+
+    const readResult = await sandbox.callTool('readFile', { path: 'result.txt' });
+    expect(readResult.result.content).toBe('hello');
+  });
+
+  it('tracks background shell command output', async () => {
+    const sandbox = new SelfHostedSandboxService({
+      fileService: createFileService(),
+      root,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+
+    const runResult = await sandbox.callTool('runCommand', {
+      background: true,
+      command: 'printf first && sleep 0.1 && printf second',
+    });
+
+    expect(runResult.success).toBe(true);
+    expect(runResult.result.commandId).toBeTruthy();
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const outputResult = await sandbox.callTool('getCommandOutput', {
+      commandId: runResult.result.commandId,
+    });
+
+    expect(outputResult.success).toBe(true);
+    expect(outputResult.result.newOutput).toBe('firstsecond');
+    expect(outputResult.result.running).toBe(false);
+  });
+
+  it('kills background shell commands', async () => {
+    const sandbox = new SelfHostedSandboxService({
+      fileService: createFileService(),
+      root,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+
+    const runResult = await sandbox.callTool('runCommand', {
+      background: true,
+      command: 'sleep 5',
+    });
+
+    const killResult = await sandbox.callTool('killCommand', {
+      commandId: runResult.result.commandId,
+    });
+
+    expect(killResult.success).toBe(true);
+    expect(killResult.result.success).toBe(true);
+  });
+
   it('exports files through FileService and returns a public file link', async () => {
     const fileService = createFileService();
     const sandbox = new SelfHostedSandboxService({

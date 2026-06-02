@@ -1,3 +1,6 @@
+import { type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -15,6 +18,20 @@ import { type FileService } from '@/server/services/file';
 const DEFAULT_ROOT = path.join(tmpdir(), 'chinnahub-self-hosted-sandbox');
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const SCRIPT_TIMEOUT_MS = 5000;
+const MAX_COMMAND_TIMEOUT_MS = 120_000;
+
+interface BackgroundCommand {
+  command: string;
+  cursor: number;
+  error?: string;
+  exitCode?: number;
+  output: string[];
+  process: ChildProcessWithoutNullStreams;
+  running: boolean;
+  timeout?: NodeJS.Timeout;
+}
+
+const backgroundCommands = new Map<string, BackgroundCommand>();
 
 interface SelfHostedSandboxOptions {
   fileService: FileService;
@@ -145,6 +162,18 @@ export class SelfHostedSandboxService {
           return await this.executeCode(params);
         }
 
+        case 'runCommand': {
+          return await this.runCommand(params);
+        }
+
+        case 'getCommandOutput': {
+          return this.getCommandOutput(params);
+        }
+
+        case 'killCommand': {
+          return this.killCommand(params);
+        }
+
         default: {
           return {
             error: {
@@ -223,14 +252,22 @@ export class SelfHostedSandboxService {
     const language = String(params.language || 'python').toLowerCase();
 
     if (language === 'python') {
+      const code = String(params.code || '');
+      const result = await this.runCommand({
+        command: `python3 - <<'PY'\n${code}\nPY`,
+        timeout: SCRIPT_TIMEOUT_MS,
+      });
+
+      if (result.success) return result;
+
       return {
         result: {
           error:
-            'Python code preview runs in the browser-side Python preview. Server-side Python execution requires the isolated Market Cloud Sandbox.',
+            result.result?.error ||
+            'Python code preview runs in the browser-side Python preview. Server-side Python execution requires python3 in the app runtime or the isolated Market Cloud Sandbox.',
           exitCode: 1,
           output: '',
-          stderr:
-            'Python server execution is unavailable in the self-hosted fallback without an isolated runtime.',
+          stderr: result.result?.stderr || result.error?.message || 'python3 is not available',
         },
         success: false,
       };
@@ -409,6 +446,169 @@ export class SelfHostedSandboxService {
     };
   }
 
+  private getCommandOutput(params: Record<string, any>): SandboxCallToolResult {
+    const commandId = String(params.commandId || '');
+    const command = backgroundCommands.get(commandId);
+
+    if (!command) {
+      return {
+        error: { message: `Command not found: ${commandId}` },
+        result: null,
+        success: false,
+      };
+    }
+
+    const newOutput = command.output.slice(command.cursor).join('');
+    command.cursor = command.output.length;
+
+    return {
+      result: {
+        error: command.error,
+        exitCode: command.exitCode,
+        newOutput,
+        output: newOutput,
+        running: command.running,
+        success: !command.error,
+      },
+      success: true,
+    };
+  }
+
+  private killCommand(params: Record<string, any>): SandboxCallToolResult {
+    const commandId = String(params.commandId || '');
+    const command = backgroundCommands.get(commandId);
+
+    if (!command) {
+      return {
+        error: { message: `Command not found: ${commandId}` },
+        result: null,
+        success: false,
+      };
+    }
+
+    if (command.timeout) clearTimeout(command.timeout);
+    command.process.kill('SIGTERM');
+    command.running = false;
+    command.error = command.error || 'Command killed';
+
+    return {
+      result: { commandId, error: command.error, success: true },
+      success: true,
+    };
+  }
+
+  private async runCommand(params: Record<string, any>): Promise<SandboxCallToolResult> {
+    const command = String(params.command || '').trim();
+
+    if (!command) {
+      return { error: { message: 'Command is required' }, result: null, success: false };
+    }
+
+    const timeout = Math.min(
+      Math.max(Number(params.timeout || MAX_COMMAND_TIMEOUT_MS), 1000),
+      MAX_COMMAND_TIMEOUT_MS,
+    );
+
+    if (params.background) {
+      const commandId = randomUUID();
+      const child = this.spawnShell(command);
+      const backgroundCommand: BackgroundCommand = {
+        command,
+        cursor: 0,
+        output: [],
+        process: child,
+        running: true,
+      };
+
+      child.stdout.on('data', (data) => backgroundCommand.output.push(String(data)));
+      child.stderr.on('data', (data) => backgroundCommand.output.push(String(data)));
+      child.on('error', (error) => {
+        backgroundCommand.error = error.message;
+        backgroundCommand.running = false;
+      });
+      child.on('close', (exitCode) => {
+        if (backgroundCommand.timeout) clearTimeout(backgroundCommand.timeout);
+        backgroundCommand.exitCode = exitCode ?? undefined;
+        backgroundCommand.running = false;
+      });
+      backgroundCommand.timeout = setTimeout(() => {
+        backgroundCommand.error = `Command timed out after ${timeout}ms`;
+        backgroundCommand.process.kill('SIGTERM');
+      }, timeout);
+
+      backgroundCommands.set(commandId, backgroundCommand);
+
+      return {
+        result: { commandId, output: '', running: true, shell_id: commandId, success: true },
+        success: true,
+      };
+    }
+
+    const result = await new Promise<{
+      error?: string;
+      exitCode?: number;
+      stderr: string;
+      stdout: string;
+    }>((resolve) => {
+      const child = this.spawnShell(command);
+      const stdout: string[] = [];
+      const stderr: string[] = [];
+      let completed = false;
+
+      const finish = (value: {
+        error?: string;
+        exitCode?: number;
+        stderr: string;
+        stdout: string;
+      }) => {
+        if (completed) return;
+        completed = true;
+        resolve(value);
+      };
+
+      const timer = setTimeout(() => {
+        child.kill('SIGTERM');
+        finish({
+          error: `Command timed out after ${timeout}ms`,
+          exitCode: 124,
+          stderr: stderr.join(''),
+          stdout: stdout.join(''),
+        });
+      }, timeout);
+
+      child.stdout.on('data', (data) => stdout.push(String(data)));
+      child.stderr.on('data', (data) => stderr.push(String(data)));
+      child.on('error', (error) => {
+        clearTimeout(timer);
+        finish({
+          error: error.message,
+          exitCode: 1,
+          stderr: stderr.join(''),
+          stdout: stdout.join(''),
+        });
+      });
+      child.on('close', (exitCode) => {
+        clearTimeout(timer);
+        finish({
+          exitCode: exitCode ?? undefined,
+          stderr: stderr.join(''),
+          stdout: stdout.join(''),
+        });
+      });
+    });
+
+    return {
+      result: {
+        error: result.error,
+        exitCode: result.exitCode,
+        output: result.stdout,
+        stderr: result.stderr,
+        stdout: result.stdout,
+      },
+      success: !result.error && (result.exitCode === 0 || result.exitCode === undefined),
+    };
+  }
+
   private async searchLocalFiles(params: Record<string, any>): Promise<SandboxCallToolResult> {
     const directory = this.resolveSandboxPath(String(params.directory || '.'));
     const files = await this.walk(directory);
@@ -442,6 +642,20 @@ export class SelfHostedSandboxService {
     await writeFile(filePath, content);
 
     return { result: { bytesWritten: bytes, path: params.path, success: true }, success: true };
+  }
+
+  private spawnShell(command: string) {
+    return spawn('/bin/sh', ['-lc', command], {
+      cwd: this.root,
+      env: {
+        HOME: this.root,
+        LANG: 'C.UTF-8',
+        PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
+        SANDBOX_TOPIC_ID: this.topicId,
+        SANDBOX_USER_ID: this.userId,
+        SANDBOX_WORKSPACE: this.root,
+      },
+    });
   }
 
   private async ensureRoot() {
