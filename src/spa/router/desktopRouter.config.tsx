@@ -804,6 +804,18 @@ export const desktopRoutes: RouteObject[] = [
         path: 'page',
       },
 
+      // Studio routes
+      {
+        children: [
+          {
+            element: dynamicElement(() => import('@/routes/(main)/studio'), 'Desktop > Studio'),
+            index: true,
+          },
+        ],
+        errorElement: <ErrorBoundary />,
+        path: 'studio',
+      },
+
       // Default route - home page (handled by persistent layout)
       {
         element: <></>,

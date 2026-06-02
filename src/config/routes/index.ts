@@ -8,6 +8,7 @@ import {
   Settings,
   ShapesIcon,
   Video,
+  WandSparkles,
 } from 'lucide-react';
 
 export interface NavigationRoute {
@@ -108,6 +109,16 @@ export const NAVIGATION_ROUTES: NavigationRoute[] = [
     pathPrefix: '/tasks',
   },
   {
+    cmdkKey: 'cmdk.studio',
+    electronKey: 'navigation.studio',
+    icon: WandSparkles,
+    id: 'studio',
+    keywords: ['studio', 'builder', 'app', 'codegen', 'preview'],
+    keywordsKey: 'cmdk.keywords.studio',
+    path: '/studio',
+    pathPrefix: '/studio',
+  },
+  {
     cmdkKey: 'cmdk.settings',
     electronKey: 'navigation.settings',
     icon: Settings,
@@ -130,5 +141,5 @@ export const getRouteById = (id: string): NavigationRoute | undefined =>
  */
 export const getNavigableRoutes = (): NavigationRoute[] =>
   NAVIGATION_ROUTES.filter((r) =>
-    ['community', 'video', 'image', 'resource', 'page', 'memory'].includes(r.id),
+    ['community', 'video', 'image', 'resource', 'page', 'memory', 'studio'].includes(r.id),
   );

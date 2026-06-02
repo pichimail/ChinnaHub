@@ -742,6 +742,13 @@
       "when": 1779588976069,
       "tag": "0107_admin_plans_feature_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1780396800000,
+      "tag": "0108_add_studio_core_tables",
+      "breakpoints": true
     }
   ],
   "version": "6"

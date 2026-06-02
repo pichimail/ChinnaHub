@@ -31,6 +31,7 @@ const memoryIcon = getRouteById('memory')?.icon;
 const imageIcon = getRouteById('image')?.icon;
 const pageIcon = getRouteById('page')?.icon;
 const settingsIcon = getRouteById('settings')?.icon;
+const studioIcon = getRouteById('studio')?.icon;
 const tasksIcon = getRouteById('tasks')?.icon;
 
 /**
@@ -125,6 +126,13 @@ const routePatterns: RoutePattern[] = [
     icon: tasksIcon,
     test: (p) => p.startsWith('/tasks') || p.startsWith('/task/'),
     titleKey: 'navigation.tasks',
+  },
+
+  // Studio routes
+  {
+    icon: studioIcon,
+    test: (p) => p.startsWith('/studio'),
+    titleKey: 'navigation.studio',
   },
 
   // Memory routes

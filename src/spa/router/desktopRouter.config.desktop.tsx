@@ -91,6 +91,7 @@ import ResourceLibrarySlugPage from '@/routes/(main)/resource/library/[slug]';
 import SettingsTabPage from '@/routes/(main)/settings';
 import SettingsLayout from '@/routes/(main)/settings/_layout';
 import { ProviderDetailPage, ProviderLayout } from '@/routes/(main)/settings/provider';
+import StudioPage from '@/routes/(main)/studio';
 import TaskDetailRoute from '@/routes/(main)/task/[taskId]';
 import AllTasksPage from '@/routes/(main)/tasks';
 import ShareTopicPage from '@/routes/share/t/[id]';
@@ -625,6 +626,18 @@ export const desktopRoutes: RouteObject[] = [
         element: <DesktopPageLayout />,
         errorElement: <ErrorBoundary />,
         path: 'page',
+      },
+
+      // Studio routes
+      {
+        children: [
+          {
+            element: <StudioPage />,
+            index: true,
+          },
+        ],
+        errorElement: <ErrorBoundary />,
+        path: 'studio',
       },
 
       // Default route - home page (handled by persistent layout)

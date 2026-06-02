@@ -193,6 +193,7 @@ export default {
   'cmdk.keywords.submitIssue': 'issue bug problem feedback',
 
   'cmdk.keywords.tasks': 'tasks todo agent kanban',
+  'cmdk.keywords.studio': 'studio builder app codegen preview',
 
   'cmdk.keywords.usage': 'usage statistics consumption quota',
 
@@ -272,6 +273,7 @@ export default {
   'cmdk.searchPlaceholder': 'Enter a command or search...',
   'cmdk.sendToAgent': 'Send to {{agent}}',
   'cmdk.settings': 'Settings',
+  'cmdk.studio': 'Studio',
   'cmdk.starOnGitHub': 'Star us on GitHub',
   'cmdk.submitIssue': 'Submit Issue',
   'cmdk.tasks': 'Tasks',
@@ -524,6 +526,7 @@ export default {
   'tab.resource': 'Resources',
   'tab.search': 'Search',
   'tab.setting': 'Settings',
+  'tab.studio': 'Studio',
   'tab.tasks': 'Tasks',
   'tab.video': 'Video',
   'telemetry.allow': 'Allow',

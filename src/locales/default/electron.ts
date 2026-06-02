@@ -26,6 +26,7 @@ export default {
   'navigation.recentView': 'Recent pages',
   'navigation.resources': 'Resources',
   'navigation.settings': 'Settings',
+  'navigation.studio': 'Studio',
   'navigation.tasks': 'Tasks',
   'navigation.unpin': 'Unpin',
   'notification.finishChatGeneration': 'AI message generation completed',
