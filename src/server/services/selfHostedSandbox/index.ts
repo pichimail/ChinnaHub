@@ -7,7 +7,6 @@ import {
   type SandboxCallToolResult,
   type SandboxExportFileResult,
 } from '@lobechat/builtin-tool-cloud-sandbox';
-import { transform } from 'esbuild';
 import { sha256 } from 'js-sha256';
 import mime from 'mime';
 
@@ -237,7 +236,21 @@ export class SelfHostedSandboxService {
       };
     }
 
-    if (language !== 'javascript' && language !== 'typescript') {
+    if (language === 'typescript') {
+      return {
+        result: {
+          error:
+            'TypeScript server execution is unavailable in the self-hosted fallback. TSX/TS previews are rendered in the browser-side React preview.',
+          exitCode: 1,
+          output: '',
+          stderr:
+            'TypeScript execution requires the isolated Market Cloud Sandbox or precompiled JavaScript.',
+        },
+        success: false,
+      };
+    }
+
+    if (language !== 'javascript') {
       return {
         error: { message: `Unsupported language in self-hosted sandbox fallback: ${language}` },
         result: null,
@@ -245,10 +258,7 @@ export class SelfHostedSandboxService {
       };
     }
 
-    const code =
-      language === 'typescript'
-        ? (await transform(String(params.code || ''), { format: 'cjs', loader: 'ts' })).code
-        : String(params.code || '');
+    const code = String(params.code || '');
     const output = createOutputCapture();
     const context = vm.createContext({
       console: output.console,
