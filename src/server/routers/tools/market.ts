@@ -21,6 +21,7 @@ import {
 } from '@/server/services/mcp/contentProcessor';
 
 import { scheduleToolCallReport } from './_helpers';
+import { getSandboxAuthFailureMessage, isSandboxAuthFailure } from './sandboxAuth';
 
 const log = debug('lobe-server:tools:market');
 
@@ -218,25 +219,16 @@ const execInSandboxHandler = async ({
     if (!response.success) {
       const errorCode = response.error?.code;
       const errorMessage = response.error?.message || 'Unknown error';
-
-      // Check for authentication errors and throw UNAUTHORIZED to trigger market auth flow
-      if (
-        errorCode === 'invalid_token' ||
-        errorCode === 'token_expired' ||
-        errorCode === 'unauthorized' ||
-        errorMessage.toLowerCase().includes('invalid_token') ||
-        errorMessage.toLowerCase().includes('token expired')
-      ) {
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message:
-            'Market authorization expired. An authorization dialog has been shown to the user. Please wait for the user to complete authorization and then retry the current task.',
-        });
-      }
+      const sandboxAuthFailureMessage = isSandboxAuthFailure({
+        code: errorCode,
+        message: errorMessage,
+      })
+        ? getSandboxAuthFailureMessage(errorMessage)
+        : undefined;
 
       return {
         error: {
-          message: errorMessage,
+          message: sandboxAuthFailureMessage || errorMessage,
           name: errorCode,
         },
         result: null,
@@ -253,29 +245,21 @@ const execInSandboxHandler = async ({
   } catch (error) {
     log('execInSandbox error for %s: %O', toolName, error);
 
-    // Re-throw TRPCError as-is (e.g., UNAUTHORIZED from above)
+    // Re-throw TRPCError as-is.
     if (error instanceof TRPCError) {
       throw error;
     }
 
     const errorMessage = (error as Error).message;
-
-    // Check for authentication errors thrown as exceptions
-    if (
-      errorMessage.toLowerCase().includes('invalid_token') ||
-      errorMessage.toLowerCase().includes('token expired') ||
-      errorMessage.toLowerCase().includes('unauthorized')
-    ) {
-      throw new TRPCError({
-        code: 'UNAUTHORIZED',
-        message:
-          'Market authorization expired. An authorization dialog has been shown to the user. Please wait for the user to complete authorization and then retry the current task.',
-      });
-    }
+    const sandboxAuthFailureMessage = isSandboxAuthFailure({
+      message: errorMessage,
+    })
+      ? getSandboxAuthFailureMessage(errorMessage)
+      : undefined;
 
     return {
       error: {
-        message: errorMessage,
+        message: sandboxAuthFailureMessage || errorMessage,
         name: (error as Error).name,
       },
       result: null,
@@ -704,24 +688,15 @@ export const marketRouter = router({
         if (!response.success) {
           const errorCode = response.error?.code;
           const errorMessage = response.error?.message || 'Failed to export file from sandbox';
-
-          // Check for authentication errors and throw UNAUTHORIZED
-          if (
-            errorCode === 'invalid_token' ||
-            errorCode === 'token_expired' ||
-            errorCode === 'unauthorized' ||
-            errorMessage.toLowerCase().includes('invalid_token') ||
-            errorMessage.toLowerCase().includes('token expired')
-          ) {
-            throw new TRPCError({
-              code: 'UNAUTHORIZED',
-              message:
-                'Market authorization expired. An authorization dialog has been shown to the user. Please wait for the user to complete authorization and then retry the current task.',
-            });
-          }
+          const sandboxAuthFailureMessage = isSandboxAuthFailure({
+            code: errorCode,
+            message: errorMessage,
+          })
+            ? getSandboxAuthFailureMessage(errorMessage)
+            : undefined;
 
           return {
-            error: { message: errorMessage },
+            error: { message: sandboxAuthFailureMessage || errorMessage },
             filename,
             success: false,
           } as ExportAndUploadFileResult;
@@ -774,22 +749,14 @@ export const marketRouter = router({
         }
 
         const errorMessage = (error as Error).message;
-
-        // Check for authentication errors
-        if (
-          errorMessage.toLowerCase().includes('invalid_token') ||
-          errorMessage.toLowerCase().includes('token expired') ||
-          errorMessage.toLowerCase().includes('unauthorized')
-        ) {
-          throw new TRPCError({
-            code: 'UNAUTHORIZED',
-            message:
-              'Market authorization expired. An authorization dialog has been shown to the user. Please wait for the user to complete authorization and then retry the current task.',
-          });
-        }
+        const sandboxAuthFailureMessage = isSandboxAuthFailure({
+          message: errorMessage,
+        })
+          ? getSandboxAuthFailureMessage(errorMessage)
+          : undefined;
 
         return {
-          error: { message: errorMessage },
+          error: { message: sandboxAuthFailureMessage || errorMessage },
           filename,
           success: false,
         } as ExportAndUploadFileResult;

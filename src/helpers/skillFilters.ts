@@ -1,4 +1,4 @@
-import { AgentBrowserIdentifier } from '@lobechat/builtin-skills';
+import { AgentBrowserIdentifier, ArtifactsIdentifier } from '@lobechat/builtin-skills';
 import { isDesktop } from '@lobechat/const';
 import { type BuiltinSkill } from '@lobechat/types';
 
@@ -8,6 +8,7 @@ export interface BuiltinSkillFilterContext {
 
 const DESKTOP_ONLY_BUILTIN_SKILLS = new Set([AgentBrowserIdentifier]);
 const USER_HIDDEN_BUILTIN_SKILLS = new Set(['task']);
+const DEFAULT_ACTIVATED_BUILTIN_SKILLS = [ArtifactsIdentifier];
 
 const DEFAULT_CONTEXT: BuiltinSkillFilterContext = {
   isDesktop,
@@ -42,4 +43,8 @@ export const filterBuiltinSkills = (
   return skills.filter((skill) => shouldEnableBuiltinSkill(skill.identifier, context));
 };
 
-export { USER_HIDDEN_BUILTIN_SKILLS };
+export const withDefaultBuiltinSkillIds = (skillIds: string[] = []): string[] => {
+  return [...new Set([...skillIds, ...DEFAULT_ACTIVATED_BUILTIN_SKILLS])];
+};
+
+export { DEFAULT_ACTIVATED_BUILTIN_SKILLS, USER_HIDDEN_BUILTIN_SKILLS };

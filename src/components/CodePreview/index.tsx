@@ -20,7 +20,7 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
   `,
 }));
 
-type CodePreviewType = 'html' | 'react';
+export type CodePreviewType = 'html' | 'react';
 
 interface GetCodePreviewTypeParams {
   fileName?: string;
@@ -32,10 +32,23 @@ export const getCodePreviewType = ({
   language,
 }: GetCodePreviewTypeParams): CodePreviewType | undefined => {
   const normalizedLanguage = language?.toLowerCase();
+  const normalizedFileName = fileName?.toLowerCase();
   const ext = fileName?.split('.').pop()?.toLowerCase();
   const candidates = [normalizedLanguage, ext];
 
-  if (candidates.some((type) => type === 'html' || type === 'htm')) return 'html';
+  if (candidates.some((type) => type === 'html' || type === 'htm' || type === 'text/html')) {
+    return 'html';
+  }
+
+  if (
+    normalizedFileName?.endsWith('.app.jsx') ||
+    normalizedFileName?.endsWith('.app.tsx') ||
+    normalizedFileName === 'app.jsx' ||
+    normalizedFileName === 'app.tsx'
+  ) {
+    return 'react';
+  }
+
   if (
     candidates.some(
       (type) =>
@@ -43,11 +56,18 @@ export const getCodePreviewType = ({
         type === 'tsx' ||
         type === 'react' ||
         type === 'javascriptreact' ||
-        type === 'typescriptreact',
+        type === 'typescriptreact' ||
+        type === 'text/jsx' ||
+        type === 'text/tsx' ||
+        type === 'application/lobe.artifacts.react',
     )
   ) {
     return 'react';
   }
+};
+
+export const isPreviewableWebCode = (params: GetCodePreviewTypeParams): boolean => {
+  return Boolean(getCodePreviewType(params));
 };
 
 interface CodePreviewProps extends GetCodePreviewTypeParams {

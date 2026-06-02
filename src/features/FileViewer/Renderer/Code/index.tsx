@@ -16,7 +16,7 @@ const styles = createStaticStyles(({ css }) => ({
   `,
 }));
 
-const getLanguage = (fileName?: string): string => {
+export const getLanguage = (fileName?: string): string => {
   if (!fileName) return 'txt';
 
   const ext = fileName.toLowerCase().split('.').pop();

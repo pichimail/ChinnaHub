@@ -8,6 +8,7 @@ import MarkdownMessage from '@/features/Conversation/Markdown';
 import { normalizeThinkTags, processWithArtifact } from '../../utils/markdown';
 import ContentLoading from './ContentLoading';
 import { RichContentRenderer } from './RichContentRenderer';
+import RunnableCodePreviews from './RunnableCodePreviews';
 
 const DisplayContent = memo<{
   addIdOnDOM?: boolean;
@@ -41,7 +42,10 @@ const DisplayContent = memo<{
     return contentParts ? (
       <RichContentRenderer parts={contentParts} />
     ) : (
-      <MarkdownMessage {...markdownProps}>{message}</MarkdownMessage>
+      <>
+        <MarkdownMessage {...markdownProps}>{message}</MarkdownMessage>
+        <RunnableCodePreviews content={content} />
+      </>
     );
   },
 );

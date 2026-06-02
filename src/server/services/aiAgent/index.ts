@@ -54,7 +54,7 @@ import { TopicModel } from '@/database/models/topic';
 import { UserModel } from '@/database/models/user';
 import { UserPersonaModel } from '@/database/models/userMemory/persona';
 import { toolsEnv } from '@/envs/tools';
-import { shouldEnableBuiltinSkill } from '@/helpers/skillFilters';
+import { shouldEnableBuiltinSkill, withDefaultBuiltinSkillIds } from '@/helpers/skillFilters';
 import { signOperationJwt, signUserJWT } from '@/libs/trpc/utils/internalJwt';
 import type { EvalContext, ServerAgentToolsContext } from '@/server/modules/Mecha';
 import { createServerAgentToolsEngine } from '@/server/modules/Mecha';
@@ -1892,7 +1892,7 @@ export class AiAgentService {
         enableChecker: (skill) => shouldEnableBuiltinSkill(skill.identifier),
         skills: [...builtinMetas, ...dbMetas],
       });
-      operationSkillSet = skillEngine.generate(agentPlugins ?? []);
+      operationSkillSet = skillEngine.generate(withDefaultBuiltinSkillIds(agentPlugins ?? []));
     } catch (error) {
       log('execAgent: failed to build operationSkillSet: %O', error);
     }

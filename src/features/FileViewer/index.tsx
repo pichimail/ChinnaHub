@@ -3,6 +3,7 @@
 import { type CSSProperties } from 'react';
 import { memo } from 'react';
 
+import { isPreviewableWebCode } from '@/components/CodePreview';
 import MediaFilePreview from '@/components/MediaFilePreview';
 import { type FileListItem } from '@/types/files';
 import { isAudioFile, isVideoFile } from '@/utils/mediaFile';
@@ -12,6 +13,7 @@ import CodeViewer from './Renderer/Code';
 import ImageViewer from './Renderer/Image';
 import MSDocViewer from './Renderer/MSDoc';
 import PDFViewer from './Renderer/PDF';
+import PreviewableCodeViewer from './Renderer/PreviewableCode';
 
 // File type definitions
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'];
@@ -267,6 +269,10 @@ const FileViewer = memo<FileViewerProps>(({ id, style, fileType, url, name }) =>
 
   // Code files (JavaScript, TypeScript, Python, Java, C++, Go, Rust, Markdown, etc.)
   if (matchesFileType(fileType, name, CODE_EXTENSIONS, CODE_MIME_TYPES)) {
+    if (isPreviewableWebCode({ fileName: name, language: fileType })) {
+      return <PreviewableCodeViewer fileId={id} fileName={name} url={url} />;
+    }
+
     return <CodeViewer fileId={id} fileName={name} url={url} />;
   }
 

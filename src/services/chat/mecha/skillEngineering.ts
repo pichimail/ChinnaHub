@@ -1,6 +1,7 @@
 import type { OperationSkillSet } from '@lobechat/context-engine';
 import { SkillEngine } from '@lobechat/context-engine';
 
+import { withDefaultBuiltinSkillIds } from '@/helpers/skillFilters';
 import { isBuiltinSkillAvailableInCurrentEnv } from '@/helpers/toolAvailability';
 import { getToolStoreState } from '@/store/tool';
 
@@ -34,5 +35,5 @@ export const resolveClientSkills = (pluginIds?: string[]): OperationSkillSet => 
     skills: [...builtinMetas, ...dbMetas],
   });
 
-  return skillEngine.generate(pluginIds ?? []);
+  return skillEngine.generate(withDefaultBuiltinSkillIds(pluginIds ?? []));
 };

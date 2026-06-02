@@ -11,6 +11,25 @@ interface ContextWithServerDB {
   userId?: string | null;
 }
 
+interface MarketUserRecord {
+  email?: string | null;
+  fullName?: string | null;
+  username?: string | null;
+}
+
+export const createMarketTrustedUserInfo = (
+  user: MarketUserRecord | null | undefined,
+  userId: string,
+): TrustedClientUserInfo | undefined => {
+  if (!user) return;
+
+  return {
+    email: user.email || '',
+    name: user.fullName || user.username || undefined,
+    userId,
+  };
+};
+
 /**
  * Middleware that fetches user info for Market trusted client authentication
  * This requires serverDatabase middleware to be applied first
@@ -28,17 +47,13 @@ export const marketUserInfo = trpc.middleware(async (opts) => {
   try {
     const user = await UserModel.findById(ctx.serverDB, ctx.userId);
 
-    if (!user || !user.email) {
+    const marketUserInfo = createMarketTrustedUserInfo(user, ctx.userId);
+
+    if (!marketUserInfo) {
       return opts.next({
         ctx: { marketUserInfo: undefined },
       });
     }
-
-    const marketUserInfo: TrustedClientUserInfo = {
-      email: user.email,
-      name: user.fullName || user.username || undefined,
-      userId: ctx.userId,
-    };
 
     // Fetch market access token from user_settings.market
     const userModel = new UserModel(ctx.serverDB, ctx.userId);

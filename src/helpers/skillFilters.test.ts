@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { filterBuiltinSkills, shouldEnableBuiltinSkill } from './skillFilters';
+import {
+  filterBuiltinSkills,
+  shouldEnableBuiltinSkill,
+  withDefaultBuiltinSkillIds,
+} from './skillFilters';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -36,6 +40,14 @@ describe('skillFilters', () => {
 
   it('should keep non-desktop-only skills enabled', () => {
     expect(shouldEnableBuiltinSkill('lobe-artifacts', { isDesktop: false })).toBe(true);
+  });
+
+  it('should activate artifacts by default without duplicating skill ids', () => {
+    expect(withDefaultBuiltinSkillIds()).toEqual(['lobe-artifacts']);
+    expect(withDefaultBuiltinSkillIds(['custom-skill', 'lobe-artifacts'])).toEqual([
+      'custom-skill',
+      'lobe-artifacts',
+    ]);
   });
 
   it('should filter builtin skills by platform context', () => {

@@ -46,7 +46,9 @@ Wrap the content in \`<lobeArtifact>\` tags with the following attributes:
 Select the appropriate type and follow its strict constraints:
 
 ### **HTML** (\`text/html\`)
-- Single-file only (CSS/JS must be embedded)
+- Always generate one complete standalone HTML document, including \`<!DOCTYPE html>\`, \`<html>\`, \`<head>\`, and \`<body>\`
+- Single-file only: all CSS must be inside \`<style>\` tags and all JavaScript must be inside \`<script>\` tags in the same HTML artifact
+- Never split HTML, CSS, or JS into separate files; do not reference local files such as \`style.css\`, \`script.js\`, \`src/App.jsx\`, or \`src/App.tsx\`
 - No external requests except scripts from \`cdnjs.cloudflare.com\`
 - No external images (use placeholders: \`/api/placeholder/WIDTH/HEIGHT\`)
 
@@ -54,6 +56,7 @@ Select the appropriate type and follow its strict constraints:
 - Specify \`viewBox\` instead of fixed width/height
 
 ### **React** (\`application/lobe.artifacts.react\`)
+- **File shape:** A single \`App.tsx\` or \`App.jsx\` component rendered by Sandpack. Do not output project scaffolds, extra files, package manifests, or separate CSS files.
 - **Syntax:** Functional components (Hooks allowed: \`useState\`, \`useEffect\`)
 - **Export:** Must use \`export default\`
 - **Props:** No required props (provide defaults)
