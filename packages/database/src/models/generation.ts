@@ -187,6 +187,12 @@ export class GenerationModel {
       | null;
     if (asset?.type === 'audio' && asset.url) {
       asset.url = await this.fileService.getFullFileUrl(asset.url);
+      if (asset.coverUrl) {
+        asset.coverUrl = await this.fileService.getFullFileUrl(asset.coverUrl);
+      }
+      if (asset.videoUrl) {
+        asset.videoUrl = await this.fileService.getFullFileUrl(asset.videoUrl);
+      }
     } else if (asset && asset.url && 'thumbnailUrl' in asset && asset.thumbnailUrl) {
       const urlPromises: Promise<string>[] = [
         this.fileService.getFullFileUrl(asset.url),

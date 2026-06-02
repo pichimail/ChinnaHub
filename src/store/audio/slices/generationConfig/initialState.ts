@@ -14,8 +14,10 @@ export interface AudioGenerationConfigState {
    * }
    */
   parameters: {
+    artist?: string;
     makeInstrumental?: boolean;
     prompt?: string;
+    modelVersion?: 'V1.0' | 'V2.0' | 'V3.0';
     providerMode?: 'classic' | 'lyria';
     style?: string;
     title?: string;
@@ -27,6 +29,7 @@ export const initialAudioGenerationConfigState: AudioGenerationConfigState = {
   parameters: {
     makeInstrumental: false,
     prompt: '',
+    modelVersion: 'V3.0',
     providerMode: 'classic',
     style: undefined,
     title: undefined,

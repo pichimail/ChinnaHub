@@ -52,7 +52,12 @@ export class AsyncTaskModel {
     const [row] = await db
       .select()
       .from(asyncTasks)
-      .where(sql`${asyncTasks.metadata} ->> 'taskId' = ${taskId}`)
+      .where(
+        or(
+          sql`(${asyncTasks.metadata} ->> 'taskId') = ${taskId}`,
+          sql`(${asyncTasks.metadata} -> 'followUpTaskIds') ? ${taskId}`,
+        ),
+      )
       .orderBy(desc(asyncTasks.createdAt))
       .limit(1);
 

@@ -1,12 +1,21 @@
 import debug from 'debug';
 
+import {
+  type AudioModelVersion,
+  type KieAudioLyrics,
+  type KieAudioTrack,
+  mapAudioModelVersionToKieModel,
+  normalizeKieTracks,
+} from './kie';
+
 const log = debug('lobe-audio:service');
 
 const MUSIC_API_BASE_URL = 'https://api.kie.ai/api/v1';
-const MUSIC_MODEL = 'V5_5';
 
 export interface AudioGenerationParams {
+  artist?: string;
   makeInstrumental?: boolean;
+  modelVersion?: AudioModelVersion;
   prompt: string;
   providerMode?: AudioProviderMode;
   style?: string;
@@ -20,10 +29,53 @@ export interface AudioGenerationResponse {
   duration?: number;
   error?: string;
   id: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   status: 'processing' | 'completed' | 'failed';
   title?: string;
+  tracks?: KieAudioTrack[];
 }
+
+interface KieTaskResponse {
+  code?: number;
+  data?: Record<string, unknown>;
+  msg?: string;
+}
+
+const postKieJson = async <T extends KieTaskResponse>(
+  apiKey: string,
+  path: string,
+  payload: Record<string, unknown>,
+): Promise<T> => {
+  const response = await fetch(`${MUSIC_API_BASE_URL}${path}`, {
+    body: JSON.stringify(payload),
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`KIE AI API error: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+
+  const data = (await response.json()) as T;
+  if (data?.code !== 200) {
+    throw new Error(data?.msg || 'KIE AI API returned non-success response');
+  }
+
+  return data;
+};
+
+const toTaskId = (data: KieTaskResponse): string => {
+  return (
+    (data.data?.taskId as string | undefined) ||
+    (data.data?.task_id as string | undefined) ||
+    (data.data?.id as string | undefined) ||
+    ''
+  );
+};
 
 export class KieAiAudioService {
   private apiKey: string;
@@ -43,12 +95,13 @@ export class KieAiAudioService {
 
     try {
       const customMode = Boolean(params.style?.trim() || params.title?.trim());
+      const model = mapAudioModelVersionToKieModel(params.modelVersion);
 
       const payload = {
         ...(options?.callBackUrl ? { callBackUrl: options.callBackUrl } : {}),
         customMode,
         instrumental: params.makeInstrumental ?? false,
-        model: MUSIC_MODEL,
+        model,
         prompt: params.prompt || params.title || 'instrumental music',
         ...(customMode
           ? {
@@ -60,28 +113,9 @@ export class KieAiAudioService {
 
       log('Sending request to KIE AI API: %O', payload);
 
-      const response = await fetch(`${MUSIC_API_BASE_URL}/generate`, {
-        body: JSON.stringify(payload),
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        method: 'POST',
-      });
+      const data = await postKieJson<KieTaskResponse>('/generate', payload);
+      const taskId = toTaskId(data);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        log('KIE AI API error: %s %s - %s', response.status, response.statusText, errorText);
-        throw new Error(`KIE AI API error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = (await response.json()) as any;
-      if (data?.code !== 200) {
-        throw new Error(data?.msg || 'KIE AI API returned non-success response');
-      }
-
-      const taskId =
-        data?.data?.taskId || data?.data?.task_id || data?.taskId || data?.task_id || '';
       log('Task created successfully: %O', {
         id: taskId || '(empty)',
       });
@@ -116,7 +150,14 @@ export class KieAiAudioService {
       throw new Error(`Poll error: ${response.status}`);
     }
 
-    const data = (await response.json()) as any;
+    const data = (await response.json()) as KieTaskResponse & {
+      data?: {
+        response?: { sunoData?: unknown };
+        status?: string;
+        errorMessage?: string;
+        msg?: string;
+      };
+    };
     if (data?.code && data.code !== 200) {
       throw new Error(data?.msg || `Poll error: code ${String(data?.code)}`);
     }
@@ -124,36 +165,24 @@ export class KieAiAudioService {
     const payload = data?.data || {};
     const responsePayload = payload?.response || {};
     const status = String(payload?.status || '').toUpperCase();
-    const sunoData = Array.isArray(responsePayload?.sunoData) ? responsePayload.sunoData : [];
-    const firstTrack = sunoData.find(
-      (item: any) =>
-        item?.audioUrl ||
-        item?.audio_url ||
-        item?.streamAudioUrl ||
-        item?.stream_audio_url ||
-        item?.url,
-    );
+    const tracks = normalizeKieTracks(responsePayload?.sunoData, taskId);
+    const firstTrack = tracks.find((track) => Boolean(track.audioUrl));
 
-    log('Poll result: %O', { id: taskId, status, trackCount: sunoData.length });
+    log('Poll result: %O', { id: taskId, status, trackCount: tracks.length });
 
     if (status === 'SUCCESS' || status === 'FIRST_SUCCESS') {
       return {
-        audioUrl:
-          firstTrack?.audioUrl ||
-          firstTrack?.audio_url ||
-          firstTrack?.streamAudioUrl ||
-          firstTrack?.stream_audio_url ||
-          firstTrack?.url ||
-          '',
+        audioUrl: firstTrack?.audioUrl || '',
         duration: firstTrack?.duration,
         id: taskId,
         metadata: {
-          clipId: firstTrack?.id,
           raw: data,
-          title: firstTrack?.title,
+          stage: status,
+          trackCount: tracks.length,
         },
-        status: 'completed',
+        status: status === 'SUCCESS' ? 'completed' : 'processing',
         title: firstTrack?.title,
+        tracks,
       };
     }
 
@@ -175,6 +204,112 @@ export class KieAiAudioService {
     return {
       id: taskId,
       metadata: { raw: data },
+      status: 'processing',
+      tracks,
+    };
+  }
+
+  async getTimestampedLyrics(
+    taskId: string,
+    audioId: string,
+  ): Promise<{
+    id: string;
+    lyrics?: KieAudioLyrics;
+    metadata?: Record<string, unknown>;
+    status: 'completed' | 'failed';
+  }> {
+    const data = await postKieJson<KieTaskResponse>('/generate/get-timestamped-lyrics', {
+      audioId,
+      taskId,
+    });
+
+    const lyrics = data.data
+      ? {
+          alignedWords: Array.isArray(data.data.alignedWords)
+            ? (data.data.alignedWords as KieAudioLyrics['alignedWords'])
+            : undefined,
+          isStreamed: data.data.isStreamed as boolean | undefined,
+          raw: data.data,
+          waveformData: Array.isArray(data.data.waveformData)
+            ? (data.data.waveformData as number[])
+            : undefined,
+        }
+      : undefined;
+
+    return {
+      id: audioId,
+      lyrics,
+      metadata: {
+        raw: data,
+        taskId,
+      },
+      status: 'completed',
+    };
+  }
+
+  async generateMusicCover(
+    taskId: string,
+    options?: { callBackUrl?: string },
+  ): Promise<AudioGenerationResponse> {
+    const data = await postKieJson<KieTaskResponse>('/suno/cover/generate', {
+      ...(options?.callBackUrl ? { callBackUrl: options.callBackUrl } : {}),
+      taskId,
+    });
+
+    return {
+      id: toTaskId(data) || taskId,
+      metadata: {
+        raw: data,
+        taskId,
+      },
+      status: 'processing',
+    };
+  }
+
+  async separateVocals(
+    taskId: string,
+    audioId: string,
+    options?: {
+      callBackUrl?: string;
+      type?: 'separate_vocal' | 'split_stem';
+    },
+  ): Promise<AudioGenerationResponse> {
+    const data = await postKieJson<KieTaskResponse>('/vocal-removal/generate', {
+      ...(options?.callBackUrl ? { callBackUrl: options.callBackUrl } : {}),
+      audioId,
+      taskId,
+      type: options?.type || 'separate_vocal',
+    });
+
+    return {
+      id: toTaskId(data) || taskId,
+      metadata: {
+        raw: data,
+        taskId,
+      },
+      status: 'processing',
+    };
+  }
+
+  async createMusicVideo(
+    taskId: string,
+    audioId: string,
+    options?: { author?: string; callBackUrl?: string; domainName?: string },
+  ): Promise<AudioGenerationResponse> {
+    const data = await postKieJson<KieTaskResponse>('/mp4/generate', {
+      ...(options?.author ? { author: options.author } : {}),
+      ...(options?.callBackUrl ? { callBackUrl: options.callBackUrl } : {}),
+      ...(options?.domainName ? { domainName: options.domainName } : {}),
+      audioId,
+      taskId,
+    });
+
+    return {
+      id: toTaskId(data) || taskId,
+      metadata: {
+        raw: data,
+        taskId,
+      },
       status: 'processing',
     };
   }
@@ -240,7 +375,7 @@ export class OpenRouterLyriaAudioService {
     return {
       audioUrl,
       duration: data.duration,
-      id: data.id || crypto.randomUUID(),
+      id: data.id || globalThis.crypto.randomUUID(),
       metadata: { raw: data },
       status: 'completed',
       title: params.title,

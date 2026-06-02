@@ -62,7 +62,9 @@ export class CreateAudioActionImpl {
 
       const result = await audioService.createAudio({
         parameters: {
+          artist: parameters.artist,
           makeInstrumental: parameters.makeInstrumental,
+          modelVersion: parameters.modelVersion,
           prompt: parameters.prompt,
           providerMode: parameters.providerMode,
           style: parameters.style,
@@ -84,7 +86,6 @@ export class CreateAudioActionImpl {
             void this.pollAudioStatus({
               asyncTaskId: result.data.asyncTaskId,
               batchId: result.data.batch.id,
-              generationId: generation.id,
               topicId: finalTopicId,
             });
           }
@@ -109,12 +110,10 @@ export class CreateAudioActionImpl {
   pollAudioStatus = async ({
     asyncTaskId,
     batchId,
-    generationId,
     topicId,
   }: {
     asyncTaskId: string;
     batchId: string;
-    generationId: string;
     topicId: string;
   }): Promise<void> => {
     const maxAttempts = 120;
@@ -122,8 +121,8 @@ export class CreateAudioActionImpl {
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 5000));
 
-      const status = await audioService.getAudioStatus(asyncTaskId, generationId);
-      if (status.generation) {
+      const status = await audioService.getAudioStatus(asyncTaskId);
+      if (status.generations?.length) {
         const batches = this.#get().generationBatchesMap[topicId] || [];
         const batch = batches.find((item) => item.id === batchId);
 
@@ -132,8 +131,11 @@ export class CreateAudioActionImpl {
             topicId,
             {
               ...batch,
-              generations: batch.generations.map((generation) =>
-                generation.id === generationId ? status.generation! : generation,
+              generations: batch.generations.map(
+                (generation) =>
+                  status.generations!.find(
+                    (updatedGeneration) => updatedGeneration.id === generation.id,
+                  ) || generation,
               ),
             },
             'createAudio/updatePolledGeneration',

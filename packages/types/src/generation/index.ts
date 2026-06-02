@@ -47,6 +47,26 @@ export interface VideoGenerationAsset extends BaseGenerationAsset {
 
 export interface AudioGenerationAsset extends BaseGenerationAsset {
   /**
+   * Artist credit shown in the UI and download filename.
+   */
+  artist?: string;
+  /**
+   * Provider-assigned audio variation identifier.
+   */
+  audioId?: string;
+  /**
+   * Track order within the current generation batch.
+   */
+  clipIndex?: number;
+  /**
+   * Follow-up music cover generation task ID.
+   */
+  coverTaskId?: string;
+  /**
+   * Cover art stored in OSS or returned by the provider.
+   */
+  coverUrl?: string;
+  /**
    * Duration of the audio in seconds
    */
   duration?: number;
@@ -55,13 +75,60 @@ export interface AudioGenerationAsset extends BaseGenerationAsset {
    */
   fileId?: string;
   /**
+   * Timestamped lyric payload generated from the provider.
+   */
+  lyrics?: {
+    alignedWords?: {
+      endS?: number;
+      palign?: number;
+      startS?: number;
+      success?: boolean;
+      word: string;
+    }[];
+    isStreamed?: boolean;
+    raw?: Record<string, unknown>;
+    waveformData?: number[];
+  };
+  /**
+   * Follow-up timestamped lyrics request ID.
+   */
+  lyricsTaskId?: string;
+  /**
+   * Optional additional provider metadata.
+   */
+  metadata?: Record<string, unknown>;
+  /**
+   * Kie/Suno generation model version shown in the UI.
+   */
+  modelVersion?: 'V1.0' | 'V2.0' | 'V3.0';
+  /**
    * CDN URL from the API provider, typically expires quickly
    */
   originalUrl?: string;
   /**
+   * Provider task ID for the parent music generation job.
+   */
+  parentTaskId?: string;
+  /**
+   * Display title for the track.
+   */
+  title?: string;
+  /**
    * URL stored in own OSS
    */
   url?: string;
+  /**
+   * Follow-up music video task ID.
+   */
+  videoTaskId?: string;
+  /**
+   * Music video file URL or storage key.
+   */
+  videoUrl?: string;
+  /**
+   * Follow-up stem separation task ID.
+   */
+  vocalsTaskId?: string;
 }
 
 export type GenerationAsset = ImageGenerationAsset | VideoGenerationAsset | AudioGenerationAsset;
@@ -75,6 +142,7 @@ export interface AudioGenerationTopic {
 }
 
 export interface GenerationConfig {
+  artist?: string;
   aspectRatio?: string;
   cfg?: number;
   duration?: number; // For audio: 15-120 seconds
@@ -82,6 +150,10 @@ export interface GenerationConfig {
   height?: number;
   imageUrl?: string | null;
   imageUrls?: string[];
+  /**
+   * Visible audio model version in the UI.
+   */
+  modelVersion?: 'V1.0' | 'V2.0' | 'V3.0';
   musicStyle?: string; // For audio: pop|rock|jazz|lo-fi|classical|ambient|hip-hop
   prompt: string;
   resolution?: string;

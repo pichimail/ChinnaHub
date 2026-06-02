@@ -1,9 +1,9 @@
 'use client';
 
 import { Flexbox, Segmented, Text } from '@lobehub/ui';
-import { Input, Select, Switch } from 'antd';
+import { Collapse, Input, Select, Switch } from 'antd';
 import { Music2 } from 'lucide-react';
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { loginRequired } from '@/components/Error/loginRequiredNotification';
@@ -15,7 +15,7 @@ import {
 } from '@/routes/(main)/(create)/features/GenerationInput';
 import { audioGenerationConfigSelectors, createAudioSelectors, useAudioStore } from '@/store/audio';
 import { useUserStore } from '@/store/user';
-import { authSelectors } from '@/store/user/slices/auth/selectors';
+import { authSelectors, userProfileSelectors } from '@/store/user/slices/auth/selectors';
 
 import PromptTitle from './Title';
 
@@ -44,9 +44,13 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
   const isInit = useAudioStore(audioGenerationConfigSelectors.isInit);
   const isCreating = useAudioStore(createAudioSelectors.isCreating);
   const isLogin = useUserStore(authSelectors.isLogin);
+  const username = useUserStore(userProfileSelectors.username);
+  const hasSetDefaultArtist = useRef(false);
   const {
     createAudio,
     initializeAudioConfig,
+    setAudioArtist,
+    setAudioModelVersion,
     setAudioPrompt,
     setAudioProviderMode,
     setAudioStyle,
@@ -57,6 +61,15 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
   useEffect(() => {
     if (!isInit) initializeAudioConfig();
   }, [initializeAudioConfig, isInit]);
+
+  useEffect(() => {
+    if (hasSetDefaultArtist.current) return;
+
+    if (username && username !== 'anonymous' && !parameters.artist) {
+      setAudioArtist(username);
+      hasSetDefaultArtist.current = true;
+    }
+  }, [parameters.artist, setAudioArtist, username]);
 
   const handleGenerate = async () => {
     if (!isLogin) {
@@ -83,24 +96,61 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
             <GenerationMediaModeSegment mode={'audio'} />
             <Action
               icon={Music2}
-              title={'Accoustica settings'}
+              title={t('generation.settings')}
               trigger={'click'}
               popover={{
                 content: (
                   <Flexbox gap={12} style={{ minWidth: 280 }}>
                     <Flexbox gap={6}>
-                      <Text fontSize={12}>Model</Text>
+                      <Text fontSize={12}>{t('generation.modelVersion')}</Text>
                       <Segmented
                         block
-                        value={parameters.providerMode || 'classic'}
+                        value={parameters.modelVersion || 'V3.0'}
                         variant="filled"
                         options={[
-                          { label: 'Accoustica Classic', value: 'classic' },
-                          { label: 'Accoustica Lyria', value: 'lyria' },
+                          { label: 'V1.0', value: 'V1.0' },
+                          { label: 'V2.0', value: 'V2.0' },
+                          { label: 'V3.0', value: 'V3.0' },
                         ]}
-                        onChange={(value) => setAudioProviderMode(value as 'classic' | 'lyria')}
+                        onChange={(value) =>
+                          setAudioModelVersion(value as 'V1.0' | 'V2.0' | 'V3.0')
+                        }
                       />
                     </Flexbox>
+                    <Collapse
+                      bordered={false}
+                      defaultActiveKey={[]}
+                      items={[
+                        {
+                          children: (
+                            <Flexbox gap={12} style={{ paddingTop: 4 }}>
+                              <Text fontSize={12}>{t('generation.providerMode')}</Text>
+                              <Select
+                                value={parameters.providerMode || 'classic'}
+                                options={[
+                                  {
+                                    label: t('generation.providerMode.classic'),
+                                    value: 'classic',
+                                  },
+                                  {
+                                    label: t('generation.providerMode.lyria'),
+                                    value: 'lyria',
+                                  },
+                                ]}
+                                onChange={(value) =>
+                                  setAudioProviderMode(value as 'classic' | 'lyria')
+                                }
+                              />
+                              <Text fontSize={11} type="secondary">
+                                {t('generation.providerModeHint')}
+                              </Text>
+                            </Flexbox>
+                          ),
+                          key: 'advanced',
+                          label: t('generation.advanced'),
+                        },
+                      ]}
+                    />
                     <Flexbox gap={6}>
                       <Text fontSize={12}>{t('generation.style')}</Text>
                       <Select
@@ -119,6 +169,14 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
                         onChange={(event) => setAudioTitle(event.target.value)}
                       />
                     </Flexbox>
+                    <Flexbox gap={6}>
+                      <Text fontSize={12}>{t('generation.artist')}</Text>
+                      <Input
+                        placeholder={t('generation.artistPlaceholder')}
+                        value={parameters.artist || ''}
+                        onChange={(event) => setAudioArtist(event.target.value)}
+                      />
+                    </Flexbox>
                     <Flexbox horizontal align="center" justify="space-between">
                       <Text fontSize={12}>{t('generation.instrumental')}</Text>
                       <Switch
@@ -129,7 +187,7 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
                   </Flexbox>
                 ),
                 minWidth: 320,
-                title: 'Accoustica',
+                title: t('generation.settings'),
               }}
             />
           </Flexbox>

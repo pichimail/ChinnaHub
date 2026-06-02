@@ -1,4 +1,4 @@
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual } from 'node:crypto';
 
 import { AsyncTaskError, AsyncTaskErrorType, AsyncTaskStatus, FileSource } from '@lobechat/types';
 import debug from 'debug';
@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { GenerationModel } from '@/database/models/generation';
 import { getServerDB } from '@/database/server';
+import { normalizeKieTracks, persistKieTrack } from '@/server/services/audio/kie';
 import { FileService } from '@/server/services/file';
 
 const log = debug('lobe-audio:webhook');
@@ -20,18 +21,13 @@ const safeCompare = (a: string, b: string): boolean => {
   return timingSafeEqual(bufA, bufB);
 };
 
-const getFirstTrackFromCallback = (body: any) => {
-  const data = body?.data?.data;
-  if (!Array.isArray(data)) return undefined;
+const getFollowUpGenerationId = (
+  metadata: Record<string, any>,
+  taskId: string,
+): string | undefined => {
+  const followUpTaskMap = metadata.followUpTaskMap as Record<string, string> | undefined;
 
-  return data.find(
-    (item) =>
-      item?.audioUrl ||
-      item?.audio_url ||
-      item?.streamAudioUrl ||
-      item?.stream_audio_url ||
-      item?.url,
-  );
+  return followUpTaskMap?.[taskId];
 };
 
 export const POST = async (req: Request) => {
@@ -69,6 +65,95 @@ export const POST = async (req: Request) => {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const followUpGenerationId = getFollowUpGenerationId(metadata, taskId);
+    const isFollowUpTask = Boolean(followUpGenerationId);
+
+    if (
+      (asyncTask.status === AsyncTaskStatus.Success ||
+        asyncTask.status === AsyncTaskStatus.Error) &&
+      !isFollowUpTask
+    ) {
+      return NextResponse.json({ success: true });
+    }
+
+    const asyncTaskModel = new AsyncTaskModel(db, asyncTask.userId);
+    const generationModel = new GenerationModel(db, asyncTask.userId);
+    const fileService = new FileService(db, asyncTask.userId);
+    const generationIds = Array.isArray(metadata.generationIds) ? metadata.generationIds : [];
+    const tracks = normalizeKieTracks(body?.data?.data, taskId, metadata.artist);
+    const callbackStage = String(body?.data?.status || body?.status || '').toUpperCase();
+
+    if (isFollowUpTask && body?.code === 200 && followUpGenerationId) {
+      const generation = await generationModel.findByIdWithAsyncTask(followUpGenerationId);
+      if (generation) {
+        const asset = (generation.asset || {}) as Record<string, any>;
+
+        if (Array.isArray(body?.data?.images) && body.data.images.length > 0) {
+          const coverUrl = body.data.images[0];
+          const coverExtension = coverUrl.split('?')[0].split('.').pop() || 'png';
+          const coverPath = `generations/audio/${asyncTask.userId}/cover/${taskId}.${coverExtension}`;
+          const coverFile = await fileService.uploadFromUrl(
+            coverUrl,
+            coverPath,
+            FileSource.ImageGeneration,
+          );
+
+          await generationModel.update(followUpGenerationId, {
+            asset: {
+              ...asset,
+              coverUrl: coverFile.key,
+              metadata: {
+                ...asset.metadata,
+                coverImages: body.data.images,
+                coverTaskId: taskId,
+              },
+            },
+          });
+        } else if (body?.data?.video_url || body?.data?.videoUrl) {
+          const videoUrl = body.data.video_url || body.data.videoUrl;
+          const videoExtension = videoUrl.split('?')[0].split('.').pop() || 'mp4';
+          const videoPath = `generations/audio/${asyncTask.userId}/video/${taskId}.${videoExtension}`;
+          const videoFile = await fileService.uploadFromUrl(
+            videoUrl,
+            videoPath,
+            FileSource.VideoGeneration,
+          );
+
+          await generationModel.update(followUpGenerationId, {
+            asset: {
+              ...asset,
+              metadata: {
+                ...asset.metadata,
+                videoTaskId: taskId,
+                videoUrl: videoFile.key,
+              },
+              videoTaskId: taskId,
+              videoUrl: videoFile.key,
+            },
+          });
+        } else if (Array.isArray(body?.data?.data)) {
+          await generationModel.update(followUpGenerationId, {
+            asset: {
+              ...asset,
+              metadata: {
+                ...asset.metadata,
+                followUpCallback: body,
+              },
+            },
+          });
+        }
+      }
+
+      await asyncTaskModel.update(asyncTask.id, {
+        metadata: {
+          ...metadata,
+          rawCallback: body,
+        },
+      });
+
+      return NextResponse.json({ success: true });
+    }
+
     if (
       asyncTask.status === AsyncTaskStatus.Success ||
       asyncTask.status === AsyncTaskStatus.Error
@@ -76,56 +161,49 @@ export const POST = async (req: Request) => {
       return NextResponse.json({ success: true });
     }
 
-    const asyncTaskModel = new AsyncTaskModel(db, asyncTask.userId);
-    const generationModel = new GenerationModel(db, asyncTask.userId);
-    const generation = await generationModel.findByAsyncTaskId(asyncTask.id);
+    if (body?.code === 200 && tracks.length > 0 && generationIds.length > 0) {
+      let nextMetadata = {
+        ...metadata,
+        rawCallback: body,
+        tracks,
+      };
 
-    if (!generation) {
-      return NextResponse.json(
-        { error: `Generation not found for asyncTaskId=${asyncTask.id}` },
-        { status: 404 },
-      );
-    }
+      for (const [index, generationId] of generationIds.entries()) {
+        const track = tracks[index];
+        if (!track?.audioUrl) continue;
 
-    const firstTrack = getFirstTrackFromCallback(body);
-    const audioUrl =
-      firstTrack?.audioUrl ||
-      firstTrack?.audio_url ||
-      firstTrack?.streamAudioUrl ||
-      firstTrack?.stream_audio_url ||
-      firstTrack?.url ||
-      '';
+        nextMetadata = await persistKieTrack({
+          fileService,
+          generationId,
+          generationModel,
+          metadata: nextMetadata,
+          track,
+          userId: asyncTask.userId,
+        });
+      }
 
-    if (body?.code === 200 && audioUrl) {
-      const fileService = new FileService(db, asyncTask.userId);
-      const extension = audioUrl.split('?')[0].split('.').pop() || 'mp3';
-      const safeExtension = extension.length > 8 ? 'mp3' : extension;
-      const pathname = `generations/audio/${asyncTask.userId}/${randomUUID()}.${safeExtension}`;
-      const file = await fileService.uploadFromUrl(audioUrl, pathname, FileSource.AudioGeneration);
+      const allTracksReady =
+        callbackStage === 'COMPLETE' &&
+        generationIds.every((generationId, index) => {
+          return Boolean(tracks[index]?.audioUrl);
+        });
 
-      await generationModel.update(generation.id, {
-        asset: {
-          duration: firstTrack?.duration,
-          fileId: file.fileId,
-          originalUrl: audioUrl,
-          type: 'audio',
-          url: file.key,
-        },
-        fileId: file.fileId,
+      await asyncTaskModel.update(asyncTask.id, {
+        metadata: nextMetadata,
+        status: allTracksReady ? AsyncTaskStatus.Success : AsyncTaskStatus.Processing,
       });
 
+      return NextResponse.json({ success: true });
+    }
+
+    if (body?.code === 200) {
       await asyncTaskModel.update(asyncTask.id, {
         metadata: {
           ...metadata,
-          audioUrl: file.key,
-          duration: firstTrack?.duration,
-          fileId: file.fileId,
-          originalUrl: audioUrl,
           rawCallback: body,
+          tracks,
         },
-        status: AsyncTaskStatus.Success,
       });
-
       return NextResponse.json({ success: true });
     }
 
@@ -137,6 +215,7 @@ export const POST = async (req: Request) => {
       metadata: {
         ...metadata,
         rawCallback: body,
+        tracks,
       },
       status: AsyncTaskStatus.Error,
     });

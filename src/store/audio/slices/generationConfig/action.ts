@@ -44,8 +44,16 @@ export class AudioGenerationConfigActionImpl {
     this.setAudioParameters({ style });
   };
 
+  setAudioModelVersion = (modelVersion: 'V1.0' | 'V2.0' | 'V3.0'): void => {
+    this.setAudioParameters({ modelVersion });
+  };
+
   setAudioTitle = (title?: string): void => {
     this.setAudioParameters({ title });
+  };
+
+  setAudioArtist = (artist?: string): void => {
+    this.setAudioParameters({ artist });
   };
 
   setMakeInstrumental = (makeInstrumental: boolean): void => {

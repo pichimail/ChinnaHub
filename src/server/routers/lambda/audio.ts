@@ -1,6 +1,6 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 
-import { AsyncTaskStatus, AsyncTaskType, FileSource } from '@lobechat/types';
+import { AsyncTaskStatus, AsyncTaskType } from '@lobechat/types';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
@@ -19,28 +19,40 @@ import {
   writeGovernanceEnforcementAudit,
 } from '@/server/services/admin/runtimeGovernance';
 import {
+  type AudioGenerationAsset,
   type AudioGenerationParams,
-  type AudioGenerationResponse,
+  type AudioModelVersion,
   type AudioProviderMode,
   KieAiAudioService,
   OpenRouterLyriaAudioService,
 } from '@/server/services/audio';
+import {
+  type KieAudioTrack,
+  mapAudioModelVersionToKieModel,
+  persistKieTrack,
+} from '@/server/services/audio/kie';
 import { FileService } from '@/server/services/file';
 
 const CLASSIC_PROVIDER = 'kie-ai';
-const CLASSIC_MODEL = 'V5_5';
+const DEFAULT_CLASSIC_MODEL_VERSION: AudioModelVersion = 'V3.0';
 const LYRIA_PROVIDER = 'openrouter';
 const DEFAULT_LYRIA_MODEL = 'google/lyria-002';
 
 type AudioTaskMetadata = {
   audioUrl?: string;
+  artist?: string;
   duration?: number;
   fileId?: string;
   model: string;
+  modelVersion?: AudioModelVersion;
   originalUrl?: string;
+  generationIds?: string[];
+  followUpTaskIds?: string[];
+  followUpTaskMap?: Record<string, string>;
   parameters: AudioGenerationParams;
   provider: string;
   providerMode: AudioProviderMode;
+  tracks?: KieAudioTrack[];
   taskId: string;
   webhookToken?: string;
 };
@@ -66,6 +78,7 @@ export type CreateAudioServicePayload = {
 const createAudioService = async (
   db: any,
   providerMode: AudioProviderMode,
+  modelVersion?: AudioModelVersion,
 ): Promise<{
   model: string;
   provider: string;
@@ -96,6 +109,7 @@ const createAudioService = async (
     };
   }
 
+  const model = mapAudioModelVersionToKieModel(modelVersion || DEFAULT_CLASSIC_MODEL_VERSION);
   const [managedKey, managedEnvKey] = await Promise.all([
     getManagedApiKey(db, 'audio_generation'),
     getManagedEnvVar(db, 'KIE_AI_API_KEY', 'audio'),
@@ -110,51 +124,102 @@ const createAudioService = async (
   }
 
   return {
-    model: CLASSIC_MODEL,
+    model,
     provider: CLASSIC_PROVIDER,
     service: new KieAiAudioService(apiKey),
   };
 };
 
-const persistCompletedAudio = async ({
+const buildKieCallbackUrl = (webhookToken?: string): string | undefined => {
+  const callbackBaseUrl = process.env.WEBHOOK_PROXY_URL || process.env.APP_URL;
+
+  if (!callbackBaseUrl || !webhookToken) return undefined;
+
+  return `${callbackBaseUrl.replace(/\/+$/, '')}/api/webhooks/audio/kie?token=${webhookToken}`;
+};
+
+const appendFollowUpTaskId = async (
+  asyncTaskModel: AsyncTaskModel,
+  asyncTaskId: string,
+  taskId: string,
+  generationId: string,
+): Promise<void> => {
+  if (!asyncTaskId) return;
+
+  const asyncTask = await asyncTaskModel.findById(asyncTaskId);
+  if (!asyncTask) return;
+
+  const metadata = (asyncTask.metadata || {}) as AudioTaskMetadata;
+  const followUpTaskIds = Array.from(
+    new Set([...(metadata.followUpTaskIds || []), taskId].filter(Boolean)),
+  );
+  const followUpTaskMap = {
+    ...metadata.followUpTaskMap,
+    [taskId]: generationId,
+  };
+
+  await asyncTaskModel.update(asyncTaskId, {
+    metadata: {
+      ...metadata,
+      followUpTaskIds,
+      followUpTaskMap,
+    } satisfies AudioTaskMetadata,
+  });
+};
+
+const persistCompletedAudioTrack = async ({
   ctx,
   generationId,
   metadata,
-  response,
+  track,
 }: {
   ctx: any;
   generationId: string;
   metadata: AudioTaskMetadata;
-  response: AudioGenerationResponse;
+  track: KieAudioTrack;
 }) => {
-  if (!response.audioUrl) return metadata;
-
-  const extension = response.audioUrl.split('?')[0].split('.').pop() || 'mp3';
-  const safeExtension = extension.length > 8 ? 'mp3' : extension;
-  const pathname = `generations/audio/${ctx.userId}/${randomUUID()}.${safeExtension}`;
-  const file = await ctx.fileService.uploadFromUrl(
-    response.audioUrl,
-    pathname,
-    FileSource.AudioGeneration,
-  );
-
-  await ctx.generationModel.update(generationId, {
-    asset: {
-      duration: response.duration,
-      fileId: file.fileId,
-      originalUrl: response.audioUrl,
-      type: 'audio',
-      url: file.key,
-    },
-    fileId: file.fileId,
+  return await persistKieTrack({
+    fileService: ctx.fileService,
+    generationId,
+    generationModel: ctx.generationModel,
+    metadata,
+    track,
+    userId: ctx.userId,
   });
+};
+
+const getTrackContext = async (ctx: any, generationId: string) => {
+  const generation = await ctx.generationModel.findByIdWithAsyncTask(generationId);
+  if (!generation) {
+    throw new TRPCError({
+      code: 'NOT_FOUND',
+      message: 'Generation not found',
+    });
+  }
+
+  const metadata = generation.asyncTask?.metadata as AudioTaskMetadata | undefined;
+  if (!metadata?.taskId || !metadata.providerMode) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: 'Audio generation metadata is missing',
+    });
+  }
+
+  const asset = (generation.asset || {}) as AudioGenerationAsset;
+  const audioId = asset.audioId || metadata.generationIds?.[0];
+
+  if (!audioId) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: 'Audio track identifier is missing',
+    });
+  }
 
   return {
-    ...metadata,
-    audioUrl: file.key,
-    duration: response.duration,
-    fileId: file.fileId,
-    originalUrl: response.audioUrl,
+    asset,
+    audioId,
+    asyncTaskId: generation.asyncTaskId || '',
+    metadata,
   };
 };
 
@@ -163,8 +228,10 @@ export const audioRouter = router({
     .input(
       z.object({
         parameters: z.object({
+          artist: z.string().optional(),
           makeInstrumental: z.boolean().optional(),
           prompt: z.string().min(1, 'Prompt is required'),
+          modelVersion: z.enum(['V1.0', 'V2.0', 'V3.0']).optional(),
           providerMode: z.enum(['classic', 'lyria']).optional(),
           style: z.string().optional(),
           title: z.string().optional(),
@@ -175,6 +242,8 @@ export const audioRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const providerMode = input.parameters.providerMode || 'classic';
+        const modelVersion = input.parameters.modelVersion || DEFAULT_CLASSIC_MODEL_VERSION;
+        const classicModel = mapAudioModelVersionToKieModel(modelVersion);
         const featureKey =
           providerMode === 'lyria' ? 'audio_accoustica_lyria' : 'audio_accoustica_classic';
 
@@ -186,7 +255,7 @@ export const audioRouter = router({
           }),
           enforceUserFeatureAccess(ctx.serverDB, {
             flagKey: featureKey,
-            label: providerMode === 'lyria' ? 'Accoustica Lyria' : 'Accoustica Classic',
+            label: providerMode === 'lyria' ? 'Accoustica Lyria' : 'Accoustica Kie/Suno',
             userId: ctx.userId,
           }),
         ]);
@@ -202,7 +271,7 @@ export const audioRouter = router({
         const target =
           providerMode === 'lyria'
             ? 'provider:openrouter:model:lyria'
-            : `provider:kie-ai:model:${CLASSIC_MODEL}`;
+            : `provider:kie-ai:model:${classicModel}`;
 
         const audioPolicy = await enforceGovernancePolicy(ctx.serverDB, {
           domain: 'audio',
@@ -292,7 +361,11 @@ export const audioRouter = router({
           });
         }
 
-        const { model, provider, service } = await createAudioService(ctx.serverDB, providerMode);
+        const { model, provider, service } = await createAudioService(
+          ctx.serverDB,
+          providerMode,
+          modelVersion,
+        );
         const providerPolicy = await enforceProviderAvailability(ctx.serverDB, {
           model,
           provider,
@@ -308,11 +381,7 @@ export const audioRouter = router({
 
         const webhookToken =
           providerMode === 'classic' ? randomBytes(32).toString('hex') : undefined;
-        const callbackBaseUrl = process.env.WEBHOOK_PROXY_URL || process.env.APP_URL;
-        const callbackUrl =
-          providerMode === 'classic' && callbackBaseUrl
-            ? `${callbackBaseUrl.replace(/\/+$/, '')}/api/webhooks/audio/kie?token=${webhookToken}`
-            : undefined;
+        const callbackUrl = buildKieCallbackUrl(webhookToken);
 
         const musicResponse = await service.createMusic(input.parameters, {
           callBackUrl: callbackUrl,
@@ -327,7 +396,12 @@ export const audioRouter = router({
 
         const asyncTaskId = await ctx.asyncTaskModel.create({
           metadata: {
+            artist: input.parameters.artist,
+            generationIds: [],
+            followUpTaskIds: [],
+            followUpTaskMap: {},
             model,
+            modelVersion,
             parameters: input.parameters,
             provider,
             providerMode,
@@ -349,33 +423,77 @@ export const audioRouter = router({
           provider,
         });
 
-        const generation = await ctx.generationModel.create({
-          asyncTaskId,
-          generationBatchId: batch.id,
-          seed: null,
+        const generationCount = providerMode === 'classic' ? 2 : 1;
+        const generations = await Promise.all(
+          Array.from({ length: generationCount }, async () =>
+            ctx.generationModel.create({
+              asyncTaskId,
+              generationBatchId: batch.id,
+              seed: null,
+            }),
+          ),
+        );
+
+        await ctx.asyncTaskModel.update(asyncTaskId, {
+          metadata: {
+            artist: input.parameters.artist,
+            generationIds: generations.map((generation) => generation.id),
+            followUpTaskIds: [],
+            followUpTaskMap: {},
+            model,
+            modelVersion,
+            parameters: input.parameters,
+            provider,
+            providerMode,
+            taskId: musicResponse.id,
+            webhookToken,
+          } satisfies AudioTaskMetadata,
         });
 
-        if (musicResponse.status === 'completed' && musicResponse.audioUrl) {
-          const metadata = await persistCompletedAudio({
+        if (
+          providerMode === 'lyria' &&
+          musicResponse.status === 'completed' &&
+          musicResponse.audioUrl &&
+          generations[0]
+        ) {
+          const synthesizedTrack: KieAudioTrack = {
+            artist: input.parameters.artist || 'ChinnaHub',
+            audioId: generations[0].id,
+            audioUrl: musicResponse.audioUrl,
+            duration: musicResponse.duration,
+            parentTaskId: musicResponse.id,
+            taskId: musicResponse.id,
+            title: input.parameters.title || input.parameters.prompt,
+          };
+
+          const persistedMetadata = await persistCompletedAudioTrack({
             ctx,
-            generationId: generation.id,
+            generationId: generations[0].id,
             metadata: {
+              artist: input.parameters.artist,
+              generationIds: generations.map((generation) => generation.id),
+              followUpTaskIds: [],
+              followUpTaskMap: {},
               model,
+              modelVersion,
               parameters: input.parameters,
               provider,
               providerMode,
               taskId: musicResponse.id,
               webhookToken,
             },
-            response: musicResponse,
+            track: synthesizedTrack,
           });
+
           await ctx.asyncTaskModel.update(asyncTaskId, {
-            metadata,
+            metadata: persistedMetadata satisfies AudioTaskMetadata,
             status: AsyncTaskStatus.Success,
           });
         }
 
-        const transformed = await ctx.generationModel.findByIdAndTransform(generation.id);
+        const transformedGenerations = await Promise.all(
+          generations.map((generation) => ctx.generationModel.findByIdAndTransform(generation.id)),
+        );
 
         return {
           data: {
@@ -383,13 +501,13 @@ export const audioRouter = router({
             batch: {
               config: input.parameters,
               createdAt: batch.createdAt,
-              generations: transformed ? [transformed] : [],
+              generations: transformedGenerations.filter(Boolean),
               id: batch.id,
               model: batch.model,
               prompt: batch.prompt,
               provider: batch.provider,
             },
-            generations: transformed ? [transformed] : [],
+            generations: transformedGenerations.filter(Boolean),
           },
           success: true,
         };
@@ -411,7 +529,6 @@ export const audioRouter = router({
     .input(
       z.object({
         asyncTaskId: z.string(),
-        generationId: z.string(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -425,25 +542,62 @@ export const audioRouter = router({
           });
         }
 
+        const metadata = asyncTask.metadata as AudioTaskMetadata | undefined;
+
         if (asyncTask.status === AsyncTaskStatus.Processing) {
-          const metadata = asyncTask.metadata as AudioTaskMetadata | undefined;
           const taskId = metadata?.taskId;
 
-          if (taskId && metadata.providerMode) {
-            const { service } = await createAudioService(ctx.serverDB, metadata.providerMode);
+          if (taskId && metadata?.providerMode) {
+            const { service } = await createAudioService(
+              ctx.serverDB,
+              metadata.providerMode,
+              metadata.modelVersion,
+            );
             const audioResponse = await service.pollMusicStatus(taskId);
+            const generationIds = metadata.generationIds || [];
+            const audioTracks = audioResponse.tracks?.length
+              ? audioResponse.tracks
+              : audioResponse.audioUrl
+                ? [
+                    {
+                      audioId: generationIds[0],
+                      audioUrl: audioResponse.audioUrl,
+                      duration: audioResponse.duration,
+                      parentTaskId: taskId,
+                      taskId,
+                      title: audioResponse.title,
+                    } as KieAudioTrack,
+                  ]
+                : [];
 
-            if (audioResponse.status === 'completed') {
-              const nextMetadata = await persistCompletedAudio({
-                ctx,
-                generationId: input.generationId,
-                metadata,
-                response: audioResponse,
-              });
+            if (audioTracks.length > 0 && generationIds.length > 0) {
+              const nextMetadata = { ...metadata, tracks: audioTracks };
+              const trackPairs = generationIds.map((generationId, index) => ({
+                generationId,
+                track: audioTracks[index],
+              }));
+
+              let persistedMetadata = nextMetadata;
+              for (const { generationId, track } of trackPairs) {
+                if (!track?.audioUrl) continue;
+
+                persistedMetadata = await persistCompletedAudioTrack({
+                  ctx,
+                  generationId,
+                  metadata: persistedMetadata,
+                  track,
+                });
+              }
+
+              const allTracksReady =
+                audioResponse.status === 'completed' &&
+                generationIds.every((generationId, index) =>
+                  Boolean(trackPairs[index]?.track?.audioUrl),
+                );
 
               await ctx.asyncTaskModel.update(input.asyncTaskId, {
-                metadata: nextMetadata,
-                status: AsyncTaskStatus.Success,
+                metadata: persistedMetadata,
+                status: allTracksReady ? AsyncTaskStatus.Success : AsyncTaskStatus.Processing,
               });
             } else if (audioResponse.status === 'failed') {
               await ctx.asyncTaskModel.update(input.asyncTaskId, {
@@ -451,20 +605,29 @@ export const audioRouter = router({
                   code: 'GENERATION_FAILED',
                   message: audioResponse.error || 'Music generation failed',
                 },
+                metadata: {
+                  ...metadata,
+                  tracks: audioResponse.tracks || [],
+                },
                 status: AsyncTaskStatus.Error,
               });
             }
           }
         }
 
-        const [latestTask, generation] = await Promise.all([
-          ctx.asyncTaskModel.findById(input.asyncTaskId),
-          ctx.generationModel.findByIdAndTransform(input.generationId),
-        ]);
+        const latestTask = await ctx.asyncTaskModel.findById(input.asyncTaskId);
+        const generationIds = metadata?.generationIds || [];
+        const generations = generationIds.length
+          ? await Promise.all(
+              generationIds.map((generationId) =>
+                ctx.generationModel.findByIdAndTransform(generationId),
+              ),
+            )
+          : [];
 
         return {
           error: latestTask?.error || null,
-          generation: generation || null,
+          generations: generations.filter(Boolean),
           status: latestTask?.status || asyncTask.status,
         };
       } catch (error) {
@@ -475,5 +638,187 @@ export const audioRouter = router({
           message: error instanceof Error ? error.message : 'Failed to get audio status',
         });
       }
+    }),
+
+  getTimestampedLyrics: audioProcedure
+    .input(
+      z.object({
+        generationId: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { asset, audioId, metadata } = await getTrackContext(ctx, input.generationId);
+
+      if (metadata.providerMode !== 'classic') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Timestamped lyrics are only available for Kie/Suno tracks',
+        });
+      }
+
+      const { service } = await createAudioService(
+        ctx.serverDB,
+        metadata.providerMode,
+        metadata.modelVersion,
+      );
+      const lyricsResponse = await (service as KieAiAudioService).getTimestampedLyrics(
+        metadata.taskId,
+        audioId,
+      );
+
+      const nextAsset = {
+        ...asset,
+        lyrics: lyricsResponse.lyrics,
+        lyricsTaskId: metadata.taskId,
+      };
+
+      await ctx.generationModel.update(input.generationId, {
+        asset: nextAsset,
+      });
+
+      return {
+        generation: await ctx.generationModel.findByIdAndTransform(input.generationId),
+        lyrics: lyricsResponse.lyrics,
+      };
+    }),
+
+  generateMusicCover: audioProcedure
+    .input(
+      z.object({
+        generationId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { asset, asyncTaskId, metadata } = await getTrackContext(ctx, input.generationId);
+
+      if (metadata.providerMode !== 'classic') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Music covers are only available for Kie/Suno tracks',
+        });
+      }
+
+      const { service } = await createAudioService(
+        ctx.serverDB,
+        metadata.providerMode,
+        metadata.modelVersion,
+      );
+      const response = await (service as KieAiAudioService).generateMusicCover(metadata.taskId, {
+        callBackUrl: buildKieCallbackUrl(metadata.webhookToken),
+      });
+
+      await ctx.generationModel.update(input.generationId, {
+        asset: {
+          ...asset,
+          coverTaskId: response.id,
+        },
+      });
+
+      await appendFollowUpTaskId(ctx.asyncTaskModel, asyncTaskId, response.id, input.generationId);
+
+      return {
+        generation: await ctx.generationModel.findByIdAndTransform(input.generationId),
+        taskId: response.id,
+      };
+    }),
+
+  separateVocals: audioProcedure
+    .input(
+      z.object({
+        generationId: z.string(),
+        type: z.enum(['separate_vocal', 'split_stem']).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { asset, asyncTaskId, audioId, metadata } = await getTrackContext(
+        ctx,
+        input.generationId,
+      );
+
+      if (metadata.providerMode !== 'classic') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Stem separation is only available for Kie/Suno tracks',
+        });
+      }
+
+      const { service } = await createAudioService(
+        ctx.serverDB,
+        metadata.providerMode,
+        metadata.modelVersion,
+      );
+      const response = await (service as KieAiAudioService).separateVocals(
+        metadata.taskId,
+        audioId,
+        {
+          callBackUrl: buildKieCallbackUrl(metadata.webhookToken),
+          type: input.type,
+        },
+      );
+
+      await ctx.generationModel.update(input.generationId, {
+        asset: {
+          ...asset,
+          vocalsTaskId: response.id,
+        },
+      });
+
+      await appendFollowUpTaskId(ctx.asyncTaskModel, asyncTaskId, response.id, input.generationId);
+
+      return {
+        generation: await ctx.generationModel.findByIdAndTransform(input.generationId),
+        taskId: response.id,
+      };
+    }),
+
+  createMusicVideo: audioProcedure
+    .input(
+      z.object({
+        author: z.string().optional(),
+        domainName: z.string().optional(),
+        generationId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { asset, asyncTaskId, audioId, metadata } = await getTrackContext(
+        ctx,
+        input.generationId,
+      );
+
+      if (metadata.providerMode !== 'classic') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Music videos are only available for Kie/Suno tracks',
+        });
+      }
+
+      const { service } = await createAudioService(
+        ctx.serverDB,
+        metadata.providerMode,
+        metadata.modelVersion,
+      );
+      const response = await (service as KieAiAudioService).createMusicVideo(
+        metadata.taskId,
+        audioId,
+        {
+          author: input.author || 'ChinnaHub',
+          callBackUrl: buildKieCallbackUrl(metadata.webhookToken),
+          domainName: input.domainName,
+        },
+      );
+
+      await ctx.generationModel.update(input.generationId, {
+        asset: {
+          ...asset,
+          videoTaskId: response.id,
+        },
+      });
+
+      await appendFollowUpTaskId(ctx.asyncTaskModel, asyncTaskId, response.id, input.generationId);
+
+      return {
+        generation: await ctx.generationModel.findByIdAndTransform(input.generationId),
+        taskId: response.id,
+      };
     }),
 });

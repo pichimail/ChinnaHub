@@ -28,13 +28,12 @@ export class AudioService {
     }
   }
 
-  async getAudioStatus(asyncTaskId: string, generationId: string) {
-    log('Getting audio status for asyncTaskId: %s, generationId: %s', asyncTaskId, generationId);
+  async getAudioStatus(asyncTaskId: string) {
+    log('Getting audio status for asyncTaskId: %s', asyncTaskId);
 
     try {
       const result = await lambdaClient.audio.getAudioStatus.query({
         asyncTaskId,
-        generationId,
       });
 
       log('Audio status query completed: %O', result);
@@ -44,6 +43,22 @@ export class AudioService {
       log('Audio status query failed: %O', error);
       throw error;
     }
+  }
+
+  async getTimestampedLyrics(generationId: string) {
+    return lambdaClient.audio.getTimestampedLyrics.query({ generationId });
+  }
+
+  async generateMusicCover(generationId: string) {
+    return lambdaClient.audio.generateMusicCover.mutate({ generationId });
+  }
+
+  async createMusicVideo(generationId: string) {
+    return lambdaClient.audio.createMusicVideo.mutate({ generationId });
+  }
+
+  async separateVocals(generationId: string, type?: 'separate_vocal' | 'split_stem') {
+    return lambdaClient.audio.separateVocals.mutate({ generationId, type });
   }
 }
 
