@@ -19,11 +19,16 @@ import {
   contentBlocksToString,
   processContentBlocks,
 } from '@/server/services/mcp/contentProcessor';
+import { SelfHostedSandboxService } from '@/server/services/selfHostedSandbox';
 
 import { scheduleToolCallReport } from './_helpers';
 import { getSandboxAuthFailureMessage, isSandboxAuthFailure } from './sandboxAuth';
 
 const log = debug('lobe-server:tools:market');
+
+const shouldUseSelfHostedSandboxFallback = (ctx: { marketAccessToken?: string }) => {
+  return !isTrustedClientEnabled() && !ctx.marketAccessToken;
+};
 
 // ============================== Common Procedure ==============================
 const marketToolProcedure = authedProcedure
@@ -141,7 +146,13 @@ const execInSandboxHandler = async ({
   input,
   ctx,
 }: {
-  ctx: { fileService: FileService; marketService: MarketService; serverDB: any; userId: string };
+  ctx: {
+    fileService: FileService;
+    marketAccessToken?: string;
+    marketService: MarketService;
+    serverDB: any;
+    userId: string;
+  };
   input: ExecInSandboxInput;
 }): Promise<CallToolResult> => {
   const { toolName, params, topicId } = input;
@@ -204,6 +215,17 @@ const execInSandboxHandler = async ({
         };
         log('Added skillZipUrls to execScript params: %O', Object.keys(skillZipUrls));
       }
+    }
+
+    if (shouldUseSelfHostedSandboxFallback(ctx)) {
+      log('execInSandbox: using self-hosted fallback for %s', toolName);
+      const sandbox = new SelfHostedSandboxService({
+        fileService: ctx.fileService,
+        topicId,
+        userId,
+      });
+
+      return await sandbox.callTool(toolName, enhancedParams as Record<string, any>);
     }
 
     const market = ctx.marketService.market;
@@ -661,6 +683,17 @@ export const marketRouter = router({
       log('Exporting and uploading file: %s from path: %s in topic: %s', filename, path, topicId);
 
       try {
+        if (shouldUseSelfHostedSandboxFallback(ctx)) {
+          log('exportAndUploadFile: using self-hosted fallback for %s', path);
+          const sandbox = new SelfHostedSandboxService({
+            fileService: ctx.fileService,
+            topicId,
+            userId: ctx.userId,
+          });
+
+          return (await sandbox.exportAndUploadFile(path, filename)) as ExportAndUploadFileResult;
+        }
+
         const s3 = new FileS3();
 
         // Use date-based sharding for privacy compliance (GDPR, CCPA)
