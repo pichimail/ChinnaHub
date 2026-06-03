@@ -24,6 +24,19 @@ const countPlayableGenerations = (generations: { asset?: any }[] = []) =>
     Boolean(generation.asset?.url || generation.asset?.originalUrl),
   ).length;
 
+const isTransientAudioPollingError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
+
+  return (
+    message.includes("Unexpected token '<'") ||
+    message.includes('502') ||
+    message.includes('503') ||
+    message.includes('504') ||
+    message.includes('Gateway Timeout') ||
+    message.includes('Failed to fetch')
+  );
+};
+
 export const createCreateAudioSlice = (set: Setter, get: () => AudioStore, _api?: unknown) =>
   new CreateAudioActionImpl(set, get, _api);
 
@@ -196,6 +209,11 @@ export class CreateAudioActionImpl {
           return;
         }
       } catch (error) {
+        if (isTransientAudioPollingError(error)) {
+          console.warn('[CreateAudio] Audio polling transport issue:', error);
+          continue;
+        }
+
         consecutiveFailures += 1;
         console.error('[CreateAudio] Audio polling failed:', error);
 

@@ -198,6 +198,7 @@ export const persistKieTrack = async ({
     parameters: GenerationConfig & { artist?: string; modelVersion?: AudioModelVersion };
     provider: string;
     providerMode: 'classic' | 'lyria';
+    tracks?: KieAudioTrack[];
     taskId: string;
     webhookToken?: string;
   };

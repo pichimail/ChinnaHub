@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
+import type { AudioGenerationAsset } from '@lobechat/types';
 import { AsyncTaskStatus, AsyncTaskType } from '@lobechat/types';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
@@ -19,14 +20,14 @@ import {
   writeGovernanceEnforcementAudit,
 } from '@/server/services/admin/runtimeGovernance';
 import {
-  type AudioGenerationAsset,
   type AudioGenerationParams,
-  type AudioModelVersion,
+  type AudioGenerationResponse,
   type AudioProviderMode,
   KieAiAudioService,
   OpenRouterLyriaAudioService,
 } from '@/server/services/audio';
 import {
+  type AudioModelVersion,
   type KieAudioTrack,
   mapAudioModelVersionToKieModel,
   persistKieTrack,
@@ -422,6 +423,7 @@ export const audioRouter = router({
           model,
           prompt: input.parameters.prompt,
           provider,
+          userId: ctx.userId,
         });
 
         const generationCount = providerMode === 'classic' ? 2 : 1;
@@ -554,18 +556,23 @@ export const audioRouter = router({
               metadata.providerMode,
               metadata.modelVersion,
             );
-            const audioResponse = await service.pollMusicStatus(taskId).catch((error) => {
-              console.error('[audioRouter.getAudioStatus] Poll provider error:', error);
+            const audioResponse: AudioGenerationResponse = await service
+              .pollMusicStatus(taskId, {
+                maxRetries: 1,
+                timeoutMs: 1500,
+              })
+              .catch((error): AudioGenerationResponse => {
+                console.error('[audioRouter.getAudioStatus] Poll provider error:', error);
 
-              return {
-                id: taskId,
-                metadata: {
-                  pollError:
-                    error instanceof Error ? error.message : 'Audio provider polling failed',
-                },
-                status: 'processing' as const,
-              };
-            });
+                return {
+                  id: taskId,
+                  metadata: {
+                    pollError:
+                      error instanceof Error ? error.message : 'Audio provider polling failed',
+                  },
+                  status: 'processing',
+                };
+              });
             const generationIds = metadata.generationIds || [];
             const audioTracks = audioResponse.tracks?.length
               ? audioResponse.tracks
@@ -583,13 +590,13 @@ export const audioRouter = router({
                 : [];
 
             if (audioTracks.length > 0 && generationIds.length > 0) {
-              const nextMetadata = { ...metadata, tracks: audioTracks };
+              const nextMetadata: AudioTaskMetadata = { ...metadata, tracks: audioTracks };
               const trackPairs = generationIds.map((generationId, index) => ({
                 generationId,
                 track: audioTracks[index],
               }));
 
-              let persistedMetadata = nextMetadata;
+              let persistedMetadata: AudioTaskMetadata = nextMetadata;
               for (const { generationId, track } of trackPairs) {
                 if (!track?.audioUrl) continue;
 

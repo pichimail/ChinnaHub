@@ -16,7 +16,7 @@ const KIE_POLL_TIMEOUT_MS = 10_000;
 
 export interface AudioGenerationParams {
   artist?: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
   makeInstrumental?: boolean;
   modelVersion?: AudioModelVersion;
   prompt: string;
@@ -88,16 +88,22 @@ const readKieJsonResponse = async <T extends KieTaskResponse>(response: Response
   }
 };
 
-const getKieRecordInfo = async (apiKey: string, taskId: string): Promise<KieTaskResponse> => {
-  const deadline = Date.now() + KIE_POLL_TIMEOUT_MS;
+const getKieRecordInfo = async (
+  apiKey: string,
+  taskId: string,
+  options?: { maxRetries?: number; timeoutMs?: number },
+): Promise<KieTaskResponse> => {
+  const maxRetries = options?.maxRetries ?? KIE_POLL_MAX_RETRIES;
+  const timeoutMs = options?.timeoutMs ?? KIE_POLL_TIMEOUT_MS;
+  const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
 
-  for (let attempt = 0; attempt < KIE_POLL_MAX_RETRIES; attempt += 1) {
+  for (let attempt = 0; attempt < maxRetries; attempt += 1) {
     const remainingMs = deadline - Date.now();
     if (remainingMs <= 0) break;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), remainingMs);
+    const timeoutId = setTimeout(() => controller.abort(), Math.min(remainingMs, timeoutMs));
 
     try {
       const response = await fetch(
@@ -120,13 +126,13 @@ const getKieRecordInfo = async (apiKey: string, taskId: string): Promise<KieTask
         throw error;
       }
 
-      if (attempt === KIE_POLL_MAX_RETRIES - 1) break;
+      if (attempt === maxRetries - 1) break;
     } finally {
       clearTimeout(timeoutId);
     }
   }
 
-  throw new KiePollError(`KIE AI status polling timed out after ${KIE_POLL_TIMEOUT_MS / 1000}s`, {
+  throw new KiePollError(`KIE AI status polling timed out after ${timeoutMs / 1000}s`, {
     retryable: true,
     status: lastError instanceof KiePollError ? lastError.status : undefined,
   });
@@ -258,13 +264,16 @@ export class KieAiAudioService {
     }
   }
 
-  async pollMusicStatus(taskId: string): Promise<AudioGenerationResponse> {
+  async pollMusicStatus(
+    taskId: string,
+    options?: { maxRetries?: number; timeoutMs?: number },
+  ): Promise<AudioGenerationResponse> {
     log('Polling music status for task: %s', taskId);
 
     let data: KieRecordInfoResponse;
 
     try {
-      data = (await getKieRecordInfo(this.apiKey, taskId)) as KieRecordInfoResponse;
+      data = (await getKieRecordInfo(this.apiKey, taskId, options)) as KieRecordInfoResponse;
     } catch (error) {
       log('Poll request did not complete cleanly: %O', error);
 

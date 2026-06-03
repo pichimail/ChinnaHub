@@ -3,8 +3,8 @@
 import { memo, useEffect, useRef } from 'react';
 
 interface VisualizerProps {
-  isPlaying: boolean;
   audioRef: React.RefObject<HTMLAudioElement>;
+  isPlaying: boolean;
 }
 
 const Visualizer = memo<VisualizerProps>(({ isPlaying, audioRef }) => {
@@ -13,6 +13,7 @@ const Visualizer = memo<VisualizerProps>(({ isPlaying, audioRef }) => {
   const dataArrayRef = useRef<Uint8Array | null>(null);
   const animationIdRef = useRef<number>();
   const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
   useEffect(() => {
     if (!audioRef.current || !isPlaying) return;
@@ -23,15 +24,25 @@ const Visualizer = memo<VisualizerProps>(({ isPlaying, audioRef }) => {
       }
 
       const audioContext = audioContextRef.current;
-      
+      if (!audioContext || typeof audioContext.createMediaElementSource !== 'function') {
+        return;
+      }
+
+      if (!sourceRef.current) {
+        sourceRef.current = audioContext.createMediaElementSource(audioRef.current);
+      }
+
       if (!analyserRef.current) {
-        const source = audioContext.createMediaElementAudioSource(audioRef.current);
         const analyser = audioContext.createAnalyser();
         analyser.fftSize = 256;
-        source.connect(analyser);
+        sourceRef.current.connect(analyser);
         analyser.connect(audioContext.destination);
         analyserRef.current = analyser;
         dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
+      }
+
+      if (audioContext.state === 'suspended') {
+        void audioContext.resume();
       }
 
       const draw = () => {
@@ -79,9 +90,9 @@ const Visualizer = memo<VisualizerProps>(({ isPlaying, audioRef }) => {
 
   return (
     <canvas
+      height={100}
       ref={canvasRef}
       width={400}
-      height={100}
       style={{
         width: '100%',
         height: '100px',
