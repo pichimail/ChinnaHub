@@ -105,7 +105,7 @@ describe('KieAiAudioService#createMusic', () => {
     fetchMock.mockReset();
   });
 
-  it('sends the required callback URL and omits false instrumental flags', async () => {
+  it('sends the required callback URL and explicit vocal-mode payload fields', async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ code: 200, data: { taskId: 'task-1' }, msg: 'success' }), {
         status: 200,
@@ -135,10 +135,10 @@ describe('KieAiAudioService#createMusic', () => {
     expect(payload).toMatchObject({
       callBackUrl: 'https://app.itsmechinna.com/api/webhooks/audio/kie?token=test',
       customMode: false,
+      instrumental: false,
       model: 'V5_5',
       prompt: 'A warm Telugu folk song with a driving rhythm',
     });
-    expect(payload).not.toHaveProperty('instrumental');
     expect(payload).not.toHaveProperty('style');
     expect(payload).not.toHaveProperty('title');
   });
@@ -172,6 +172,37 @@ describe('KieAiAudioService#createMusic', () => {
       title: 'Night Drive',
     });
     expect(payload).toHaveProperty('style', 'Instrumental');
+  });
+
+  it('keeps vocal custom-mode requests out of the instrumental fallback path', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: 200, data: { taskId: 'task-vocal' }, msg: 'success' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const service = new KieAiAudioService('test-api-key');
+    await service.createMusic(
+      {
+        makeInstrumental: false,
+        prompt: 'A synthwave anthem with Telugu vocals',
+        providerMode: 'classic',
+        title: 'Midnight Run',
+      },
+      { callBackUrl: 'https://app.itsmechinna.com/api/webhooks/audio/kie?token=test' },
+    );
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    const payload = JSON.parse(init?.body as string) as Record<string, unknown>;
+
+    expect(payload).toMatchObject({
+      customMode: true,
+      instrumental: false,
+      prompt: 'A synthwave anthem with Telugu vocals',
+      style: 'Vocal arrangement',
+      title: 'Midnight Run',
+    });
   });
 
   it('retries prompt-only generations with a compatibility payload when Kie rejects the first request', async () => {

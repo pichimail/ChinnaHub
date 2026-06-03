@@ -1,13 +1,17 @@
 'use client';
 
-import { Block, Button, Flexbox, Icon, Markdown, Text } from '@lobehub/ui';
+import { Block, Button, DropdownMenu, Flexbox, Icon, Markdown, Text } from '@lobehub/ui';
 import { App, Empty, Modal, Slider, Spin, Tag } from 'antd';
+import { type ItemType } from 'antd/es/menu/interface';
 import { createStaticStyles } from 'antd-style';
 import {
+  ChevronDown,
+  ChevronRight,
   Download,
   Expand,
   MessageCircleMore,
   MicVocal,
+  MoreVertical,
   Music2,
   Pause,
   Play,
@@ -17,7 +21,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import Visualizer from '@/features/AudioPlayer/Visualizer';
@@ -39,20 +43,82 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     position: relative;
 
     overflow: hidden;
+    flex: 0 0 132px;
 
     aspect-ratio: 1;
     border: 1px solid ${cssVar.colorBorderSecondary};
-    border-radius: 20px;
+    border-radius: 22px;
 
     background:
-      radial-gradient(circle at 25% 25%, rgb(255 255 255 / 38%), transparent 28%),
+      radial-gradient(circle at 25% 25%, rgb(255 255 255 / 34%), transparent 28%),
       linear-gradient(
         135deg,
-        rgb(92 132 255 / 75%),
-        rgb(146 68 255 / 65%) 50%,
+        rgb(92 132 255 / 76%),
+        rgb(146 68 255 / 66%) 50%,
         rgb(36 196 163 / 72%)
       );
     box-shadow: 0 12px 40px rgb(0 0 0 / 16%);
+  `,
+  artworkButton: css`
+    cursor: pointer;
+
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+
+    color: white;
+
+    background: transparent;
+
+    transition:
+      transform 0.22s ${cssVar.motionEaseOut},
+      box-shadow 0.22s ${cssVar.motionEaseOut};
+
+    &:hover {
+      transform: translateY(-1px);
+    }
+  `,
+  artworkImage: css`
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  `,
+  artworkPlaceholder: css`
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    height: 100%;
+    padding: 16px;
+  `,
+  artworkOverlay: css`
+    position: absolute;
+    inset-block: auto 12px;
+    inset-inline: auto 12px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgb(255 255 255 / 18%);
+    border-radius: 999px;
+
+    color: white;
+
+    background: rgb(8 8 8 / 46%);
+    backdrop-filter: blur(16px);
   `,
   audioCard: css`
     position: relative;
@@ -62,7 +128,12 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     border: 1px solid ${cssVar.colorBorderSecondary};
     border-radius: 24px;
 
-    background: linear-gradient(180deg, rgb(255 255 255 / 6%), rgb(255 255 255 / 2%));
+    background: linear-gradient(180deg, rgb(255 255 255 / 5%), rgb(255 255 255 / 2%));
+
+    transition:
+      transform 0.22s ${cssVar.motionEaseOut},
+      box-shadow 0.22s ${cssVar.motionEaseOut},
+      border-color 0.22s ${cssVar.motionEaseOut};
   `,
   audioCardActive: css`
     box-shadow:
@@ -77,8 +148,21 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
       radial-gradient(circle at 10% 0%, rgb(100 160 255 / 8%), transparent 30%),
       ${cssVar.colorBgContainer};
   `,
-  chip: css`
-    border-radius: 999px !important;
+  expandedBody: css`
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition:
+      grid-template-rows 0.28s ${cssVar.motionEaseInOut},
+      opacity 0.2s ${cssVar.motionEaseInOut};
+  `,
+  expandedBodyInner: css`
+    overflow: hidden;
+    min-height: 0;
+  `,
+  expandedBodyOpen: css`
+    grid-template-rows: 1fr;
+    opacity: 1;
   `,
   lyricLine: css`
     padding-block: 6px;
@@ -101,6 +185,20 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
         radial-gradient(circle at 10% 0%, rgb(100 160 255 / 12%), transparent 30%),
         ${cssVar.colorBgLayout};
     }
+  `,
+  modalArtwork: css`
+    flex: 0 0 280px;
+  `,
+  playerRail: css`
+    overflow: hidden;
+    height: 10px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 8%);
+  `,
+  playerRailTrack: css`
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #6e8bff 0%, #47d9c6 48%, #f9f0ff 100%);
   `,
   pulseBar: css`
     position: relative;
@@ -146,23 +244,38 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
       }
     }
   `,
-  waveformRail: css`
-    overflow: hidden;
-    height: 10px;
-    border-radius: 999px;
-    background: rgb(255 255 255 / 8%);
+  seekSlider: css`
+    margin: 0 !important;
+
+    .ant-slider-rail {
+      background: rgb(255 255 255 / 8%) !important;
+    }
+
+    .ant-slider-track {
+      background: linear-gradient(90deg, #6e8bff 0%, #47d9c6 48%, #f9f0ff 100%) !important;
+    }
+
+    .ant-slider-handle::after {
+      width: 14px !important;
+      height: 14px !important;
+      background: rgb(250 250 255 / 95%) !important;
+      box-shadow: 0 0 0 4px rgb(255 255 255 / 12%) !important;
+    }
   `,
-  waveformTrack: css`
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #6e8bff 0%, #47d9c6 48%, #f9f0ff 100%);
+  visualizerShell: css`
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / 4%);
+    border-radius: 18px;
+    background: rgb(255 255 255 / 3%);
   `,
 }));
 
-const providerModelLabelMap: Record<'V1.0' | 'V2.0' | 'V3.0', string> = {
-  'V1.0': 'V4_5ALL',
-  'V2.0': 'V5',
-  'V3.0': 'V5_5',
+const providerLabelMap: Record<
+  string,
+  'generation.providerMode.classic' | 'generation.providerMode.lyria'
+> = {
+  'kie-ai': 'generation.providerMode.classic',
+  'openrouter': 'generation.providerMode.lyria',
 };
 
 const formatTime = (seconds = 0) => {
@@ -179,6 +292,25 @@ const sanitizeFileName = (value: string) =>
 const getPlayProgress = (currentTime: number, duration: number) => {
   if (!duration || duration <= 0) return 0;
   return Math.min(100, Math.max(0, (currentTime / duration) * 100));
+};
+
+const isGenericTrackTitle = (value?: string) => /^track \d+$/i.test(value?.trim() || '');
+
+const resolveTrackTitle = ({
+  assetTitle,
+  batchPrompt,
+  batchTitle,
+  index,
+}: {
+  assetTitle?: string;
+  batchPrompt?: string;
+  batchTitle?: string;
+  index: number;
+}) => {
+  if (assetTitle && !isGenericTrackTitle(assetTitle)) return assetTitle;
+  if (batchTitle?.trim()) return batchTitle.trim();
+  if (batchPrompt?.trim()) return batchPrompt.trim();
+  return assetTitle || `Track ${index + 1}`;
 };
 
 const getTrackStatus = (generation: Generation) => {
@@ -226,27 +358,35 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
   const { t } = useTranslation('audio');
   const updateTrack = useTrackUpdater(topicId, batch);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.92);
-  const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const asset = generation.asset as AudioGenerationAsset | null | undefined;
+  const config = (batch.config as {
+    artist?: string;
+    modelVersion?: 'V1.0' | 'V2.0' | 'V3.0';
+    title?: string;
+  }) || { modelVersion: 'V3.0' as const };
   const playableUrl = asset?.url || asset?.originalUrl;
-  const title = asset?.title || `Track ${index + 1}`;
-  const artist =
-    asset?.artist || (batch.config as { artist?: string } | undefined)?.artist || 'ChinnaHub';
-  const modelVersion =
-    asset?.modelVersion ||
-    (batch.config as { modelVersion?: 'V1.0' | 'V2.0' | 'V3.0' } | undefined)?.modelVersion ||
-    'V3.0';
+  const title = resolveTrackTitle({
+    assetTitle: asset?.title,
+    batchPrompt: batch.prompt,
+    batchTitle: config.title,
+    index,
+  });
+  const artist = asset?.artist || config.artist || t('generation.artistFallback');
+  const modelVersion = asset?.modelVersion || config.modelVersion || 'V3.0';
   const status = getTrackStatus(generation);
   const lyrics = asset?.lyrics;
-  const lyricWords = lyrics?.alignedWords || [];
-  const activeLyricIndex = lyricWords.findIndex((item) => {
+  const hasLyrics = Boolean(lyrics?.alignedWords?.length);
+  const playProgress = getPlayProgress(currentTime, duration);
+  const activeLyricIndex = (lyrics?.alignedWords || []).findIndex((item) => {
     if (!item?.startS && !item?.endS) return false;
     return (
       currentTime >= (item.startS || 0) && currentTime <= (item.endS || Number.MAX_SAFE_INTEGER)
@@ -259,17 +399,8 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
   }, [volume]);
 
   useEffect(() => {
-    if (!playableUrl && isPlaying) {
-      setIsPlaying(false);
-    }
+    if (!playableUrl && isPlaying) setIsPlaying(false);
   }, [isPlaying, playableUrl]);
-
-  useEffect(() => {
-    if (!playableUrl) return;
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.volume = volume;
-  }, [playableUrl, volume]);
 
   const syncTrack = useCallback(
     (nextGeneration: Generation) => {
@@ -292,11 +423,20 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
     setIsPlaying(true);
   }, [isPlaying, playableUrl]);
 
+  const handleArtworkClick = useCallback(() => {
+    if (playableUrl) {
+      void handlePlayPause();
+      return;
+    }
+
+    setExpanded((open) => !open);
+  }, [handlePlayPause, playableUrl]);
+
   const handleDownload = useCallback(async () => {
     if (!playableUrl) return;
 
     const extension = playableUrl.split('?')[0].split('.').pop() || 'mp3';
-    const fileName = `${sanitizeFileName(artist)} - ${sanitizeFileName(title)}.${extension.length > 8 ? 'mp3' : extension}`;
+    const fileName = `${sanitizeFileName(title)}-${sanitizeFileName(artist)}.${extension.length > 8 ? 'mp3' : extension}`;
 
     try {
       await downloadFile(playableUrl, fileName, false);
@@ -392,12 +532,64 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
     await runTrackAction('video', async () => audioService.createMusicVideo(generation.id));
   }, [generation.id, runTrackAction]);
 
-  const handleFullscreenToggle = useCallback(() => {
-    setFullscreenOpen(true);
+  const handleSeek = useCallback((nextValue: number) => {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(nextValue)) return;
+    audio.currentTime = nextValue;
+    setCurrentTime(nextValue);
   }, []);
 
-  const displayProgress = getPlayProgress(currentTime, duration);
-  const hasLyrics = Boolean(lyrics?.alignedWords?.length);
+  const moreMenuItems = useMemo<ItemType[]>(
+    () => [
+      {
+        disabled: !playableUrl || actionLoading === 'lyrics' || lyricsLoading,
+        icon: <Icon icon={MessageCircleMore} />,
+        key: 'lyrics',
+        label: t('generation.actions.lyrics'),
+        onClick: () => {
+          void handleLyrics();
+        },
+      },
+      {
+        disabled: !asset?.audioId || actionLoading === 'vocals',
+        icon: <Icon icon={MicVocal} />,
+        key: 'vocals',
+        label: t('generation.actions.vocals'),
+        onClick: () => {
+          void handleVocals();
+        },
+      },
+      {
+        disabled: actionLoading === 'cover',
+        icon: <Icon icon={RefreshCcw} />,
+        key: 'cover',
+        label: t('generation.actions.cover'),
+        onClick: () => {
+          void handleCover();
+        },
+      },
+      {
+        disabled: !asset?.audioId || actionLoading === 'video',
+        icon: <Icon icon={Expand} />,
+        key: 'video',
+        label: t('generation.actions.video'),
+        onClick: () => {
+          void handleVideo();
+        },
+      },
+    ],
+    [
+      actionLoading,
+      asset?.audioId,
+      handleCover,
+      handleLyrics,
+      handleVideo,
+      handleVocals,
+      lyricsLoading,
+      playableUrl,
+      t,
+    ],
+  );
 
   return (
     <Block
@@ -405,165 +597,164 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
       gap={0}
       variant="borderless"
     >
+      <audio
+        ref={audioRef}
+        src={playableUrl}
+        onEnded={() => setIsPlaying(false)}
+        onLoadedMetadata={(event) => setDuration((event.target as HTMLAudioElement).duration || 0)}
+        onPause={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+        onTimeUpdate={(event) =>
+          setCurrentTime((event.target as HTMLAudioElement).currentTime || 0)
+        }
+      />
+
       <Flexbox horizontal align="stretch" gap={16} padding={16}>
-        <div className={styles.artwork} style={{ width: 138 }}>
-          <Flexbox align="center" height="100%" justify="center" padding={16}>
+        <div className={styles.artwork}>
+          <button className={styles.artworkButton} type="button" onClick={handleArtworkClick}>
             {asset?.coverUrl ? (
-              <img
-                alt={title}
-                src={asset.coverUrl}
-                style={{ borderRadius: 18, height: '100%', objectFit: 'cover', width: '100%' }}
-              />
+              <img alt={title} className={styles.artworkImage} src={asset.coverUrl} />
             ) : (
-              <Flexbox align="center" gap={12} justify="center" style={{ color: 'white' }}>
-                <Music2 size={28} />
-                <Text strong style={{ color: 'white' }}>
+              <div className={styles.artworkPlaceholder}>
+                <Music2 size={32} />
+                <Text strong style={{ color: 'white', textAlign: 'center' }}>
                   {title}
                 </Text>
-              </Flexbox>
+              </div>
             )}
-          </Flexbox>
+
+            <div className={styles.artworkOverlay}>
+              <Icon icon={isPlaying ? Pause : Play} />
+            </div>
+          </button>
         </div>
 
-        <Flexbox flex={1} gap={10} style={{ minWidth: 0 }}>
-          <Flexbox horizontal align="center" gap={8} justify="space-between">
-            <Flexbox gap={2} style={{ minWidth: 0 }}>
+        <Flexbox flex={1} gap={12} style={{ minWidth: 0 }}>
+          <Flexbox horizontal align="flex-start" gap={12} justify="space-between">
+            <Flexbox gap={6} style={{ minWidth: 0 }}>
               <Text ellipsis weight={700}>
                 {title}
               </Text>
               <Text ellipsis fontSize={12} type="secondary">
-                {artist} · {providerModelLabelMap[modelVersion] ?? modelVersion}
+                {artist}
               </Text>
+              <Flexbox horizontal gap={8} style={{ flexWrap: 'wrap' }}>
+                <Tag>{modelVersion}</Tag>
+                <Tag color={asset?.url ? 'success' : status === 'error' ? 'error' : 'blue'}>
+                  {asset?.url
+                    ? t('generation.playable')
+                    : status === 'error'
+                      ? t('feed.status.failed')
+                      : t('feed.status.processing')}
+                </Tag>
+              </Flexbox>
             </Flexbox>
 
-            <Tag color={asset?.url ? 'success' : status === 'error' ? 'error' : 'blue'}>
-              {asset?.url
-                ? t('generation.playable')
-                : status === 'error'
-                  ? t('feed.status.failed')
-                  : t('feed.status.processing')}
-            </Tag>
+            <Button
+              icon={<Icon icon={expanded ? ChevronDown : ChevronRight} />}
+              shape="round"
+              type={expanded ? 'default' : 'text'}
+              onClick={() => setExpanded((open) => !open)}
+            >
+              {expanded ? t('generation.hidePlayer') : t('generation.openPlayer')}
+            </Button>
           </Flexbox>
 
-          {playableUrl ? (
-            <Visualizer audioRef={audioRef} isPlaying={isPlaying} />
-          ) : (
-            <div className={styles.pulseBar} />
-          )}
+          <div className={`${styles.expandedBody} ${expanded ? styles.expandedBodyOpen : ''}`}>
+            <div className={styles.expandedBodyInner}>
+              <Flexbox gap={12} paddingBlock={4}>
+                <div className={styles.visualizerShell}>
+                  {playableUrl ? (
+                    <Visualizer audioRef={audioRef} isPlaying={isPlaying} />
+                  ) : (
+                    <div className={styles.pulseBar} />
+                  )}
+                </div>
 
-          <div className={styles.waveformRail}>
-            <div
-              className={styles.waveformTrack}
-              style={{ width: `${Math.max(displayProgress, 6)}%` }}
-            />
+                <div className={styles.playerRail}>
+                  <div
+                    className={styles.playerRailTrack}
+                    style={{ width: `${Math.max(playProgress, playableUrl ? 4 : 10)}%` }}
+                  />
+                </div>
+
+                <Slider
+                  className={styles.seekSlider}
+                  disabled={!playableUrl || duration <= 0}
+                  max={Math.max(duration, 0)}
+                  min={0}
+                  step={0.1}
+                  tooltip={{ formatter: (value) => formatTime(Number(value || 0)) }}
+                  value={Math.min(currentTime, duration || currentTime)}
+                  onChange={(value) => handleSeek(value as number)}
+                />
+
+                <Flexbox horizontal align="center" gap={10} style={{ flexWrap: 'wrap' }}>
+                  <Button
+                    disabled={!playableUrl}
+                    icon={<Icon icon={isPlaying ? Pause : Play} />}
+                    shape="round"
+                    type="primary"
+                    onClick={handlePlayPause}
+                  >
+                    {isPlaying ? t('generation.pause') : t('generation.play')}
+                  </Button>
+                  <Button
+                    disabled={!playableUrl}
+                    icon={<Icon icon={Expand} />}
+                    shape="round"
+                    onClick={() => setFullscreenOpen(true)}
+                  >
+                    {t('generation.fullscreen')}
+                  </Button>
+                  <Button
+                    disabled={!playableUrl}
+                    icon={<Icon icon={Download} />}
+                    shape="round"
+                    onClick={handleDownload}
+                  >
+                    {t('generation.download')}
+                  </Button>
+                  <Button
+                    disabled={!playableUrl}
+                    icon={<Icon icon={Share2} />}
+                    shape="round"
+                    onClick={handleShare}
+                  >
+                    {t('generation.share')}
+                  </Button>
+                  <DropdownMenu items={moreMenuItems}>
+                    <Button
+                      icon={<Icon icon={MoreVertical} />}
+                      loading={Boolean(actionLoading) || lyricsLoading}
+                      shape="round"
+                    >
+                      {t('generation.more')}
+                    </Button>
+                  </DropdownMenu>
+                </Flexbox>
+
+                <Flexbox horizontal align="center" gap={12} style={{ flexWrap: 'wrap' }}>
+                  <Flexbox horizontal align="center" gap={8} style={{ minWidth: 260 }}>
+                    <VolumeX size={15} />
+                    <Slider
+                      max={1}
+                      min={0}
+                      step={0.01}
+                      style={{ flex: 1, margin: 0 }}
+                      tooltip={{ formatter: null }}
+                      value={volume}
+                      onChange={(value) => setVolume(value as number)}
+                    />
+                    <Volume2 size={15} />
+                  </Flexbox>
+                  <Text fontSize={12} type="secondary">
+                    {formatTime(currentTime)} / {formatTime(duration)}
+                  </Text>
+                </Flexbox>
+              </Flexbox>
+            </div>
           </div>
-
-          <audio
-            ref={audioRef}
-            src={playableUrl}
-            onEnded={() => setIsPlaying(false)}
-            onPause={() => setIsPlaying(false)}
-            onPlay={() => setIsPlaying(true)}
-            onLoadedMetadata={(event) =>
-              setDuration((event.target as HTMLAudioElement).duration || 0)
-            }
-            onTimeUpdate={(event) =>
-              setCurrentTime((event.target as HTMLAudioElement).currentTime || 0)
-            }
-          />
-
-          <Flexbox horizontal align="center" gap={10} style={{ flexWrap: 'wrap' }}>
-            <Button
-              disabled={!playableUrl}
-              icon={<Icon icon={isPlaying ? Pause : Play} />}
-              shape="round"
-              type="primary"
-              onClick={handlePlayPause}
-            >
-              {isPlaying ? t('generation.pause') : t('generation.play')}
-            </Button>
-            <Button icon={<Icon icon={Expand} />} shape="round" onClick={handleFullscreenToggle}>
-              {t('generation.fullscreen')}
-            </Button>
-            <Button
-              disabled={!playableUrl}
-              icon={<Icon icon={Download} />}
-              shape="round"
-              onClick={handleDownload}
-            >
-              {t('generation.download')}
-            </Button>
-            <Button
-              disabled={!playableUrl}
-              icon={<Icon icon={Share2} />}
-              shape="round"
-              onClick={handleShare}
-            >
-              {t('generation.share')}
-            </Button>
-          </Flexbox>
-
-          <Flexbox horizontal align="center" gap={12} style={{ flexWrap: 'wrap' }}>
-            <Flexbox horizontal align="center" gap={8} style={{ minWidth: 240 }}>
-              <VolumeX size={15} />
-              <Slider
-                max={1}
-                min={0}
-                step={0.01}
-                style={{ flex: 1, margin: 0 }}
-                tooltip={{ formatter: null }}
-                value={volume}
-                onChange={(value) => setVolume(value as number)}
-              />
-              <Volume2 size={15} />
-            </Flexbox>
-            <Text fontSize={12} type="secondary">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </Text>
-          </Flexbox>
-
-          <Flexbox horizontal gap={8} style={{ flexWrap: 'wrap' }}>
-            <Button
-              className={styles.chip}
-              disabled={!playableUrl || actionLoading === 'lyrics' || lyricsLoading}
-              icon={<Icon icon={MessageCircleMore} />}
-              loading={actionLoading === 'lyrics' || lyricsLoading}
-              size="small"
-              onClick={handleLyrics}
-            >
-              {t('generation.actions.lyrics')}
-            </Button>
-            <Button
-              className={styles.chip}
-              disabled={!asset?.audioId || actionLoading === 'vocals'}
-              icon={<Icon icon={MicVocal} />}
-              loading={actionLoading === 'vocals'}
-              size="small"
-              onClick={handleVocals}
-            >
-              {t('generation.actions.vocals')}
-            </Button>
-            <Button
-              className={styles.chip}
-              disabled={actionLoading === 'cover'}
-              icon={<Icon icon={RefreshCcw} />}
-              loading={actionLoading === 'cover'}
-              size="small"
-              onClick={handleCover}
-            >
-              {t('generation.actions.cover')}
-            </Button>
-            <Button
-              className={styles.chip}
-              disabled={!asset?.audioId || actionLoading === 'video'}
-              icon={<Icon icon={Expand} />}
-              loading={actionLoading === 'video'}
-              size="small"
-              onClick={handleVideo}
-            >
-              {t('generation.actions.video')}
-            </Button>
-          </Flexbox>
         </Flexbox>
       </Flexbox>
 
@@ -578,28 +769,24 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
       >
         <Flexbox gap={18} padding={20}>
           <Flexbox horizontal align="stretch" gap={18}>
-            <div className={styles.artwork} style={{ flex: '0 0 280px' }}>
+            <div className={`${styles.artwork} ${styles.modalArtwork}`}>
               {asset?.coverUrl ? (
-                <img
-                  alt={title}
-                  src={asset.coverUrl}
-                  style={{ borderRadius: 22, height: '100%', objectFit: 'cover', width: '100%' }}
-                />
+                <img alt={title} className={styles.artworkImage} src={asset.coverUrl} />
               ) : (
-                <Flexbox align="center" height="100%" justify="center">
-                  <Music2 color="white" size={40} />
-                </Flexbox>
+                <div className={styles.artworkPlaceholder}>
+                  <Music2 size={40} />
+                </div>
               )}
             </div>
 
             <Flexbox flex={1} gap={12} style={{ minWidth: 0 }}>
               <Flexbox horizontal align="center" gap={8} justify="space-between">
-                <Flexbox gap={2} style={{ minWidth: 0 }}>
+                <Flexbox gap={4} style={{ minWidth: 0 }}>
                   <Text ellipsis fontSize={20} weight={700}>
                     {title}
                   </Text>
                   <Text ellipsis type="secondary">
-                    {artist} · {providerModelLabelMap[modelVersion] ?? modelVersion}
+                    {artist} · {modelVersion}
                   </Text>
                 </Flexbox>
                 <Tag color={asset?.url ? 'success' : 'blue'}>
@@ -607,18 +794,31 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
                 </Tag>
               </Flexbox>
 
-              {playableUrl ? (
-                <Visualizer audioRef={audioRef} isPlaying={isPlaying} />
-              ) : (
-                <div className={styles.pulseBar} />
-              )}
+              <div className={styles.visualizerShell}>
+                {playableUrl ? (
+                  <Visualizer audioRef={audioRef} isPlaying={isPlaying} />
+                ) : (
+                  <div className={styles.pulseBar} />
+                )}
+              </div>
 
-              <div className={styles.waveformRail}>
+              <div className={styles.playerRail}>
                 <div
-                  className={styles.waveformTrack}
-                  style={{ width: `${Math.max(displayProgress, 6)}%` }}
+                  className={styles.playerRailTrack}
+                  style={{ width: `${Math.max(playProgress, playableUrl ? 4 : 10)}%` }}
                 />
               </div>
+
+              <Slider
+                className={styles.seekSlider}
+                disabled={!playableUrl || duration <= 0}
+                max={Math.max(duration, 0)}
+                min={0}
+                step={0.1}
+                tooltip={{ formatter: (value) => formatTime(Number(value || 0)) }}
+                value={Math.min(currentTime, duration || currentTime)}
+                onChange={(value) => handleSeek(value as number)}
+              />
 
               <Flexbox horizontal align="center" gap={12} style={{ flexWrap: 'wrap' }}>
                 <Button
@@ -638,9 +838,19 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
                 >
                   {t('generation.download')}
                 </Button>
-                <Button icon={<Icon icon={Share2} />} shape="round" onClick={handleShare}>
+                <Button
+                  disabled={!playableUrl}
+                  icon={<Icon icon={Share2} />}
+                  shape="round"
+                  onClick={handleShare}
+                >
                   {t('generation.share')}
                 </Button>
+                <DropdownMenu items={moreMenuItems}>
+                  <Button icon={<Icon icon={MoreVertical} />} shape="round">
+                    {t('generation.more')}
+                  </Button>
+                </DropdownMenu>
               </Flexbox>
 
               <Flexbox horizontal align="center" gap={10} style={{ flexWrap: 'wrap' }}>
@@ -670,13 +880,12 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
               <Flexbox gap={6} style={{ maxHeight: '48vh', overflow: 'auto' }}>
                 {(lyrics?.alignedWords || []).map((word, wordIndex) => {
                   const isActive = wordIndex === activeLyricIndex;
-                  const lineText = word.word || '';
                   return (
                     <div
                       className={`${styles.lyricLine} ${isActive ? styles.lyricLineActive : ''}`}
                       key={`${word.word}-${word.startS ?? wordIndex}`}
                     >
-                      <Text style={{ whiteSpace: 'pre-wrap' }}>{lineText}</Text>
+                      <Text style={{ whiteSpace: 'pre-wrap' }}>{word.word || ''}</Text>
                     </div>
                   );
                 })}
@@ -733,52 +942,57 @@ export const AudioWorkspace = memo<AudioWorkspaceProps>(() => {
 
   return (
     <Flexbox gap={16} paddingBlock={24} width="100%">
-      {batches.map((batch) => (
-        <Block
-          className={styles.batchCard}
-          gap={16}
-          key={batch.id}
-          padding={16}
-          variant="borderless"
-        >
-          <Flexbox gap={8}>
-            <Flexbox horizontal align="center" gap={12} justify="space-between">
-              <Flexbox gap={4} style={{ minWidth: 0 }}>
-                <Markdown variant="chat">{batch.prompt}</Markdown>
-                <Text fontSize={12} type="secondary">
-                  {(batch.config as { artist?: string } | undefined)?.artist ||
-                    t('generation.artistFallback')}
-                  {' · '}
-                  {new Date(batch.createdAt).toLocaleString()}
-                </Text>
-              </Flexbox>
-              <Flexbox
-                horizontal
-                align="center"
-                gap={8}
-                style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}
-              >
-                <Tag>{batch.provider}</Tag>
-                <Tag>
-                  {(batch.config as { modelVersion?: string } | undefined)?.modelVersion || 'V3.0'}
-                </Tag>
+      {batches.map((batch) => {
+        const config =
+          (batch.config as { artist?: string; modelVersion?: string } | undefined) || {};
+        const providerLabel = providerLabelMap[batch.provider]
+          ? t(providerLabelMap[batch.provider])
+          : t('generation.providerMode.classic');
+
+        return (
+          <Block
+            className={styles.batchCard}
+            gap={16}
+            key={batch.id}
+            padding={16}
+            variant="borderless"
+          >
+            <Flexbox gap={8}>
+              <Flexbox horizontal align="center" gap={12} justify="space-between">
+                <Flexbox gap={4} style={{ minWidth: 0 }}>
+                  <Markdown variant="chat">{batch.prompt}</Markdown>
+                  <Text fontSize={12} type="secondary">
+                    {config.artist || t('generation.artistFallback')}
+                    {' · '}
+                    {new Date(batch.createdAt).toLocaleString()}
+                  </Text>
+                </Flexbox>
+                <Flexbox
+                  horizontal
+                  align="center"
+                  gap={8}
+                  style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}
+                >
+                  <Tag>{providerLabel}</Tag>
+                  <Tag>{config.modelVersion || 'V3.0'}</Tag>
+                </Flexbox>
               </Flexbox>
             </Flexbox>
-          </Flexbox>
 
-          <Flexbox gap={14}>
-            {batch.generations.map((generation, index) => (
-              <TrackCard
-                batch={batch}
-                generation={generation}
-                index={index}
-                key={generation.id}
-                topicId={activeTopicId}
-              />
-            ))}
-          </Flexbox>
-        </Block>
-      ))}
+            <Flexbox gap={14}>
+              {batch.generations.map((generation, index) => (
+                <TrackCard
+                  batch={batch}
+                  generation={generation}
+                  index={index}
+                  key={generation.id}
+                  topicId={activeTopicId}
+                />
+              ))}
+            </Flexbox>
+          </Block>
+        );
+      })}
     </Flexbox>
   );
 });

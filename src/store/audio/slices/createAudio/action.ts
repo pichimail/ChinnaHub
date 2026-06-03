@@ -4,6 +4,8 @@ import { t } from 'i18next';
 import { message } from '@/components/AntdStaticMethods';
 import { audioService } from '@/services/audio';
 import { type StoreSetter } from '@/store/types';
+import { useUserStore } from '@/store/user';
+import { userProfileSelectors } from '@/store/user/slices/auth/selectors';
 
 import { type AudioStore } from '../../store';
 import { audioGenerationConfigSelectors } from '../generationConfig/selectors';
@@ -31,6 +33,9 @@ export class CreateAudioActionImpl {
     const parameters = audioGenerationConfigSelectors.parameters(store);
     const activeGenerationTopicId = audioGenerationTopicSelectors.activeGenerationTopicId(store);
     const { createGenerationTopic, switchGenerationTopic, setTopicBatchLoaded } = store;
+    const username = userProfileSelectors.username(useUserStore.getState());
+    const defaultArtist =
+      parameters.artist?.trim() || (username && username !== 'anonymous' ? username : undefined);
 
     if (!parameters.prompt) {
       message.warning(t('generation.validation.promptRequired', { ns: 'audio' }));
@@ -62,7 +67,7 @@ export class CreateAudioActionImpl {
 
       const result = await audioService.createAudio({
         parameters: {
-          artist: parameters.artist,
+          artist: defaultArtist,
           makeInstrumental: parameters.makeInstrumental,
           modelVersion: parameters.modelVersion,
           prompt: parameters.prompt,

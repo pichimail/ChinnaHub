@@ -80,7 +80,7 @@ const toTaskId = (data: KieTaskResponse): string => {
 const buildKieGeneratePayload = (
   params: AudioGenerationParams,
   options: { callBackUrl: string },
-  overrides?: { model?: string; includeInstrumental?: boolean },
+  overrides?: { model?: string },
 ): Record<string, unknown> => {
   const customMode = Boolean(
     params.style?.trim() || params.title?.trim() || params.makeInstrumental,
@@ -90,17 +90,16 @@ const buildKieGeneratePayload = (
   const payload: Record<string, unknown> = {
     callBackUrl: options.callBackUrl,
     customMode,
+    instrumental: Boolean(params.makeInstrumental),
     model: overrides?.model || mapAudioModelVersionToKieModel(params.modelVersion),
     prompt,
   };
 
-  if (params.makeInstrumental || overrides?.includeInstrumental) {
-    payload.instrumental = Boolean(params.makeInstrumental);
-  }
-
   if (customMode) {
-    payload.style = params.style?.trim() || 'Instrumental';
-    payload.title = params.title?.trim() || 'Generated Audio Track';
+    payload.style =
+      params.style?.trim() || (params.makeInstrumental ? 'Instrumental' : 'Vocal arrangement');
+    payload.title =
+      params.title?.trim() || params.prompt?.trim().slice(0, 80) || 'Generated Audio Track';
   }
 
   return payload;
@@ -142,7 +141,6 @@ export class KieAiAudioService {
           (error instanceof Error ? error.message.includes('KIE AI API error: 400') : false)
         ) {
           const fallbackPayload = buildKieGeneratePayload(params, options, {
-            includeInstrumental: true,
             model: 'V5',
           });
 
