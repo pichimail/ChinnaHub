@@ -8,6 +8,7 @@ import {
   Expand,
   MessageCircleMore,
   MicVocal,
+  Music2,
   Pause,
   Play,
   RefreshCcw,
@@ -461,11 +462,11 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
             ref={audioRef}
             src={playableUrl}
             onEnded={() => setIsPlaying(false)}
+            onPause={() => setIsPlaying(false)}
+            onPlay={() => setIsPlaying(true)}
             onLoadedMetadata={(event) =>
               setDuration((event.target as HTMLAudioElement).duration || 0)
             }
-            onPause={() => setIsPlaying(false)}
-            onPlay={() => setIsPlaying(true)}
             onTimeUpdate={(event) =>
               setCurrentTime((event.target as HTMLAudioElement).currentTime || 0)
             }
