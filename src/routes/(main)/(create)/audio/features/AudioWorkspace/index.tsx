@@ -1,5 +1,6 @@
 'use client';
 
+import { AsyncTaskStatus } from '@lobechat/types';
 import { Block, Button, DropdownMenu, Flexbox, Icon, Markdown, Text } from '@lobehub/ui';
 import { App, Empty, Modal, Slider, Spin, Tag } from 'antd';
 import { type ItemType } from 'antd/es/menu/interface';
@@ -58,6 +59,12 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
         rgb(36 196 163 / 72%)
       );
     box-shadow: 0 12px 40px rgb(0 0 0 / 16%);
+  `,
+  artworkReady: css`
+    border-color: rgb(87 217 197 / 72%);
+    box-shadow:
+      0 0 0 1px rgb(87 217 197 / 18%),
+      0 16px 52px rgb(71 217 198 / 18%);
   `,
   artworkButton: css`
     cursor: pointer;
@@ -119,6 +126,11 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 
     background: rgb(8 8 8 / 46%);
     backdrop-filter: blur(16px);
+  `,
+  artworkOverlayReady: css`
+    border-color: rgb(255 255 255 / 34%);
+    background: linear-gradient(135deg, rgb(87 217 197 / 82%), rgb(110 139 255 / 82%));
+    box-shadow: 0 0 26px rgb(87 217 197 / 38%);
   `,
   audioCard: css`
     position: relative;
@@ -199,6 +211,23 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
     height: 100%;
     border-radius: 999px;
     background: linear-gradient(90deg, #6e8bff 0%, #47d9c6 48%, #f9f0ff 100%);
+  `,
+  playButtonReady: css`
+    box-shadow:
+      0 0 0 1px rgb(87 217 197 / 28%),
+      0 0 28px rgb(87 217 197 / 22%);
+    animation: ready-play-pulse 1.8s ease-in-out infinite;
+
+    @keyframes ready-play-pulse {
+      0%,
+      100% {
+        filter: saturate(1);
+      }
+
+      50% {
+        filter: saturate(1.3);
+      }
+    }
   `,
   pulseBar: css`
     position: relative;
@@ -610,7 +639,7 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
       />
 
       <Flexbox horizontal align="stretch" gap={16} padding={16}>
-        <div className={styles.artwork}>
+        <div className={`${styles.artwork} ${playableUrl ? styles.artworkReady : ''}`}>
           <button className={styles.artworkButton} type="button" onClick={handleArtworkClick}>
             {asset?.coverUrl ? (
               <img alt={title} className={styles.artworkImage} src={asset.coverUrl} />
@@ -623,7 +652,9 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
               </div>
             )}
 
-            <div className={styles.artworkOverlay}>
+            <div
+              className={`${styles.artworkOverlay} ${playableUrl ? styles.artworkOverlayReady : ''}`}
+            >
               <Icon icon={isPlaying ? Pause : Play} />
             </div>
           </button>
@@ -691,6 +722,7 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
 
                 <Flexbox horizontal align="center" gap={10} style={{ flexWrap: 'wrap' }}>
                   <Button
+                    className={playableUrl ? styles.playButtonReady : undefined}
                     disabled={!playableUrl}
                     icon={<Icon icon={isPlaying ? Pause : Play} />}
                     shape="round"
@@ -769,7 +801,9 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
       >
         <Flexbox gap={18} padding={20}>
           <Flexbox horizontal align="stretch" gap={18}>
-            <div className={`${styles.artwork} ${styles.modalArtwork}`}>
+            <div
+              className={`${styles.artwork} ${styles.modalArtwork} ${playableUrl ? styles.artworkReady : ''}`}
+            >
               {asset?.coverUrl ? (
                 <img alt={title} className={styles.artworkImage} src={asset.coverUrl} />
               ) : (
@@ -822,6 +856,7 @@ const TrackCard = memo<TrackCardProps>(({ batch, generation, index, topicId }) =
 
               <Flexbox horizontal align="center" gap={12} style={{ flexWrap: 'wrap' }}>
                 <Button
+                  className={playableUrl ? styles.playButtonReady : undefined}
                   disabled={!playableUrl}
                   icon={<Icon icon={isPlaying ? Pause : Play} />}
                   shape="round"
@@ -909,12 +944,40 @@ interface AudioWorkspaceProps {
 export const AudioWorkspace = memo<AudioWorkspaceProps>(() => {
   const { t } = useTranslation('audio');
   const activeTopicId = useAudioStore(audioGenerationTopicSelectors.activeGenerationTopicId);
+  const useFetchGenerationBatches = useAudioStore((state) => state.useFetchGenerationBatches);
+  const pollAudioStatus = useAudioStore((state) => state.pollAudioStatus);
   const batches = useAudioStore((state) =>
     audioGenerationBatchSelectors.batches(activeTopicId || '')(state),
   );
   const isLoadingTopic = useAudioStore((state) =>
     audioGenerationTopicSelectors.isLoadingGenerationTopic(activeTopicId || '')(state),
   );
+  const resumedTaskIdsRef = useRef<Set<string>>(new Set());
+
+  const batchFetchState = useFetchGenerationBatches(activeTopicId);
+
+  useEffect(() => {
+    if (!activeTopicId || !batches.length) return;
+
+    for (const batch of batches) {
+      const processingGeneration = batch.generations.find(
+        (generation) =>
+          generation.asyncTaskId && generation.task.status === AsyncTaskStatus.Processing,
+      );
+
+      if (!processingGeneration?.asyncTaskId) continue;
+
+      const resumeKey = `${activeTopicId}:${processingGeneration.asyncTaskId}`;
+      if (resumedTaskIdsRef.current.has(resumeKey)) continue;
+
+      resumedTaskIdsRef.current.add(resumeKey);
+      void pollAudioStatus({
+        asyncTaskId: processingGeneration.asyncTaskId,
+        batchId: batch.id,
+        topicId: activeTopicId,
+      });
+    }
+  }, [activeTopicId, batches, pollAudioStatus]);
 
   if (!activeTopicId) {
     return (
@@ -924,7 +987,7 @@ export const AudioWorkspace = memo<AudioWorkspaceProps>(() => {
     );
   }
 
-  if (isLoadingTopic) {
+  if (isLoadingTopic || batchFetchState.isLoading) {
     return (
       <Flexbox align="center" justify="center" style={{ minHeight: 'calc(100vh - 220px)' }}>
         <Spin size="large" />

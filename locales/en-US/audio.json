@@ -47,6 +47,7 @@
   "generation.pause": "Pause",
   "generation.play": "Play",
   "generation.playable": "Playable",
+  "generation.pollingFailed": "Audio status could not be refreshed. Open the playlist again in a moment.",
   "generation.processing": "Audio is being generated.",
   "generation.prompt": "Prompt",
   "generation.promptPlaceholder": "Describe the music, mood, instruments, genre, or scene...",
@@ -54,6 +55,7 @@
   "generation.providerMode.classic": "Accoustica",
   "generation.providerMode.lyria": "Lyria",
   "generation.providerModeHint": "Accoustica is the default. Lyria lives here as the advanced branch.",
+  "generation.readyToPlay": "Your Accoustica track is ready to play.",
   "generation.selectStyle": "Select a style",
   "generation.settings": "Accoustica settings",
   "generation.share": "Share",
@@ -62,6 +64,7 @@
   "generation.success": "Accoustica generation started.",
   "generation.title": "Track title",
   "generation.titlePlaceholder": "Optional title",
+  "generation.validation.promptOrImageRequired": "Add a prompt or an image before generating audio.",
   "generation.validation.promptRequired": "Enter a prompt before generating audio.",
   "player.download": "Download",
   "topic.createNew": "New Playlist"

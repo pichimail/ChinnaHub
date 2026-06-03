@@ -229,6 +229,7 @@ export const audioRouter = router({
       z.object({
         parameters: z.object({
           artist: z.string().optional(),
+          imageUrl: z.string().optional(),
           makeInstrumental: z.boolean().optional(),
           prompt: z.string().min(1, 'Prompt is required'),
           modelVersion: z.enum(['V1.0', 'V2.0', 'V3.0']).optional(),
@@ -553,7 +554,18 @@ export const audioRouter = router({
               metadata.providerMode,
               metadata.modelVersion,
             );
-            const audioResponse = await service.pollMusicStatus(taskId);
+            const audioResponse = await service.pollMusicStatus(taskId).catch((error) => {
+              console.error('[audioRouter.getAudioStatus] Poll provider error:', error);
+
+              return {
+                id: taskId,
+                metadata: {
+                  pollError:
+                    error instanceof Error ? error.message : 'Audio provider polling failed',
+                },
+                status: 'processing' as const,
+              };
+            });
             const generationIds = metadata.generationIds || [];
             const audioTracks = audioResponse.tracks?.length
               ? audioResponse.tracks

@@ -3,7 +3,7 @@
 import { Flexbox, Segmented, Text } from '@lobehub/ui';
 import { Collapse, Input, Select, Switch } from 'antd';
 import { Music2 } from 'lucide-react';
-import { memo, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { loginRequired } from '@/components/Error/loginRequiredNotification';
@@ -11,7 +11,9 @@ import Action from '@/features/ChatInput/ActionBar/components/Action';
 import { useIsDark } from '@/hooks/useIsDark';
 import {
   GenerationMediaModeSegment,
+  GenerationPromptAssistantAction,
   GenerationPromptInput,
+  InlineImageReference,
 } from '@/routes/(main)/(create)/features/GenerationInput';
 import { audioGenerationConfigSelectors, createAudioSelectors, useAudioStore } from '@/store/audio';
 import { useUserStore } from '@/store/user';
@@ -50,6 +52,7 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
     createAudio,
     initializeAudioConfig,
     setAudioArtist,
+    setAudioImageUrl,
     setAudioModelVersion,
     setAudioPrompt,
     setAudioProviderMode,
@@ -80,10 +83,30 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
     await createAudio();
   };
 
+  const imagePreviewUrls = useMemo(
+    () => (parameters.imageUrl ? [parameters.imageUrl] : []),
+    [parameters.imageUrl],
+  );
+
+  const handleAddImage = useCallback(
+    (data: string | { dimensions?: { height: number; width: number }; url: string }) => {
+      const url = typeof data === 'string' ? data : data?.url;
+      if (!url) return;
+
+      setAudioImageUrl(url);
+    },
+    [setAudioImageUrl],
+  );
+
+  const handleRemoveImage = useCallback(() => {
+    setAudioImageUrl(undefined);
+  }, [setAudioImageUrl]);
+
   return (
     <Flexbox gap={32} width={'100%'}>
       {showTitle && <PromptTitle />}
       <GenerationPromptInput
+        canGenerate={Boolean(parameters.prompt?.trim()) || imagePreviewUrls.length > 0}
         disableGenerate={!isInit}
         generateLabel={t('generation.generate')}
         generatingLabel={t('generation.generating', { defaultValue: 'Generating audio...' })}
@@ -91,6 +114,14 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
         isDarkMode={isDarkMode}
         placeholder={t('generation.promptPlaceholder')}
         value={parameters.prompt || ''}
+        inlineContent={
+          <InlineImageReference
+            images={imagePreviewUrls}
+            maxCount={1}
+            onAdd={handleAddImage}
+            onRemove={handleRemoveImage}
+          />
+        }
         leftActions={
           <Flexbox horizontal align={'center'} gap={4}>
             <GenerationMediaModeSegment mode={'audio'} />
@@ -191,6 +222,14 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
               }}
             />
           </Flexbox>
+        }
+        rightActions={
+          <GenerationPromptAssistantAction
+            imageUrls={imagePreviewUrls}
+            mode={'audio'}
+            prompt={parameters.prompt}
+            onPromptChange={setAudioPrompt}
+          />
         }
         onGenerate={handleGenerate}
         onValueChange={setAudioPrompt}

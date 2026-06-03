@@ -11,9 +11,12 @@ import {
 const log = debug('lobe-audio:service');
 
 const MUSIC_API_BASE_URL = 'https://api.kie.ai/api/v1';
+const KIE_POLL_MAX_RETRIES = 3;
+const KIE_POLL_TIMEOUT_MS = 10_000;
 
 export interface AudioGenerationParams {
   artist?: string;
+  imageUrl?: string;
   makeInstrumental?: boolean;
   modelVersion?: AudioModelVersion;
   prompt: string;
@@ -40,6 +43,94 @@ interface KieTaskResponse {
   data?: Record<string, unknown>;
   msg?: string;
 }
+
+type KieRecordInfoResponse = KieTaskResponse & {
+  data?: {
+    response?: { sunoData?: unknown };
+    status?: string;
+    errorMessage?: string;
+    msg?: string;
+  };
+};
+
+class KiePollError extends Error {
+  readonly retryable: boolean;
+  readonly status?: number;
+
+  constructor(message: string, options?: { retryable?: boolean; status?: number }) {
+    super(message);
+    this.name = 'KiePollError';
+    this.retryable = Boolean(options?.retryable);
+    this.status = options?.status;
+  }
+}
+
+const isRetryableStatus = (status: number) =>
+  status === 408 || status === 429 || status === 504 || status >= 500;
+
+const readKieJsonResponse = async <T extends KieTaskResponse>(response: Response): Promise<T> => {
+  const responseText = await response.text();
+
+  if (!response.ok) {
+    throw new KiePollError(`Poll error: ${response.status} ${response.statusText}`, {
+      retryable: isRetryableStatus(response.status),
+      status: response.status,
+    });
+  }
+
+  try {
+    return JSON.parse(responseText) as T;
+  } catch {
+    throw new KiePollError('KIE AI status response was not valid JSON', {
+      retryable: true,
+      status: response.status,
+    });
+  }
+};
+
+const getKieRecordInfo = async (apiKey: string, taskId: string): Promise<KieTaskResponse> => {
+  const deadline = Date.now() + KIE_POLL_TIMEOUT_MS;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < KIE_POLL_MAX_RETRIES; attempt += 1) {
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), remainingMs);
+
+    try {
+      const response = await fetch(
+        `${MUSIC_API_BASE_URL}/generate/record-info?taskId=${encodeURIComponent(taskId)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          method: 'GET',
+          signal: controller.signal,
+        },
+      );
+
+      return await readKieJsonResponse<KieTaskResponse>(response);
+    } catch (error) {
+      lastError = error;
+
+      if (error instanceof KiePollError && !error.retryable) {
+        throw error;
+      }
+
+      if (attempt === KIE_POLL_MAX_RETRIES - 1) break;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  throw new KiePollError(`KIE AI status polling timed out after ${KIE_POLL_TIMEOUT_MS / 1000}s`, {
+    retryable: true,
+    status: lastError instanceof KiePollError ? lastError.status : undefined,
+  });
+};
 
 const postKieJson = async <T extends KieTaskResponse>(
   apiKey: string,
@@ -170,31 +261,35 @@ export class KieAiAudioService {
   async pollMusicStatus(taskId: string): Promise<AudioGenerationResponse> {
     log('Polling music status for task: %s', taskId);
 
-    const response = await fetch(
-      `${MUSIC_API_BASE_URL}/generate/record-info?taskId=${encodeURIComponent(taskId)}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        method: 'GET',
-      },
-    );
+    let data: KieRecordInfoResponse;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      log('Poll error: %s - %s', response.status, errorText);
-      throw new Error(`Poll error: ${response.status}`);
+    try {
+      data = (await getKieRecordInfo(this.apiKey, taskId)) as KieRecordInfoResponse;
+    } catch (error) {
+      log('Poll request did not complete cleanly: %O', error);
+
+      if (error instanceof KiePollError && !error.retryable) {
+        return {
+          error: error.message,
+          id: taskId,
+          metadata: {
+            pollError: error.message,
+            pollStatus: error.status,
+          },
+          status: 'failed',
+        };
+      }
+
+      return {
+        id: taskId,
+        metadata: {
+          pollError: error instanceof Error ? error.message : 'KIE AI status polling failed',
+          pollTimedOut: true,
+        },
+        status: 'processing',
+      };
     }
 
-    const data = (await response.json()) as KieTaskResponse & {
-      data?: {
-        response?: { sunoData?: unknown };
-        status?: string;
-        errorMessage?: string;
-        msg?: string;
-      };
-    };
     if (data?.code && data.code !== 200) {
       throw new Error(data?.msg || `Poll error: code ${String(data?.code)}`);
     }

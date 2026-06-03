@@ -47,6 +47,7 @@
   "generation.pause": "విరామం",
   "generation.play": "ప్లే",
   "generation.playable": "ప్లే చేయగల",
+  "generation.pollingFailed": "ఆడియో స్థితిని రిఫ్రెష్ చేయలేకపోయాం. కొద్దిసేపటి తర్వాత ప్లేలిస్ట్‌ను మళ్లీ తెరవండి.",
   "generation.processing": "ఆడియో సృష్టించబడుతోంది.",
   "generation.prompt": "ప్రాంప్ట్",
   "generation.promptPlaceholder": "సంగీతం, మూడ్, వాయిద్యాలు, జానర్, లేదా దృశ్యాన్ని వివరించండి...",
@@ -54,6 +55,7 @@
   "generation.providerMode.classic": "Accoustica",
   "generation.providerMode.lyria": "Lyria",
   "generation.providerModeHint": "Accoustica డిఫాల్ట్. Lyria ఇక్కడ అధునాతన శాఖగా ఉంటుంది.",
+  "generation.readyToPlay": "మీ Accoustica ట్రాక్ ప్లే చేయడానికి సిద్ధంగా ఉంది.",
   "generation.selectStyle": "శైలిని ఎంచుకోండి",
   "generation.settings": "Accoustica సెట్టింగ్‌లు",
   "generation.share": "పంచుకోండి",
@@ -62,6 +64,7 @@
   "generation.success": "Accoustica సృష్టి ప్రారంభమైంది.",
   "generation.title": "ట్రాక్ శీర్షిక",
   "generation.titlePlaceholder": "ఐచ్ఛిక శీర్షిక",
+  "generation.validation.promptOrImageRequired": "ఆడియో సృష్టించే ముందు ఒక ప్రాంప్ట్ లేదా చిత్రం జోడించండి.",
   "generation.validation.promptRequired": "ఆడియో సృష్టించే ముందు ప్రాంప్ట్ నమోదు చేయండి.",
   "player.download": "డౌన్‌లోడ్",
   "topic.createNew": "కొత్త ప్లేలిస్ట్"

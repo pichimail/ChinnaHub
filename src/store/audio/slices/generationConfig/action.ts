@@ -56,6 +56,10 @@ export class AudioGenerationConfigActionImpl {
     this.setAudioParameters({ artist });
   };
 
+  setAudioImageUrl = (imageUrl?: string | null): void => {
+    this.setAudioParameters({ imageUrl: imageUrl || undefined });
+  };
+
   setMakeInstrumental = (makeInstrumental: boolean): void => {
     this.setAudioParameters({ makeInstrumental });
   };

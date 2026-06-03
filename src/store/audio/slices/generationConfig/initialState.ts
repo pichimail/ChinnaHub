@@ -15,6 +15,7 @@ export interface AudioGenerationConfigState {
    */
   parameters: {
     artist?: string;
+    imageUrl?: string;
     makeInstrumental?: boolean;
     prompt?: string;
     modelVersion?: 'V1.0' | 'V2.0' | 'V3.0';
@@ -27,6 +28,7 @@ export interface AudioGenerationConfigState {
 export const initialAudioGenerationConfigState: AudioGenerationConfigState = {
   isInit: false,
   parameters: {
+    imageUrl: undefined,
     makeInstrumental: false,
     prompt: '',
     modelVersion: 'V3.0',

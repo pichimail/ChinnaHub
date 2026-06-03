@@ -7,6 +7,7 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import { memo } from 'react';
 
 interface GenerationPromptInputProps {
+  canGenerate?: boolean;
   centerActions?: ReactNode;
   className?: string;
   disableGenerate?: boolean;
@@ -35,6 +36,7 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 
 const GenerationPromptInput = memo<GenerationPromptInputProps>(
   ({
+    canGenerate,
     centerActions,
     className,
     header,
@@ -53,11 +55,13 @@ const GenerationPromptInput = memo<GenerationPromptInputProps>(
     minRows = 3,
     maxRows = 6,
   }) => {
+    const canSubmit = canGenerate ?? Boolean(value?.trim());
+
     const handleKeyDown = async (e: KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
 
       e.preventDefault();
-      if (disableGenerate || isCreating || !value?.trim()) return;
+      if (disableGenerate || isCreating || !canSubmit) return;
 
       await onGenerate();
     };
@@ -103,7 +107,7 @@ const GenerationPromptInput = memo<GenerationPromptInputProps>(
               >
                 {rightActions}
                 <SendButton
-                  disabled={disableGenerate || !value}
+                  disabled={disableGenerate || !canSubmit}
                   loading={isCreating}
                   title={isCreating ? generatingLabel : generateLabel}
                   onClick={onGenerate}
@@ -117,7 +121,7 @@ const GenerationPromptInput = memo<GenerationPromptInputProps>(
                 <Flexbox horizontal align={'center'} gap={8}>
                   {rightActions}
                   <SendButton
-                    disabled={disableGenerate || !value}
+                    disabled={disableGenerate || !canSubmit}
                     loading={isCreating}
                     title={isCreating ? generatingLabel : generateLabel}
                     onClick={onGenerate}

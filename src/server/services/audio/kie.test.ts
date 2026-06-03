@@ -256,3 +256,82 @@ describe('KieAiAudioService#createMusic', () => {
     });
   });
 });
+
+describe('KieAiAudioService#pollMusicStatus', () => {
+  const fetchMock = vi.spyOn(globalThis, 'fetch');
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+  });
+
+  it('retries transient provider failures and returns normalized completed tracks', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response('<html><body>Gateway Timeout</body></html>', {
+          status: 504,
+          statusText: 'Gateway Timeout',
+          headers: { 'Content-Type': 'text/html' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            code: 200,
+            data: {
+              response: {
+                sunoData: [
+                  {
+                    audio_url: 'https://cdn.example.com/track-1.mp3',
+                    cover_url: 'https://cdn.example.com/cover-1.webp',
+                    id: 'audio-1',
+                    title: 'Track 1',
+                  },
+                  {
+                    audio_url: 'https://cdn.example.com/track-2.mp3',
+                    id: 'audio-2',
+                    title: 'Track 2',
+                  },
+                ],
+              },
+              status: 'SUCCESS',
+            },
+            msg: 'success',
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+
+    const service = new KieAiAudioService('test-api-key');
+    const result = await service.pollMusicStatus('task-1');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.status).toBe('completed');
+    expect(result.tracks).toHaveLength(2);
+    expect(result.tracks?.[0]).toMatchObject({
+      audioId: 'audio-1',
+      audioUrl: 'https://cdn.example.com/track-1.mp3',
+      coverUrl: 'https://cdn.example.com/cover-1.webp',
+      parentTaskId: 'task-1',
+      title: 'Track 1',
+    });
+  });
+
+  it('returns processing instead of throwing after repeated transient poll failures', async () => {
+    fetchMock.mockRejectedValue(new Error('network timeout'));
+
+    const service = new KieAiAudioService('test-api-key');
+    const result = await service.pollMusicStatus('task-1');
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(result).toMatchObject({
+      id: 'task-1',
+      metadata: {
+        pollTimedOut: true,
+      },
+      status: 'processing',
+    });
+  });
+});

@@ -10,13 +10,13 @@ import { useTranslation } from 'react-i18next';
 import { loginRequired } from '@/components/Error/loginRequiredNotification';
 import Action from '@/features/ChatInput/ActionBar/components/Action';
 import ModelSwitchPanel from '@/features/ModelSwitchPanel';
-import PromptTransformAction from '@/features/PromptTransform/PromptTransformAction';
 import { useFetchAiImageConfig } from '@/hooks/useFetchAiImageConfig';
 import { useIsDark } from '@/hooks/useIsDark';
 import { useQueryState } from '@/hooks/useQueryParam';
 import {
   ConfigAction,
   GenerationMediaModeSegment,
+  GenerationPromptAssistantAction,
   GenerationPromptInput,
   InlineImageReference,
 } from '@/routes/(main)/(create)/features/GenerationInput';
@@ -350,7 +350,12 @@ const PromptInput = ({ showTitle = false }: PromptInputProps) => {
           hasRefImages ? t('config.prompt.placeholderWithRef') : t('config.prompt.placeholder')
         }
         rightActions={
-          <PromptTransformAction mode={'image'} prompt={value} onPromptChange={setValue as any} />
+          <GenerationPromptAssistantAction
+            imageUrls={imagePreviewUrls}
+            mode={'image'}
+            prompt={value}
+            onPromptChange={setValue as any}
+          />
         }
         onGenerate={handleGenerate}
         onValueChange={setValue}

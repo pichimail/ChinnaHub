@@ -44,6 +44,7 @@
   "generation.pause": "暂停",
   "generation.play": "播放",
   "generation.playable": "可播放",
+  "generation.pollingFailed": "无法刷新音频状态。请稍后重新打开播放列表。",
   "generation.processing": "音频正在生成。",
   "generation.prompt": "提示词",
   "generation.promptPlaceholder": "描述音乐、情绪、乐器、风格或场景...",
@@ -51,6 +52,7 @@
   "generation.providerMode.classic": "Accoustica",
   "generation.providerMode.lyria": "Lyria",
   "generation.providerModeHint": "默认使用 Accoustica，Lyria 放在这里作为高级分支。",
+  "generation.readyToPlay": "您的 Accoustica 音轨已可播放。",
   "generation.selectStyle": "选择风格",
   "generation.settings": "Accoustica 设置",
   "generation.share": "分享",
@@ -59,6 +61,7 @@
   "generation.success": "Accoustica 生成已开始。",
   "generation.title": "音轨标题",
   "generation.titlePlaceholder": "可选标题",
+  "generation.validation.promptOrImageRequired": "生成音频前请添加提示词或图片。",
   "generation.validation.promptRequired": "生成音频前请输入提示词。",
   "player.download": "下载",
   "topic.createNew": "新建播放列表"

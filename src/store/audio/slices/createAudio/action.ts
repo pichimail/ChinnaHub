@@ -3,6 +3,7 @@ import { t } from 'i18next';
 
 import { message } from '@/components/AntdStaticMethods';
 import { audioService } from '@/services/audio';
+import { generatePromptWithAssistant } from '@/services/promptAssistant';
 import { type StoreSetter } from '@/store/types';
 import { useUserStore } from '@/store/user';
 import { userProfileSelectors } from '@/store/user/slices/auth/selectors';
@@ -12,6 +13,16 @@ import { audioGenerationConfigSelectors } from '../generationConfig/selectors';
 import { audioGenerationTopicSelectors } from '../generationTopic/selectors';
 
 type Setter = StoreSetter<AudioStore>;
+const AUDIO_POLL_INTERVAL_MS = 2000;
+const AUDIO_POLL_MAX_ATTEMPTS = 300;
+const AUDIO_POLL_MAX_FAILURES = 3;
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const countPlayableGenerations = (generations: { asset?: any }[] = []) =>
+  generations.filter((generation) =>
+    Boolean(generation.asset?.url || generation.asset?.originalUrl),
+  ).length;
 
 export const createCreateAudioSlice = (set: Setter, get: () => AudioStore, _api?: unknown) =>
   new CreateAudioActionImpl(set, get, _api);
@@ -36,9 +47,27 @@ export class CreateAudioActionImpl {
     const username = userProfileSelectors.username(useUserStore.getState());
     const defaultArtist =
       parameters.artist?.trim() || (username && username !== 'anonymous' ? username : undefined);
+    let finalPrompt = parameters.prompt?.trim() || '';
 
-    if (!parameters.prompt) {
-      message.warning(t('generation.validation.promptRequired', { ns: 'audio' }));
+    if (!finalPrompt && parameters.imageUrl) {
+      try {
+        finalPrompt = await generatePromptWithAssistant({
+          imageUrls: [parameters.imageUrl],
+          intent: 'generate',
+          mode: 'audio',
+        });
+
+        store.setAudioPrompt(finalPrompt);
+      } catch (error) {
+        console.error('[CreateAudio] Failed to generate prompt from image:', error);
+        message.error(t('generation.failed', { ns: 'audio' }));
+        this.#set({ isCreating: false }, false, 'createAudio/endCreateAudio');
+        return;
+      }
+    }
+
+    if (!finalPrompt) {
+      message.warning(t('generation.validation.promptOrImageRequired', { ns: 'audio' }));
       this.#set({ isCreating: false }, false, 'createAudio/endCreateAudio');
       return;
     }
@@ -48,7 +77,7 @@ export class CreateAudioActionImpl {
 
     if (!activeGenerationTopicId) {
       isNewTopic = true;
-      const prompts = [parameters.prompt];
+      const prompts = [finalPrompt];
       const newGenerationTopicId = await createGenerationTopic(prompts);
       finalTopicId = newGenerationTopicId;
 
@@ -68,9 +97,10 @@ export class CreateAudioActionImpl {
       const result = await audioService.createAudio({
         parameters: {
           artist: defaultArtist,
+          imageUrl: parameters.imageUrl,
           makeInstrumental: parameters.makeInstrumental,
           modelVersion: parameters.modelVersion,
-          prompt: parameters.prompt,
+          prompt: finalPrompt,
           providerMode: parameters.providerMode,
           style: parameters.style,
           title: parameters.title,
@@ -121,35 +151,58 @@ export class CreateAudioActionImpl {
     batchId: string;
     topicId: string;
   }): Promise<void> => {
-    const maxAttempts = 120;
+    let consecutiveFailures = 0;
+    let lastPlayableCount = countPlayableGenerations(
+      this.#get().generationBatchesMap[topicId]?.find((batch) => batch.id === batchId)?.generations,
+    );
 
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+    for (let attempt = 0; attempt < AUDIO_POLL_MAX_ATTEMPTS; attempt += 1) {
+      if (attempt > 0) await wait(AUDIO_POLL_INTERVAL_MS);
 
-      const status = await audioService.getAudioStatus(asyncTaskId);
-      if (status.generations?.length) {
-        const batches = this.#get().generationBatchesMap[topicId] || [];
-        const batch = batches.find((item) => item.id === batchId);
+      try {
+        const status = await audioService.getAudioStatus(asyncTaskId);
+        consecutiveFailures = 0;
 
-        if (batch) {
-          this.#get().internal_dispatchGenerationBatch(
-            topicId,
-            {
-              ...batch,
-              generations: batch.generations.map(
-                (generation) =>
-                  status.generations!.find(
-                    (updatedGeneration) => updatedGeneration.id === generation.id,
-                  ) || generation,
-              ),
-            },
-            'createAudio/updatePolledGeneration',
-          );
+        if (status.generations?.length) {
+          const batches = this.#get().generationBatchesMap[topicId] || [];
+          const batch = batches.find((item) => item.id === batchId);
+
+          if (batch) {
+            const nextGenerations = batch.generations.map(
+              (generation) =>
+                status.generations!.find(
+                  (updatedGeneration) => updatedGeneration.id === generation.id,
+                ) || generation,
+            );
+            const nextPlayableCount = countPlayableGenerations(nextGenerations);
+
+            this.#get().internal_dispatchGenerationBatch(
+              topicId,
+              {
+                ...batch,
+                generations: nextGenerations,
+              },
+              'createAudio/updatePolledGeneration',
+            );
+
+            if (nextPlayableCount > lastPlayableCount) {
+              lastPlayableCount = nextPlayableCount;
+              message.success(t('generation.readyToPlay', { ns: 'audio' }));
+            }
+          }
         }
-      }
 
-      if (status.status === AsyncTaskStatus.Success || status.status === AsyncTaskStatus.Error) {
-        return;
+        if (status.status === AsyncTaskStatus.Success || status.status === AsyncTaskStatus.Error) {
+          return;
+        }
+      } catch (error) {
+        consecutiveFailures += 1;
+        console.error('[CreateAudio] Audio polling failed:', error);
+
+        if (consecutiveFailures >= AUDIO_POLL_MAX_FAILURES) {
+          message.error(t('generation.pollingFailed', { ns: 'audio' }));
+          return;
+        }
       }
     }
   };

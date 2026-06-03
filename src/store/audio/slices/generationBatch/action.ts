@@ -1,3 +1,7 @@
+import isEqual from 'fast-deep-equal';
+import { type SWRResponse } from 'swr';
+
+import { useClientDataSWR } from '@/libs/swr';
 import { generationBatchService } from '@/services/generationBatch';
 import { type StoreSetter } from '@/store/types';
 import { type GenerationBatch } from '@/types/generation';
@@ -5,6 +9,7 @@ import { type GenerationBatch } from '@/types/generation';
 import { type AudioStore } from '../../store';
 
 type Setter = StoreSetter<AudioStore>;
+const SWR_USE_FETCH_AUDIO_GENERATION_BATCHES = 'SWR_USE_FETCH_AUDIO_GENERATION_BATCHES';
 
 export const createAudioGenerationBatchSlice = (
   set: Setter,
@@ -87,6 +92,35 @@ export class AudioGenerationBatchActionImpl {
       },
       false,
       'audioGenerationBatch/refreshGenerationBatches',
+    );
+  };
+
+  useFetchGenerationBatches = (topicId?: string | null): SWRResponse<GenerationBatch[]> => {
+    return useClientDataSWR<GenerationBatch[]>(
+      topicId ? [SWR_USE_FETCH_AUDIO_GENERATION_BATCHES, topicId] : null,
+      async ([, targetTopicId]: [string, string]) =>
+        generationBatchService.getGenerationBatches(targetTopicId, 'audio'),
+      {
+        onError: (error) => {
+          console.error('Failed to fetch audio generation batches:', error);
+        },
+        onSuccess: (data) => {
+          if (!topicId) return;
+
+          const nextMap = {
+            ...this.#get().generationBatchesMap,
+            [topicId]: data,
+          };
+
+          if (isEqual(nextMap, this.#get().generationBatchesMap)) return;
+
+          this.#set(
+            { generationBatchesMap: nextMap },
+            false,
+            'audioGenerationBatch/useFetchGenerationBatches',
+          );
+        },
+      },
     );
   };
 }
