@@ -16,7 +16,7 @@ import {
   GenerationPromptInput,
   InlineImageReference,
 } from '@/routes/(main)/(create)/features/GenerationInput';
-import { audioGenerationConfigSelectors, createAudioSelectors, useAudioStore } from '@/store/audio';
+import { audioConversationSelectors, audioGenerationConfigSelectors, createAudioSelectors, useAudioStore } from '@/store/audio';
 import { useUserStore } from '@/store/user';
 import { authSelectors, userProfileSelectors } from '@/store/user/slices/auth/selectors';
 
@@ -112,6 +112,7 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
   const isDarkMode = useIsDark();
   const { t } = useTranslation('audio');
   const parameters = useAudioStore(audioGenerationConfigSelectors.parameters);
+  const lastTrack = useAudioStore(audioConversationSelectors.lastTrack);
   const isInit = useAudioStore(audioGenerationConfigSelectors.isInit);
   const isCreating = useAudioStore(createAudioSelectors.isCreating);
   const isLogin = useUserStore(authSelectors.isLogin);
@@ -119,6 +120,7 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
   const hasSetDefaultArtist = useRef(false);
   const [composerMode, setComposerMode] = useState<AudioComposerMode>('simple');
   const {
+    appendAudioMessage,
     createAudio,
     initializeAudioConfig,
     setAudioArtist,
@@ -214,6 +216,39 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
       return;
     }
 
+    const visiblePrompt = parameters.prompt?.trim() || '';
+    if (!visiblePrompt && !parameters.imageUrl) {
+      await createAudio();
+      return;
+    }
+
+    const hasTrackContext = Boolean(lastTrack?.generationId);
+    const generationPrompt = hasTrackContext
+      ? [
+          `Previous track: ${lastTrack?.title || 'last generated track'}`,
+          lastTrack?.prompt ? `Original request: ${lastTrack.prompt}` : undefined,
+          `Follow-up request: ${visiblePrompt}`,
+        ]
+          .filter(Boolean)
+          .join('\n')
+      : visiblePrompt;
+
+    appendAudioMessage({
+      content: visiblePrompt || 'Generate music from the attached reference.',
+      intent: hasTrackContext ? 'followUp' : 'generate',
+      role: 'user',
+      trackContext: hasTrackContext ? lastTrack : undefined,
+    });
+    appendAudioMessage({
+      content: hasTrackContext
+        ? 'Got it. I will use the previous track as context and shape the next generation around your requested change.'
+        : 'Great. I am composing two Accoustica options from your request now.',
+      intent: hasTrackContext ? 'followUp' : 'generate',
+      role: 'assistant',
+      trackContext: hasTrackContext ? lastTrack : undefined,
+    });
+
+    if (generationPrompt !== visiblePrompt) setAudioPrompt(generationPrompt);
     await createAudio();
   };
 
