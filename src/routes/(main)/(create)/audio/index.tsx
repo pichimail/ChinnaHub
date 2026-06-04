@@ -8,7 +8,7 @@ import CreateGenerationPage from '@/routes/(main)/(create)/features/CreateGenera
 import { AudioConversationPanel } from './features/AudioConversationPanel';
 import { AudioConversationReadyWatcher } from './features/AudioConversationPanel/ReadyWatcher';
 import ImageStyleAudioWorkspace from './features/ImageStyleAudioWorkspace';
-import PromptInput from './features/PromptInput';
+import PromptInput from './features/PromptInput/Lean';
 
 const ConversationalAudioWorkspace = memo(() => (
   <Flexbox gap={16} width="100%">
