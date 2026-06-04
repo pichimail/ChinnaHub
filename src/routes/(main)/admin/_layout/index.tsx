@@ -10,8 +10,10 @@ import { useUserStore } from '@/store/user';
 
 const styles = createStaticStyles(({ css }) => ({
   container: css`
-    overflow: auto;
+    display: flex;
     height: 100%;
+    min-height: 0;
+    overflow: auto;
     padding: 16px;
 
     background:
@@ -19,6 +21,10 @@ const styles = createStaticStyles(({ css }) => ({
       linear-gradient(180deg, #050505 0%, #070707 100%);
   `,
   panel: css`
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
     overflow: hidden;
 
     border: 1px solid rgba(255, 255, 255, 0.09);
@@ -84,6 +90,9 @@ const styles = createStaticStyles(({ css }) => ({
     }
   `,
   content: css`
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
     padding: 24px;
     color: rgba(255, 255, 255, 0.92);
 
@@ -187,6 +196,10 @@ const styles = createStaticStyles(({ css }) => ({
       color: #fff;
     }
   `,
+  contentAssistant: css`
+    overflow: hidden;
+    padding: 0;
+  `,
   unauthorized: css`
     padding: 32px;
     color: #fff;
@@ -216,6 +229,11 @@ const AdminLayout = () => {
       key: 'overview',
       label: <AdminLabel icon={adminIcons.overview}>{t('overview', { ns: 'admin' })}</AdminLabel>,
       path: '/admin',
+    },
+    {
+      key: 'assistant',
+      label: <AdminLabel icon={adminIcons.assistant}>{t('assistant', { ns: 'admin' })}</AdminLabel>,
+      path: '/admin/assistant',
     },
     {
       key: 'users',
@@ -278,6 +296,8 @@ const AdminLayout = () => {
           ? location.pathname === item.path
           : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
       )?.key || 'overview';
+  const isAssistantRoute =
+    location.pathname === '/admin/assistant' || location.pathname.startsWith('/admin/assistant/');
 
   return (
     <div className={styles.container}>
@@ -301,7 +321,7 @@ const AdminLayout = () => {
           }}
         />
 
-        <div className={styles.content}>
+        <div className={isAssistantRoute ? `${styles.content} ${styles.contentAssistant}` : styles.content}>
           <Outlet />
         </div>
       </div>

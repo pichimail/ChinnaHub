@@ -14,6 +14,12 @@ const getBuiltinAgentId = (slug: string) => (s: AgentStoreState) => s.builtinAge
 const isBuiltinAgentInit = (slug: string) => (s: AgentStoreState) => !!s.builtinAgentIdMap[slug];
 
 /**
+ * Get admin assistant ID (convenience selector)
+ */
+const adminAssistantId = (s: AgentStoreState) =>
+  s.builtinAgentIdMap[BUILTIN_AGENT_SLUGS.adminAssistant];
+
+/**
  * Get page agent ID (convenience selector)
  */
 const pageAgentId = (s: AgentStoreState) => s.builtinAgentIdMap[BUILTIN_AGENT_SLUGS.pageAgent];
@@ -68,6 +74,7 @@ const isOnboardingAgent = (s: AgentStoreState) => {
 };
 
 export const builtinAgentSelectors = {
+  adminAssistantId,
   agentBuilderId,
   getBuiltinAgentId,
   groupAgentBuilderId,

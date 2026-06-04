@@ -1,3 +1,4 @@
+import { ADMIN_ASSISTANT } from './agents/admin-assistant';
 import { AGENT_BUILDER } from './agents/agent-builder';
 import { GROUP_AGENT_BUILDER } from './agents/group-agent-builder';
 import { GROUP_SUPERVISOR } from './agents/group-supervisor';
@@ -11,6 +12,7 @@ import { BUILTIN_AGENT_SLUGS } from './types';
 export * from './types';
 
 // Agent exports
+export { ADMIN_ASSISTANT } from './agents/admin-assistant';
 export { AGENT_BUILDER } from './agents/agent-builder';
 export { GROUP_AGENT_BUILDER } from './agents/group-agent-builder';
 export { GROUP_SUPERVISOR } from './agents/group-supervisor';
@@ -23,6 +25,7 @@ export { WEB_ONBOARDING } from './agents/web-onboarding';
  * All builtin agents indexed by slug
  */
 export const BUILTIN_AGENTS: Record<BuiltinAgentSlug, BuiltinAgentDefinition> = {
+  [BUILTIN_AGENT_SLUGS.adminAssistant]: ADMIN_ASSISTANT,
   [BUILTIN_AGENT_SLUGS.agentBuilder]: AGENT_BUILDER,
   [BUILTIN_AGENT_SLUGS.groupAgentBuilder]: GROUP_AGENT_BUILDER,
   [BUILTIN_AGENT_SLUGS.groupSupervisor]: GROUP_SUPERVISOR,

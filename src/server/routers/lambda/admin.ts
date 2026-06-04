@@ -747,6 +747,155 @@ export const adminRouter = router({
     return { success: true, data: keys };
   }),
 
+  getAssistantSnapshot: adminProcedure.query(async ({ ctx }) => {
+    const [
+      apiKeys,
+      envVars,
+      flags,
+      governancePolicies,
+      plans,
+      providerRows,
+      recentAuditLogs,
+      recentUsers,
+      userRows,
+    ] = await Promise.all([
+      ctx.serverDB.select().from(adminApiKeys).orderBy(adminApiKeys.service),
+      ctx.serverDB.select().from(adminEnvVars),
+      ctx.serverDB.select().from(featureFlags),
+      ctx.serverDB.select().from(adminGovernancePolicies),
+      ctx.serverDB.select().from(adminPlans).orderBy(adminPlans.sortOrder),
+      ctx.serverDB.select().from(aiProviders).limit(500),
+      ctx.serverDB.select().from(adminAuditLogs).orderBy(desc(adminAuditLogs.createdAt)).limit(8),
+      ctx.serverDB.query.users.findMany({
+        columns: {
+          banned: true,
+          createdAt: true,
+          email: true,
+          id: true,
+          lastActiveAt: true,
+          role: true,
+        },
+        limit: 5,
+        orderBy: desc(users.createdAt),
+      }),
+      ctx.serverDB.query.users.findMany({
+        columns: {
+          banned: true,
+          role: true,
+        },
+      }),
+    ]);
+
+    const runtimeCatalog = buildRuntimeEnvCatalog(envVars);
+    const activeEnvValueMap = new Map(
+      envVars.filter((item) => item.isActive).map((item) => [item.key, item.value]),
+    );
+    const resolveRuntimeValue = (key: string) => activeEnvValueMap.get(key) || process.env[key];
+
+    const activeProviders = providerRows.filter((provider) => !!provider.enabled);
+    const activePlans = plans.filter((plan) => !!plan.isActive);
+    const adminUsers = userRows.filter((user) => user.role === 'admin');
+    const bannedUsers = userRows.filter((user) => !!user.banned);
+    const activeApiKeys = apiKeys.filter((key) => !!key.isActive);
+    const activeGovernancePolicies = governancePolicies.filter((policy) => !!policy.isActive);
+    const missingRuntimeEnvKeys = runtimeCatalog
+      .filter((item) => item.source === 'missing')
+      .map((item) => item.key)
+      .slice(0, 8);
+
+    return {
+      success: true,
+      data: {
+        apis: {
+          services: apiKeys.map((key) => ({
+            isActive: key.isActive,
+            label: key.label,
+            service: key.service,
+            updatedAt: key.updatedAt,
+          })),
+        },
+        application: {
+          appUrl: resolveRuntimeValue('APP_URL') || null,
+          generatedAt: new Date().toISOString(),
+          missingRuntimeEnvKeys,
+          runtimeCatalogCount: runtimeCatalog.length,
+          storageConfigured: !!(
+            resolveRuntimeValue('S3_BUCKET') && resolveRuntimeValue('S3_ENDPOINT')
+          ),
+          trackedEnvVarCount: envVars.length,
+          webhookProxyUrl: resolveRuntimeValue('WEBHOOK_PROXY_URL') || null,
+        },
+        audit: {
+          recent: recentAuditLogs.map((log) => ({
+            action: log.action,
+            adminEmail: log.adminEmail,
+            createdAt: log.createdAt,
+            targetId: log.targetId,
+            targetType: log.targetType,
+          })),
+        },
+        env: {
+          runtimeCoverage: runtimeCatalog.slice(0, 12).map((item) => ({
+            domain: item.domain,
+            hasAdminValue: item.hasAdminValue,
+            hasProcessValue: item.hasProcessValue,
+            issues: item.issues,
+            key: item.key,
+            requiredFor: item.requiredFor,
+            source: item.source,
+          })),
+        },
+        governance: {
+          domains: governanceDomains.map((domain) => ({
+            activeCount: activeGovernancePolicies.filter((policy) => policy.domain === domain)
+              .length,
+            domain,
+            totalCount: governancePolicies.filter((policy) => policy.domain === domain).length,
+          })),
+        },
+        plans: {
+          items: plans.map((plan) => ({
+            isActive: plan.isActive,
+            key: plan.key,
+            label: plan.label,
+            sortOrder: plan.sortOrder,
+          })),
+        },
+        providers: {
+          items: providerRows.slice(0, 12).map((provider) => ({
+            enabled: !!provider.enabled,
+            id: provider.id,
+            name: provider.name || provider.id,
+            source: provider.source || 'builtin',
+            updatedAt: provider.updatedAt,
+          })),
+        },
+        summary: {
+          activeApiKeyCount: activeApiKeys.length,
+          activeGovernancePolicyCount: activeGovernancePolicies.length,
+          activePlanCount: activePlans.length,
+          activeProviderCount: activeProviders.length,
+          adminUserCount: adminUsers.length,
+          bannedUserCount: bannedUsers.length,
+          defaultEnabledFeatureFlagCount: flags.filter((flag) => !!flag.defaultEnabled).length,
+          envVarCount: envVars.length,
+          featureFlagCount: flags.length,
+          totalUserCount: userRows.length,
+        },
+        users: {
+          recent: recentUsers.map((user) => ({
+            banned: !!user.banned,
+            createdAt: user.createdAt,
+            email: user.email,
+            id: user.id,
+            lastActiveAt: user.lastActiveAt,
+            role: user.role,
+          })),
+        },
+      },
+    };
+  }),
+
   upsertAdminApiKey: adminProcedure
     .input(
       z.object({

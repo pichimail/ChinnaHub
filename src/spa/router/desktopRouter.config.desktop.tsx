@@ -20,6 +20,7 @@ import DesktopVideoLayout from '@/routes/(main)/(create)/video/_layout';
 import TaskWorkspaceLayout from '@/routes/(main)/(task-workspace)/_layout';
 import AdminOverview from '@/routes/(main)/admin';
 import AdminLayout from '@/routes/(main)/admin/_layout';
+import AdminAssistant from '@/routes/(main)/admin/assistant';
 import AdminApiKeys from '@/routes/(main)/admin/api-keys';
 import AdminAuditLogs from '@/routes/(main)/admin/audit-logs';
 import AdminEnvVars from '@/routes/(main)/admin/env-vars';
@@ -398,6 +399,10 @@ export const desktopRoutes: RouteObject[] = [
           {
             element: <AdminOverview />,
             index: true,
+          },
+          {
+            element: <AdminAssistant />,
+            path: 'assistant',
           },
           {
             element: <AdminUsers />,

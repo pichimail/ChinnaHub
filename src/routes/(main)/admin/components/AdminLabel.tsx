@@ -7,6 +7,7 @@ import {
   Ban,
   BarChart3,
   Boxes,
+  Bot,
   Clock3,
   FileText,
   Globe,
@@ -46,6 +47,7 @@ const styles = createStaticStyles(({ css }) => ({
 
 export const adminIcons = {
   actions: SlidersHorizontal,
+  assistant: Bot,
   apiKeys: KeyRound,
   auditLogs: History,
   bannedUsers: Ban,

@@ -6,6 +6,7 @@ import type { GroupSupervisorContext } from './agents/group-supervisor/type';
  * Builtin Agent Slugs - unique identifiers for builtin agents
  */
 export const BUILTIN_AGENT_SLUGS = {
+  adminAssistant: 'admin-assistant',
   agentBuilder: 'agent-builder',
   groupAgentBuilder: 'group-agent-builder',
   groupSupervisor: 'group-supervisor',

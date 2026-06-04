@@ -462,6 +462,13 @@ export const desktopRoutes: RouteObject[] = [
           },
           {
             element: dynamicElement(
+              () => import('@/routes/(main)/admin/assistant'),
+              'Desktop > Admin > Assistant',
+            ),
+            path: 'assistant',
+          },
+          {
+            element: dynamicElement(
               () => import('@/routes/(main)/admin/users'),
               'Desktop > Admin > Users',
             ),
