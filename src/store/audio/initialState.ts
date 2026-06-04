@@ -1,5 +1,9 @@
 import { type CreateAudioState, initialCreateAudioState } from './slices/createAudio/initialState';
 import {
+  type AudioConversationState,
+  initialAudioConversationState,
+} from './slices/conversation/initialState';
+import {
   type AudioGenerationBatchState,
   initialAudioGenerationBatchState,
 } from './slices/generationBatch/initialState';
@@ -13,12 +17,14 @@ import {
 } from './slices/generationTopic/initialState';
 
 export type AudioStoreState = AudioGenerationConfigState &
+  AudioConversationState &
   AudioGenerationTopicState &
   AudioGenerationBatchState &
   CreateAudioState;
 
 export const initialState: AudioStoreState = {
   ...initialAudioGenerationConfigState,
+  ...initialAudioConversationState,
   ...initialAudioGenerationTopicState,
   ...initialAudioGenerationBatchState,
   ...initialCreateAudioState,
