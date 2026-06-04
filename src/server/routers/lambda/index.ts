@@ -25,6 +25,7 @@ import { aiModelRouter } from './aiModel';
 import { aiProviderRouter } from './aiProvider';
 import { apiKeyRouter } from './apiKey';
 import { audioRouter } from './audio';
+import { audioActionRouter } from './audioAction';
 import { botMessageRouter } from './botMessage';
 import { briefRouter } from './brief';
 import { changelogRouter } from './changelog';
@@ -89,6 +90,7 @@ export const lambdaRouter = router({
   aiProvider: aiProviderRouter,
   apiKey: apiKeyRouter,
   audio: audioRouter,
+  audioAction: audioActionRouter,
   chunk: chunkRouter,
   comfyui: comfyuiRouter,
   config: configRouter,
