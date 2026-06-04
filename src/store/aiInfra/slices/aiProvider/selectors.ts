@@ -5,12 +5,15 @@ import { type AiProviderRuntimeConfig } from '@/types/aiProvider';
 import { AiProviderSourceEnum } from '@/types/aiProvider';
 import { type GlobalLLMProviderKey } from '@/types/user/settings';
 
+const imageAbilities = { files: true, imageOutput: true, reasoning: false, vision: true };
+const videoAbilities = { files: true, imageOutput: false, reasoning: false, vision: true };
+
 const chinnaImageProvider = {
   children: [
-    { displayName: 'chinnaimage-v1.0', id: 'grok-imagine/text-to-image' },
-    { displayName: 'chinnaimage-v1.0 image-to-image', id: 'grok-imagine/image-to-image' },
-    { displayName: 'chinnaimage-v1.0 upscale', id: 'grok-imagine/upscale' },
-    { displayName: 'chinnaauto/image', id: 'x-ai/grok-imagine-image-quality' },
+    { abilities: imageAbilities, displayName: 'chinnaimage-v1.0', id: 'grok-imagine/text-to-image' },
+    { abilities: imageAbilities, displayName: 'chinnaimage-v1.0 image-to-image', id: 'grok-imagine/image-to-image' },
+    { abilities: imageAbilities, displayName: 'chinnaimage-v1.0 upscale', id: 'grok-imagine/upscale' },
+    { abilities: imageAbilities, displayName: 'chinnaauto/image', id: 'x-ai/grok-imagine-image-quality' },
   ],
   enabled: true,
   id: 'chinnaimage',
@@ -20,11 +23,11 @@ const chinnaImageProvider = {
 
 const chinnaVideoProvider = {
   children: [
-    { displayName: 'chinnavideo-v1.0', id: 'grok-imagine/text-to-video' },
-    { displayName: 'chinnavideo-v1.0 image-to-video', id: 'grok-imagine/image-to-video' },
-    { displayName: 'chinnavideo-v1.0 extend', id: 'grok-imagine/extend' },
-    { displayName: 'chinnavideo-v2.0', id: 'grok-imagine/1-5-preview' },
-    { displayName: 'chinnaauto/video', id: 'x-ai/grok-imagine-video' },
+    { abilities: videoAbilities, displayName: 'chinnavideo-v1.0', id: 'grok-imagine/text-to-video' },
+    { abilities: videoAbilities, displayName: 'chinnavideo-v1.0 image-to-video', id: 'grok-imagine/image-to-video' },
+    { abilities: videoAbilities, displayName: 'chinnavideo-v1.0 extend', id: 'grok-imagine/extend' },
+    { abilities: videoAbilities, displayName: 'chinnavideo-v2.0', id: 'grok-imagine/1-5-preview' },
+    { abilities: videoAbilities, displayName: 'chinnaauto/video', id: 'x-ai/grok-imagine-video' },
   ],
   enabled: true,
   id: 'chinnavideo',
