@@ -10,6 +10,10 @@ import { type ResetableStore, ResetableStoreAction } from '../utils/resetableSto
 import { type AudioStoreState, initialState } from './initialState';
 import { type CreateAudioAction, createCreateAudioSlice } from './slices/createAudio/action';
 import {
+  type AudioConversationAction,
+  createAudioConversationSlice,
+} from './slices/conversation/action';
+import {
   type AudioGenerationBatchAction,
   createAudioGenerationBatchSlice,
 } from './slices/generationBatch/action';
@@ -25,6 +29,7 @@ import {
 //  ===============  aggregate createStoreFn ============ //
 
 type AudioStoreAction = AudioGenerationConfigAction &
+  AudioConversationAction &
   AudioGenerationTopicAction &
   AudioGenerationBatchAction &
   CreateAudioAction &
@@ -42,6 +47,7 @@ const createStore: StateCreator<AudioStore, [['zustand/devtools', never]]> = (
   ...initialState,
   ...flattenActions<AudioStoreAction>([
     createAudioGenerationConfigSlice(...parameters),
+    createAudioConversationSlice(...parameters),
     createAudioGenerationTopicSlice(...parameters),
     createAudioGenerationBatchSlice(...parameters),
     createCreateAudioSlice(...parameters),
