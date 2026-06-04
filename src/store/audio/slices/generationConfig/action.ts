@@ -44,6 +44,20 @@ export class AudioGenerationConfigActionImpl {
     this.setAudioParameters({ style });
   };
 
+  setAudioNegativeTags = (negativeTags?: string): void => {
+    this.setAudioParameters({ negativeTags });
+  };
+
+  setAudioWeirdness = (weirdness: number): void => {
+    this.setAudioParameters({ weirdness: Math.max(1, Math.min(100, Math.round(weirdness))) });
+  };
+
+  setAudioStyleInfluence = (audioStyleInfluence: number): void => {
+    this.setAudioParameters({
+      audioStyleInfluence: Math.max(1, Math.min(100, Math.round(audioStyleInfluence))),
+    });
+  };
+
   setAudioModelVersion = (modelVersion: 'V1.0' | 'V2.0' | 'V3.0'): void => {
     this.setAudioParameters({ modelVersion });
   };
