@@ -1,7 +1,7 @@
 'use client';
 
 import { Button, Flexbox, Icon, Segmented, Text } from '@lobehub/ui';
-import { Collapse, Input, Select, Switch } from 'antd';
+import { Collapse, Input, Select, Slider, Switch } from 'antd';
 import { Dice5, Music2 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -29,9 +29,19 @@ interface PromptInputProps {
 
 type AudioComposerMode = 'simple' | 'advanced';
 
+type PromptSeed = {
+  audioStyleInfluence: number;
+  negativeTags: string;
+  prompt: string;
+  style: string;
+  title: string;
+  weirdness: number;
+};
+
 const SIMPLE_PROMPT_LIMIT = 500;
 const ADVANCED_LYRICS_LIMIT = 5000;
 const ADVANCED_STYLE_LIMIT = 1000;
+const NEGATIVE_TAG_LIMIT = 200;
 
 const styleOptions = [
   'Pop',
@@ -46,32 +56,57 @@ const styleOptions = [
   'Ambient',
 ].map((style) => ({ label: style, value: style.toLowerCase().replaceAll(' ', '-') }));
 
-const promptSeeds = [
+const promptSeeds: PromptSeed[] = [
   {
+    audioStyleInfluence: 84,
+    negativeTags: 'muddy mix, flat hook, harsh highs, robotic vocals, weak drums',
     prompt:
       'Create a cinematic Telugu-English love song with warm male vocals, emotional strings, soft tabla, modern pop drums, and a hopeful chorus.',
     style: 'cinematic pop, Telugu-English fusion, warm vocals, emotional strings',
     title: 'Heartline',
+    weirdness: 28,
   },
   {
+    audioStyleInfluence: 88,
+    negativeTags: 'slow intro, dull drop, weak bass, thin percussion, off beat groove',
     prompt:
       'Generate an energetic festival dance track with punchy drums, catchy hook, bright synths, Indian percussion, and crowd-ready drops.',
     style: 'festival dance, Indian percussion, EDM pop, bright synths',
     title: 'Neon Jathara',
+    weirdness: 58,
   },
   {
+    audioStyleInfluence: 76,
+    negativeTags: 'busy drums, harsh vocal tuning, noisy ambience, distorted piano',
     prompt:
       'Make a late-night lo-fi romantic track with soft piano, rain texture, relaxed beat, airy vocals, and a memorable humming hook.',
     style: 'lo-fi romance, soft piano, rain ambience, airy vocals',
     title: 'Rain Notes',
+    weirdness: 36,
   },
   {
+    audioStyleInfluence: 82,
+    negativeTags: 'generic melody, muddy bass, cluttered mix, flat vocal energy',
     prompt:
       'Produce a confident tech-founder anthem with futuristic synth bass, crisp trap drums, motivational vocals, and a premium cinematic build.',
     style: 'futuristic trap, cinematic synthwave, motivational vocal hook',
     title: 'Build Mode',
+    weirdness: 64,
   },
 ];
+
+const buildNegativeTagsFromStyle = (style?: string): string => {
+  const normalized = style?.toLowerCase() || '';
+  const tags = ['low quality', 'muddy mix', 'off key vocals'];
+
+  if (normalized.includes('lo-fi')) tags.push('overcompressed drums', 'harsh hiss');
+  if (normalized.includes('cinematic')) tags.push('thin strings', 'weak climax');
+  if (normalized.includes('dance') || normalized.includes('edm')) tags.push('weak drop', 'flat bass');
+  if (normalized.includes('rock') || normalized.includes('metal')) tags.push('muddy guitars', 'buried vocals');
+  if (normalized.includes('folk')) tags.push('synthetic acoustic tone', 'rushed rhythm');
+
+  return Array.from(new Set(tags)).join(', ').slice(0, NEGATIVE_TAG_LIMIT);
+};
 
 const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
   const isDarkMode = useIsDark();
@@ -89,10 +124,13 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
     setAudioArtist,
     setAudioImageUrl,
     setAudioModelVersion,
+    setAudioNegativeTags,
     setAudioPrompt,
     setAudioProviderMode,
     setAudioStyle,
+    setAudioStyleInfluence,
     setAudioTitle,
+    setAudioWeirdness,
     setMakeInstrumental,
   } = useAudioStore();
 
@@ -112,6 +150,7 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
   const promptLimit = composerMode === 'simple' ? SIMPLE_PROMPT_LIMIT : ADVANCED_LYRICS_LIMIT;
   const promptLength = parameters.prompt?.length || 0;
   const styleLength = parameters.style?.length || 0;
+  const negativeTagLength = parameters.negativeTags?.length || 0;
 
   const handlePromptChange = useCallback(
     (value: string) => {
@@ -122,17 +161,37 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
 
   const handleStyleChange = useCallback(
     (value?: string) => {
-      setAudioStyle(value ? value.slice(0, ADVANCED_STYLE_LIMIT) : value);
+      const nextStyle = value ? value.slice(0, ADVANCED_STYLE_LIMIT) : value;
+      setAudioStyle(nextStyle);
+      if (nextStyle) setAudioNegativeTags(buildNegativeTagsFromStyle(nextStyle));
     },
-    [setAudioStyle],
+    [setAudioNegativeTags, setAudioStyle],
+  );
+
+  const handleNegativeTagsChange = useCallback(
+    (value?: string) => {
+      setAudioNegativeTags(value ? value.slice(0, NEGATIVE_TAG_LIMIT) : value);
+    },
+    [setAudioNegativeTags],
   );
 
   const handleSurpriseMe = useCallback(() => {
     const seed = promptSeeds[Math.floor(Math.random() * promptSeeds.length)];
     setAudioPrompt(seed.prompt.slice(0, promptLimit));
     setAudioStyle(seed.style.slice(0, ADVANCED_STYLE_LIMIT));
+    setAudioNegativeTags(seed.negativeTags.slice(0, NEGATIVE_TAG_LIMIT));
+    setAudioStyleInfluence(seed.audioStyleInfluence);
     setAudioTitle(seed.title);
-  }, [promptLimit, setAudioPrompt, setAudioStyle, setAudioTitle]);
+    setAudioWeirdness(seed.weirdness);
+  }, [
+    promptLimit,
+    setAudioNegativeTags,
+    setAudioPrompt,
+    setAudioStyle,
+    setAudioStyleInfluence,
+    setAudioTitle,
+    setAudioWeirdness,
+  ]);
 
   const handleGenerate = async () => {
     if (!isLogin) {
@@ -147,6 +206,11 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
 
     if (composerMode === 'advanced' && styleLength > ADVANCED_STYLE_LIMIT) {
       message.warning('Music style must stay under 1000 characters.');
+      return;
+    }
+
+    if (negativeTagLength > NEGATIVE_TAG_LIMIT) {
+      message.warning('Negative tags must stay under 200 characters.');
       return;
     }
 
@@ -178,8 +242,7 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
         <Flexbox gap={2} style={{ minWidth: 240 }}>
           <Text weight={700}>Accoustica music chat</Text>
           <Text fontSize={12} type="secondary">
-            Tell the AI the song you want. After generation, use the track actions to remix,
-            extend, cover, split vocals, sync lyrics, or create visuals.
+            Describe the song. Accoustica auto-fills production guardrails and generates two tracks.
           </Text>
         </Flexbox>
         <Segmented
@@ -198,10 +261,8 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
             ? `${promptLength}/${SIMPLE_PROMPT_LIMIT} prompt characters`
             : `${promptLength}/${ADVANCED_LYRICS_LIMIT} lyrics description characters`}
         </Text>
-        <Text fontSize={12} type={styleLength > ADVANCED_STYLE_LIMIT ? 'danger' : 'secondary'}>
-          {composerMode === 'advanced'
-            ? `${styleLength}/${ADVANCED_STYLE_LIMIT} music style characters`
-            : 'Shift + Enter for new line. Enter generates.'}
+        <Text fontSize={12} type={negativeTagLength > NEGATIVE_TAG_LIMIT ? 'danger' : 'secondary'}>
+          {negativeTagLength}/{NEGATIVE_TAG_LIMIT} negative tags · two songs per request
         </Text>
       </Flexbox>
     </Flexbox>
@@ -241,7 +302,7 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
               trigger={'click'}
               popover={{
                 content: (
-                  <Flexbox gap={12} style={{ minWidth: 280 }}>
+                  <Flexbox gap={12} style={{ minWidth: 300 }}>
                     <Flexbox gap={6}>
                       <Text fontSize={12}>{t('generation.modelVersion')}</Text>
                       <Segmented
@@ -258,40 +319,17 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
                         }
                       />
                     </Flexbox>
-                    <Collapse
-                      bordered={false}
-                      defaultActiveKey={[]}
-                      items={[
-                        {
-                          children: (
-                            <Flexbox gap={12} style={{ paddingTop: 4 }}>
-                              <Text fontSize={12}>{t('generation.providerMode')}</Text>
-                              <Select
-                                value={parameters.providerMode || 'classic'}
-                                options={[
-                                  {
-                                    label: t('generation.providerMode.classic'),
-                                    value: 'classic',
-                                  },
-                                  {
-                                    label: t('generation.providerMode.lyria'),
-                                    value: 'lyria',
-                                  },
-                                ]}
-                                onChange={(value) =>
-                                  setAudioProviderMode(value as 'classic' | 'lyria')
-                                }
-                              />
-                              <Text fontSize={11} type="secondary">
-                                {t('generation.providerModeHint')}
-                              </Text>
-                            </Flexbox>
-                          ),
-                          key: 'advanced-provider',
-                          label: t('generation.advanced'),
-                        },
-                      ]}
-                    />
+                    <Flexbox gap={6}>
+                      <Text fontSize={12}>{t('generation.providerMode')}</Text>
+                      <Select
+                        value={parameters.providerMode || 'classic'}
+                        options={[
+                          { label: t('generation.providerMode.classic'), value: 'classic' },
+                          { label: t('generation.providerMode.lyria'), value: 'lyria' },
+                        ]}
+                        onChange={(value) => setAudioProviderMode(value as 'classic' | 'lyria')}
+                      />
+                    </Flexbox>
                     <Flexbox gap={6}>
                       <Text fontSize={12}>{t('generation.style')}</Text>
                       <Select
@@ -302,44 +340,84 @@ const PromptInput = memo<PromptInputProps>(({ showTitle = false }) => {
                         onChange={(value) => handleStyleChange(value)}
                       />
                     </Flexbox>
-                    {composerMode === 'advanced' && (
-                      <Flexbox gap={6}>
-                        <Text fontSize={12}>Music style boost</Text>
-                        <Input.TextArea
-                          autoSize={{ maxRows: 4, minRows: 2 }}
-                          maxLength={ADVANCED_STYLE_LIMIT}
-                          placeholder="Example: afro house, Telugu folk percussion, cinematic strings, male vocals, clean radio mix"
-                          value={parameters.style || ''}
-                          onChange={(event) => handleStyleChange(event.target.value)}
-                        />
-                      </Flexbox>
-                    )}
                     <Flexbox gap={6}>
-                      <Text fontSize={12}>{t('generation.title')}</Text>
-                      <Input
-                        placeholder={t('generation.titlePlaceholder')}
-                        value={parameters.title || ''}
-                        onChange={(event) => setAudioTitle(event.target.value)}
+                      <Text fontSize={12}>Music style boost</Text>
+                      <Input.TextArea
+                        autoSize={{ maxRows: 4, minRows: 2 }}
+                        maxLength={ADVANCED_STYLE_LIMIT}
+                        placeholder="Example: afro house, Telugu folk percussion, cinematic strings, male vocals, clean radio mix"
+                        value={parameters.style || ''}
+                        onChange={(event) => handleStyleChange(event.target.value)}
                       />
                     </Flexbox>
                     <Flexbox gap={6}>
-                      <Text fontSize={12}>{t('generation.artist')}</Text>
-                      <Input
-                        placeholder={t('generation.artistPlaceholder')}
-                        value={parameters.artist || ''}
-                        onChange={(event) => setAudioArtist(event.target.value)}
+                      <Text fontSize={12}>Negative tags</Text>
+                      <Input.TextArea
+                        autoSize={{ maxRows: 3, minRows: 2 }}
+                        maxLength={NEGATIVE_TAG_LIMIT}
+                        placeholder="What to avoid in the song mix"
+                        value={parameters.negativeTags || ''}
+                        onChange={(event) => handleNegativeTagsChange(event.target.value)}
                       />
                     </Flexbox>
-                    <Flexbox horizontal align="center" justify="space-between">
-                      <Text fontSize={12}>{t('generation.instrumental')}</Text>
-                      <Switch
-                        checked={!!parameters.makeInstrumental}
-                        onChange={(checked) => setMakeInstrumental(checked)}
+                    <Flexbox gap={6}>
+                      <Text fontSize={12}>Weirdness: {parameters.weirdness || 1}</Text>
+                      <Slider
+                        max={100}
+                        min={1}
+                        value={parameters.weirdness || 1}
+                        onChange={(value) => setAudioWeirdness(value)}
                       />
                     </Flexbox>
+                    <Flexbox gap={6}>
+                      <Text fontSize={12}>Audio style influence: {parameters.audioStyleInfluence || 1}</Text>
+                      <Slider
+                        max={100}
+                        min={1}
+                        value={parameters.audioStyleInfluence || 1}
+                        onChange={(value) => setAudioStyleInfluence(value)}
+                      />
+                    </Flexbox>
+                    <Collapse
+                      bordered={false}
+                      defaultActiveKey={[]}
+                      items={[
+                        {
+                          children: (
+                            <Flexbox gap={12} style={{ paddingTop: 4 }}>
+                              <Flexbox gap={6}>
+                                <Text fontSize={12}>{t('generation.title')}</Text>
+                                <Input
+                                  placeholder={t('generation.titlePlaceholder')}
+                                  value={parameters.title || ''}
+                                  onChange={(event) => setAudioTitle(event.target.value)}
+                                />
+                              </Flexbox>
+                              <Flexbox gap={6}>
+                                <Text fontSize={12}>{t('generation.artist')}</Text>
+                                <Input
+                                  placeholder={t('generation.artistPlaceholder')}
+                                  value={parameters.artist || ''}
+                                  onChange={(event) => setAudioArtist(event.target.value)}
+                                />
+                              </Flexbox>
+                              <Flexbox horizontal align="center" justify="space-between">
+                                <Text fontSize={12}>{t('generation.instrumental')}</Text>
+                                <Switch
+                                  checked={!!parameters.makeInstrumental}
+                                  onChange={(checked) => setMakeInstrumental(checked)}
+                                />
+                              </Flexbox>
+                            </Flexbox>
+                          ),
+                          key: 'manual-fields',
+                          label: 'Manual fields',
+                        },
+                      ]}
+                    />
                   </Flexbox>
                 ),
-                minWidth: 320,
+                minWidth: 340,
                 title: t('generation.settings'),
               }}
             />
