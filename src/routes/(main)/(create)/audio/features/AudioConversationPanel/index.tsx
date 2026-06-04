@@ -2,7 +2,7 @@
 
 import { Block, Button, Flexbox, Text } from '@lobehub/ui';
 import { Bot, UserRound } from 'lucide-react';
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 
 import { audioConversationSelectors, useAudioStore } from '@/store/audio';
 
@@ -31,7 +31,11 @@ const starterMessages = [
 export const AudioConversationPanel = memo(() => {
   const messages = useAudioStore(audioConversationSelectors.messages);
   const lastTrack = useAudioStore(audioConversationSelectors.lastTrack);
-  const { appendAudioMessage, setAudioPrompt } = useAudioStore();
+  const { appendAudioMessage, hydrateAudioConversation, setAudioPrompt } = useAudioStore();
+
+  useEffect(() => {
+    hydrateAudioConversation();
+  }, [hydrateAudioConversation]);
 
   const visibleMessages = useMemo(() => {
     return messages.length > 0 ? messages : starterMessages;
