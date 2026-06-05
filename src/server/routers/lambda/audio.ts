@@ -6,6 +6,9 @@ import { AudioGenerationModel } from '@/database/models/audioGeneration';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 
+const CHINNA_AUDIO_PROVIDER = 'chinnahub';
+const CHINNA_AUDIO_MODEL = 'chinnaaudio';
+
 const audioProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
   const { ctx } = opts;
   return opts.next({
@@ -15,19 +18,35 @@ const audioProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
   });
 });
 
-const generateAudioInput = z.object({
-  prompt: z.string().min(1).max(2000),
-  /** Custom mode: user provides their own lyrics + style */
-  customMode: z.boolean().default(false),
-  /** Music style tags (custom mode, e.g. "pop rock energetic") */
-  style: z.string().max(200).optional(),
-  /** Song title (custom mode only) */
-  title: z.string().max(100).optional(),
-  /** Generate instrumental (no vocals) */
-  makeInstrumental: z.boolean().default(false),
-  /** Optional callback URL for async completion */
-  callbackUrl: z.string().url().optional(),
-});
+const generateAudioInput = z
+  .object({
+    prompt: z.string().min(1).max(5000),
+    /** Custom mode: user provides their own lyrics + style */
+    customMode: z.boolean().default(false),
+    /** Music style tags (custom mode, e.g. "pop rock energetic") */
+    style: z.string().max(1000).optional(),
+    /** Song title (custom mode only) */
+    title: z.string().max(100).optional(),
+    /** Generate instrumental (no vocals) */
+    makeInstrumental: z.boolean().default(false),
+    /** Strict Accoustica model registry guard */
+    model: z.enum([CHINNA_AUDIO_MODEL, 'accoustica']).default(CHINNA_AUDIO_MODEL),
+    provider: z.enum([CHINNA_AUDIO_PROVIDER]).default(CHINNA_AUDIO_PROVIDER),
+    /** Optional callback URL for async completion */
+    callbackUrl: z.string().url().optional(),
+  })
+  .superRefine((input, ctx) => {
+    if (!input.customMode && input.prompt.length > 500) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_big,
+        maximum: 500,
+        inclusive: true,
+        type: 'string',
+        path: ['prompt'],
+        message: 'Simple Accoustica prompt must be 500 characters or less',
+      });
+    }
+  });
 
 const getAudioStatusInput = z.object({
   taskId: z.string().min(1),
@@ -48,8 +67,8 @@ const listAudioHistoryInput = z.object({
 
 export const audioRouter = router({
   /**
-   * Generate music from a text description or custom lyrics
-   * Uses V5.5 model by default — model selection is not exposed to users
+   * Generate music from a text description or custom lyrics.
+   * Strictly uses the ChinnaHub Accoustica registry model.
    */
   generateAudio: audioProcedure
     .input(generateAudioInput)
@@ -68,7 +87,7 @@ export const audioRouter = router({
           prompt: input.prompt,
           musicStyle: input.style || 'auto',
           duration: 0,
-          modelVersion: 'v5.5',
+          modelVersion: input.model,
           taskId,
           status: 'pending',
         });
@@ -100,7 +119,6 @@ export const audioRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Audio task not found' });
       }
 
-      // Return cached result for terminal states
       if (audioRecord.status === 'completed' || audioRecord.status === 'failed') {
         return {
           taskId: input.taskId,
@@ -115,14 +133,11 @@ export const audioRouter = router({
         };
       }
 
-      // Poll from API
       const task = await sunoClient.getTaskStatus(input.taskId);
 
-      // Derive the first available audio URL from clips
       const firstClip = task.clips?.find((c) => c.audio_url || c.stream_audio_url);
       const audioUrl = firstClip?.audio_url || firstClip?.stream_audio_url || task.audio_url;
 
-      // Update DB when status changes or we get a URL
       if (task.status !== audioRecord.status || (audioUrl && !audioRecord.audioUrl)) {
         await ctx.audioGenerationModel.update(audioRecord.id, {
           status: task.status,
@@ -132,7 +147,6 @@ export const audioRouter = router({
             duration: task.duration || firstClip?.duration,
             imageLargeUrl: task.image_large_url || firstClip?.image_large_url,
             imageUrl: task.image_url || firstClip?.image_url,
-            // Store clips for multi-track support
             ...(task.clips ? { clips: task.clips } : {}),
           } as any,
           error: task.error,
