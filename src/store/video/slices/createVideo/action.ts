@@ -5,8 +5,10 @@ import { handleGenerationPromptModerationError } from '@/business/client/handleG
 import { handleLobeHubModelDeprecatedError } from '@/business/client/handleLobeHubModelDeprecatedError';
 import { markUserValidAction } from '@/business/client/markUserValidAction';
 import { message } from '@/components/AntdStaticMethods';
+import { grokImagineService } from '@/services/grokImagine';
 import { videoService } from '@/services/video';
 import { type StoreSetter } from '@/store/types';
+import { isChinnaVideoModel, resolveChinnaVideoMode, toKieInput } from '@/utils/grokImagineRouting';
 
 import { type VideoStore } from '../../store';
 import { generationBatchSelectors } from '../generationBatch/selectors';
@@ -38,15 +40,9 @@ export class CreateVideoActionImpl {
     const activeGenerationTopicId = generationTopicSelectors.activeGenerationTopicId(store);
     const { createGenerationTopic, switchGenerationTopic, setTopicBatchLoaded } = store;
 
-    if (!parameters) {
-      throw new TypeError('parameters is not initialized');
-    }
+    if (!parameters) throw new TypeError('parameters is not initialized');
+    if (!parameters.prompt) throw new TypeError('prompt is empty');
 
-    if (!parameters.prompt) {
-      throw new TypeError('prompt is empty');
-    }
-
-    // Validate: end frame requires start frame (driven by model schema)
     const parametersSchema = videoGenerationConfigSelectors.parametersSchema(store);
     const endImageUrlSchema = parametersSchema?.endImageUrl;
     if (
@@ -66,56 +62,41 @@ export class CreateVideoActionImpl {
     }
 
     let finalTopicId = activeGenerationTopicId;
-
-    // 1. Create generation topic if not exists
     const generationTopicId = activeGenerationTopicId;
     let isNewTopic = false;
 
     if (!generationTopicId) {
       isNewTopic = true;
-      const prompts = [parameters.prompt];
-      const newGenerationTopicId = await createGenerationTopic(prompts);
+      const newGenerationTopicId = await createGenerationTopic([parameters.prompt]);
       finalTopicId = newGenerationTopicId;
-
-      // 2. Initialize empty batch array to avoid skeleton screen
       setTopicBatchLoaded(newGenerationTopicId);
-
-      // 3. Switch to the new topic (now it has empty data, so no skeleton screen)
       switchGenerationTopic(newGenerationTopicId);
     }
 
     try {
-      // 3. If it's a new topic, set the creating state after topic creation
       if (isNewTopic) {
-        this.#set(
-          { isCreatingWithNewTopic: true },
-          false,
-          'createVideo/startCreateVideoWithNewTopic',
-        );
+        this.#set({ isCreatingWithNewTopic: true }, false, 'createVideo/startCreateVideoWithNewTopic');
       }
 
-      if (ENABLE_BUSINESS_FEATURES) {
-        markUserValidAction();
+      if (ENABLE_BUSINESS_FEATURES) markUserValidAction();
+
+      if (isChinnaVideoModel(provider, model)) {
+        const mode = resolveChinnaVideoMode(model, parameters as any);
+        if (mode === 'auto-video') await grokImagineService.runChinnaAutoVideo(parameters as any);
+        else await grokImagineService.createKieTask(mode as any, toKieInput(parameters as any));
+      } else {
+        await videoService.createVideo({
+          generationTopicId: finalTopicId!,
+          model,
+          params: parameters as any,
+          provider,
+        });
       }
 
-      // 4. Create video via service
-      await videoService.createVideo({
-        generationTopicId: finalTopicId!,
-        model,
-        params: parameters as any,
-        provider,
-      });
+      await this.#get().refreshGenerationBatches();
 
-      // 5. Refresh generation batches to show the new batch
-      if (!isNewTopic) {
-        await this.#get().refreshGenerationBatches();
-      }
-
-      // 6. Clear the prompt input after successful video creation
       this.#set(
-        (state) => ({
-          parameters: { ...state.parameters, prompt: '' },
-        }),
+        (state) => ({ parameters: { ...state.parameters, prompt: '' } }),
         false,
         'createVideo/clearPrompt',
       );
@@ -124,13 +105,8 @@ export class CreateVideoActionImpl {
       handleLobeHubModelDeprecatedError(error);
       throw error;
     } finally {
-      // 7. Reset all creating states
       if (isNewTopic) {
-        this.#set(
-          { isCreating: false, isCreatingWithNewTopic: false },
-          false,
-          'createVideo/endCreateVideoWithNewTopic',
-        );
+        this.#set({ isCreating: false, isCreatingWithNewTopic: false }, false, 'createVideo/endCreateVideoWithNewTopic');
       } else {
         this.#set({ isCreating: false }, false, 'createVideo/endCreateVideo');
       }
@@ -142,23 +118,19 @@ export class CreateVideoActionImpl {
 
     const store = this.#get();
     const activeGenerationTopicId = generationTopicSelectors.activeGenerationTopicId(store);
-    if (!activeGenerationTopicId) {
-      throw new Error('No active generation topic');
-    }
+    if (!activeGenerationTopicId) throw new Error('No active generation topic');
 
     const { removeGenerationBatch } = store;
     const batch = generationBatchSelectors.getGenerationBatchByBatchId(generationBatchId)(store)!;
 
     try {
       await removeGenerationBatch(generationBatchId, activeGenerationTopicId);
-
       await videoService.createVideo({
         generationTopicId: activeGenerationTopicId,
         model: batch.model,
         params: batch.config as any,
         provider: batch.provider,
       });
-
       await store.refreshGenerationBatches();
     } catch (error) {
       handleGenerationPromptModerationError(error);
