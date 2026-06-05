@@ -62,25 +62,24 @@ export class CreateImageActionImpl {
 
       if (isChinnaImageModel(provider, model)) {
         const mode = resolveChinnaImageMode(model, parameters as any);
-        if (mode === 'auto-image') await grokImagineService.runChinnaAutoImage(parameters as any);
-        else await grokImagineService.createKieTask(mode as any, toKieInput(parameters as any));
+        if (mode === 'auto-image') {
+          await grokImagineService.runChinnaAutoImage(parameters as any);
+        } else {
+          const result = await grokImagineService.createKieTask(mode as any, toKieInput(parameters as any), {
+            generationTopicId: finalTopicId!,
+            mediaType: 'image',
+            model,
+            provider,
+          });
+          const batch = (result as any)?.data?.batch;
+          if (batch) store.internal_dispatchGenerationBatch(finalTopicId!, batch, 'createImage/dispatchChinnaBatch');
+        }
       } else {
-        await imageService.createImage({
-          generationTopicId: finalTopicId!,
-          imageNum,
-          model,
-          params: parameters as any,
-          provider,
-        });
+        await imageService.createImage({ generationTopicId: finalTopicId!, imageNum, model, params: parameters as any, provider });
       }
 
       await this.#get().refreshGenerationBatches();
-
-      this.#set(
-        (state) => ({ parameters: { ...state.parameters, prompt: '' } }),
-        false,
-        'createImage/clearPrompt',
-      );
+      this.#set((state) => ({ parameters: { ...state.parameters, prompt: '' } }), false, 'createImage/clearPrompt');
     } catch (error) {
       handleGenerationPromptModerationError(error);
       handleLobeHubModelDeprecatedError(error);
@@ -107,13 +106,7 @@ export class CreateImageActionImpl {
 
     try {
       await removeGenerationBatch(generationBatchId, activeGenerationTopicId);
-      await imageService.createImage({
-        generationTopicId: activeGenerationTopicId,
-        imageNum,
-        model: batch.model,
-        params: batch.config as any,
-        provider: batch.provider,
-      });
+      await imageService.createImage({ generationTopicId: activeGenerationTopicId, imageNum, model: batch.model, params: batch.config as any, provider: batch.provider });
       await store.refreshGenerationBatches();
     } catch (error) {
       handleGenerationPromptModerationError(error);
