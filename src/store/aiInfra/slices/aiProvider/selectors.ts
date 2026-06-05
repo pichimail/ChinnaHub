@@ -1,41 +1,143 @@
+import type { ModelParamsSchema, VideoModelParamsSchema } from 'model-bank';
 import { isProviderDisableBrowserRequest } from 'model-bank/modelProviders';
 
 import { type AIProviderStoreState } from '@/store/aiInfra/initialState';
-import { type AiProviderRuntimeConfig } from '@/types/aiProvider';
+import { type AiProviderRuntimeConfig, type EnabledProviderWithModels } from '@/types/aiProvider';
 import { AiProviderSourceEnum } from '@/types/aiProvider';
 import { type GlobalLLMProviderKey } from '@/types/user/settings';
 
 const imageAbilities = { files: true, imageOutput: true, reasoning: false, vision: true };
 const videoAbilities = { files: true, imageOutput: false, reasoning: false, vision: true };
+const imageAspectRatios = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'];
+const videoAspectRatios = ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'];
+const videoResolutions = ['480p', '720p', '1080p'];
 
-const chinnaImageProvider = {
+const chinnaImageTextParameters: ModelParamsSchema = {
+  aspectRatio: {
+    default: '1:1',
+    enum: imageAspectRatios,
+  },
+  prompt: { default: '' },
+  resolution: {
+    default: '1k',
+    enum: ['1k', '2k'],
+  },
+};
+
+const chinnaImageReferenceParameters: ModelParamsSchema = {
+  ...chinnaImageTextParameters,
+  imageUrls: {
+    default: [],
+    maxCount: 4,
+  },
+};
+
+const chinnaImageSingleReferenceParameters: ModelParamsSchema = {
+  ...chinnaImageTextParameters,
+  imageUrl: {
+    default: null,
+  },
+};
+
+const chinnaVideoTextParameters: VideoModelParamsSchema = {
+  aspectRatio: {
+    default: '16:9',
+    enum: videoAspectRatios,
+  },
+  duration: { default: 8, max: 15, min: 1 },
+  prompt: { default: '' },
+  resolution: {
+    default: '720p',
+    enum: videoResolutions,
+  },
+};
+
+const chinnaVideoReferenceParameters: VideoModelParamsSchema = {
+  ...chinnaVideoTextParameters,
+  imageUrl: {
+    default: null,
+  },
+};
+
+// ModelSwitchPanel currently shares the image parameter type for all selectable models.
+// The runtime video selector validates this object with VideoModelParamsMetaSchema.
+const asSelectableVideoParameters = (parameters: VideoModelParamsSchema): ModelParamsSchema =>
+  parameters as unknown as ModelParamsSchema;
+
+const chinnaImageProvider: EnabledProviderWithModels = {
   children: [
-    { abilities: imageAbilities, displayName: 'chinnaimage-v1.0', id: 'grok-imagine/text-to-image' },
-    { abilities: imageAbilities, displayName: 'chinnaimage-v1.0 image-to-image', id: 'grok-imagine/image-to-image' },
-    { abilities: imageAbilities, displayName: 'chinnaimage-v1.0 upscale', id: 'grok-imagine/upscale' },
-    { abilities: imageAbilities, displayName: 'chinnaauto/image', id: 'x-ai/grok-imagine-image-quality' },
+    {
+      abilities: imageAbilities,
+      displayName: 'chinnaimage-v1.0',
+      id: 'grok-imagine/text-to-image',
+      parameters: chinnaImageTextParameters,
+    },
+    {
+      abilities: imageAbilities,
+      displayName: 'chinnaimage-v1.0 image-to-image',
+      id: 'grok-imagine/image-to-image',
+      parameters: chinnaImageReferenceParameters,
+    },
+    {
+      abilities: imageAbilities,
+      displayName: 'chinnaimage-v1.0 upscale',
+      id: 'grok-imagine/upscale',
+      parameters: chinnaImageSingleReferenceParameters,
+    },
+    {
+      abilities: imageAbilities,
+      displayName: 'chinnaauto/image',
+      id: 'x-ai/grok-imagine-image-quality',
+      parameters: chinnaImageReferenceParameters,
+    },
   ],
-  enabled: true,
   id: 'chinnaimage',
   name: 'Chinna Image',
-  sort: 0,
-} as any;
+  source: AiProviderSourceEnum.Builtin,
+};
 
-const chinnaVideoProvider = {
+const chinnaVideoProvider: EnabledProviderWithModels = {
   children: [
-    { abilities: videoAbilities, displayName: 'chinnavideo-v1.0', id: 'grok-imagine/text-to-video' },
-    { abilities: videoAbilities, displayName: 'chinnavideo-v1.0 image-to-video', id: 'grok-imagine/image-to-video' },
-    { abilities: videoAbilities, displayName: 'chinnavideo-v1.0 extend', id: 'grok-imagine/extend' },
-    { abilities: videoAbilities, displayName: 'chinnavideo-v2.0', id: 'grok-imagine/1-5-preview' },
-    { abilities: videoAbilities, displayName: 'chinnaauto/video', id: 'x-ai/grok-imagine-video' },
+    {
+      abilities: videoAbilities,
+      displayName: 'chinnavideo-v1.0',
+      id: 'grok-imagine/text-to-video',
+      parameters: asSelectableVideoParameters(chinnaVideoTextParameters),
+    },
+    {
+      abilities: videoAbilities,
+      displayName: 'chinnavideo-v1.0 image-to-video',
+      id: 'grok-imagine/image-to-video',
+      parameters: asSelectableVideoParameters(chinnaVideoReferenceParameters),
+    },
+    {
+      abilities: videoAbilities,
+      displayName: 'chinnavideo-v1.0 extend',
+      id: 'grok-imagine/extend',
+      parameters: asSelectableVideoParameters(chinnaVideoReferenceParameters),
+    },
+    {
+      abilities: videoAbilities,
+      displayName: 'chinnavideo-v2.0',
+      id: 'grok-imagine/1-5-preview',
+      parameters: asSelectableVideoParameters(chinnaVideoReferenceParameters),
+    },
+    {
+      abilities: videoAbilities,
+      displayName: 'chinnaauto/video',
+      id: 'x-ai/grok-imagine-video',
+      parameters: asSelectableVideoParameters(chinnaVideoReferenceParameters),
+    },
   ],
-  enabled: true,
   id: 'chinnavideo',
   name: 'Chinna Video',
-  sort: 0,
-} as any;
+  source: AiProviderSourceEnum.Builtin,
+};
 
-const prependProvider = (list: any[] = [], provider: any) => {
+const prependProvider = (
+  list: EnabledProviderWithModels[] = [],
+  provider: EnabledProviderWithModels,
+) => {
   const filtered = list.filter((item) => item?.id !== provider.id);
   return [provider, ...filtered];
 };

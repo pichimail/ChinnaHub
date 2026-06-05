@@ -65,6 +65,28 @@ describe('aiProviderSelectors', () => {
     });
   });
 
+  describe('generation model providers', () => {
+    it('prepends selectable Chinna image models with valid parameter metadata', () => {
+      const [provider] = aiProviderSelectors.enabledImageModelList(mockState);
+
+      expect(provider.id).toBe('chinnaimage');
+      expect(provider.children).toHaveLength(4);
+      provider.children.forEach((model) => {
+        expect(model.parameters).toMatchObject({ prompt: { default: '' } });
+      });
+    });
+
+    it('prepends selectable Chinna video models with valid parameter metadata', () => {
+      const [provider] = aiProviderSelectors.enabledVideoModelList(mockState);
+
+      expect(provider.id).toBe('chinnavideo');
+      expect(provider.children).toHaveLength(5);
+      provider.children.forEach((model) => {
+        expect(model.parameters).toMatchObject({ prompt: { default: '' } });
+      });
+    });
+  });
+
   describe('disabledAiProviderList', () => {
     it('should return disabled builtin providers', () => {
       const result = aiProviderSelectors.disabledAiProviderList(mockState);

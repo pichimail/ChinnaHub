@@ -7,6 +7,7 @@ import { generatePromptWithAssistant } from '@/services/promptAssistant';
 import { type StoreSetter } from '@/store/types';
 import { useUserStore } from '@/store/user';
 import { userProfileSelectors } from '@/store/user/slices/auth/selectors';
+import { type AudioGenerationAsset, type Generation } from '@/types/generation';
 
 import { type AudioStore } from '../../store';
 import { audioGenerationConfigSelectors } from '../generationConfig/selectors';
@@ -19,10 +20,25 @@ const AUDIO_POLL_MAX_FAILURES = 3;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const countPlayableGenerations = (generations: { asset?: any }[] = []) =>
+const countPlayableGenerations = (generations: Generation[] = []) =>
   generations.filter((generation) =>
     Boolean(generation.asset?.url || generation.asset?.originalUrl),
   ).length;
+
+const syncAudioTopicCover = async (
+  store: AudioStore,
+  topicId: string,
+  generations: Generation[] = [],
+) => {
+  const coverUrl = generations
+    .map((generation) => (generation.asset as AudioGenerationAsset | undefined)?.coverUrl)
+    .find(Boolean);
+  const topic = store.generationTopics.find((item) => item.id === topicId);
+
+  if (coverUrl && topic && !topic.coverUrl) {
+    await store.updateGenerationTopicCover(topicId, coverUrl);
+  }
+};
 
 const isTransientAudioPollingError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
@@ -200,6 +216,8 @@ export class CreateAudioActionImpl {
               'createAudio/updatePolledGeneration',
             );
 
+            await syncAudioTopicCover(this.#get(), topicId, nextGenerations);
+
             if (nextPlayableCount > lastPlayableCount) {
               lastPlayableCount = nextPlayableCount;
               message.success(t('generation.readyToPlay', { ns: 'audio' }));
@@ -209,6 +227,10 @@ export class CreateAudioActionImpl {
 
         if (status.status === AsyncTaskStatus.Success || status.status === AsyncTaskStatus.Error) {
           await this.#get().refreshGenerationBatches();
+          const refreshedGenerations =
+            this.#get().generationBatchesMap[topicId]?.find((batch) => batch.id === batchId)
+              ?.generations || [];
+          await syncAudioTopicCover(this.#get(), topicId, refreshedGenerations);
           return;
         }
       } catch (error) {

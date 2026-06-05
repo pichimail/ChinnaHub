@@ -4,12 +4,28 @@ import { type SWRResponse } from 'swr';
 import { useClientDataSWR } from '@/libs/swr';
 import { generationBatchService } from '@/services/generationBatch';
 import { type StoreSetter } from '@/store/types';
-import { type GenerationBatch } from '@/types/generation';
+import { type AudioGenerationAsset, type GenerationBatch } from '@/types/generation';
 
 import { type AudioStore } from '../../store';
 
 type Setter = StoreSetter<AudioStore>;
 const SWR_USE_FETCH_AUDIO_GENERATION_BATCHES = 'SWR_USE_FETCH_AUDIO_GENERATION_BATCHES';
+
+const syncGenerationTopicCover = async (
+  store: AudioStore,
+  topicId: string,
+  batches: GenerationBatch[],
+) => {
+  const coverUrl = batches
+    .flatMap((batch) => batch.generations)
+    .map((generation) => (generation.asset as AudioGenerationAsset | undefined)?.coverUrl)
+    .find(Boolean);
+  const topic = store.generationTopics.find((item) => item.id === topicId);
+
+  if (coverUrl && topic && !topic.coverUrl) {
+    await store.updateGenerationTopicCover(topicId, coverUrl);
+  }
+};
 
 export const createAudioGenerationBatchSlice = (
   set: Setter,
@@ -93,6 +109,8 @@ export class AudioGenerationBatchActionImpl {
       false,
       'audioGenerationBatch/refreshGenerationBatches',
     );
+
+    await syncGenerationTopicCover(this.#get(), activeGenerationTopicId, batches);
   };
 
   useFetchGenerationBatches = (topicId?: string | null): SWRResponse<GenerationBatch[]> => {
@@ -119,6 +137,8 @@ export class AudioGenerationBatchActionImpl {
             false,
             'audioGenerationBatch/useFetchGenerationBatches',
           );
+
+          void syncGenerationTopicCover(this.#get(), topicId, data);
         },
       },
     );

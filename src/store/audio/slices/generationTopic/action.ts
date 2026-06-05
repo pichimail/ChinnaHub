@@ -88,6 +88,26 @@ export class AudioGenerationTopicActionImpl {
     return topicId;
   };
 
+  updateGenerationTopicCover = async (topicId: string, coverUrl: string): Promise<void> => {
+    this.#set(
+      {
+        generationTopics: this.#get().generationTopics.map((topic) =>
+          topic.id === topicId ? { ...topic, coverUrl } : topic,
+        ),
+      },
+      false,
+      'audioGenerationTopic/updateGenerationTopicCover/optimistic',
+    );
+    this.internal_updateGenerationTopicLoading(topicId, true);
+
+    try {
+      await generationTopicService.updateTopicCover(topicId, coverUrl);
+      await this.refreshGenerationTopics();
+    } finally {
+      this.internal_updateGenerationTopicLoading(topicId, false);
+    }
+  };
+
   refreshGenerationTopics = async (): Promise<void> => {
     await mutate([FETCH_AUDIO_GENERATION_TOPICS_KEY]);
   };

@@ -16,6 +16,11 @@ export interface GenerationMediaModeSegmentProps {
 
 const styles = createStaticStyles(({ css }) => ({
   lite: css`
+    flex: none;
+
+    width: max-content;
+    min-width: 124px;
+    max-width: 156px;
     height: 36px;
   `,
   heroSelect: css`
