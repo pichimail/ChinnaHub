@@ -1,50 +1,88 @@
 'use client';
 
-import { ActionIcon, Flexbox } from '@lobehub/ui';
+import { ActionIcon, Flexbox, Text } from '@lobehub/ui';
 import { createStaticStyles } from 'antd-style';
 import {
   DownloadIcon,
+  MoreVerticalIcon,
   PauseIcon,
   PlayIcon,
+  Share2Icon,
   Volume2Icon,
   VolumeXIcon,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 
 const useStyles = createStaticStyles(({ css, token }) => ({
-  container: css`
-    background: ${token.colorFillSecondary};
-    border-radius: 12px;
-    padding: 12px 16px;
+  album: css`
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 1;
     width: 100%;
+    border-radius: 16px;
+    background: ${token.colorFillSecondary};
+    border: 1px solid ${token.colorBorderSecondary};
+
+    &:hover .audio-controls {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
   `,
-  waveform: css`
+  albumImage: css`
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  `,
+  fallback: css`
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
-    gap: 2px;
-    height: 32px;
+    justify-content: center;
+    font-size: 42px;
+    color: ${token.colorTextQuaternary};
+    background: ${token.colorFillSecondary};
+  `,
+  controls: css`
+    pointer-events: none;
+    position: absolute;
+    inset-inline: 10px;
+    top: 10px;
+    z-index: 2;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.16s ${token.motionEaseOut}, transform 0.16s ${token.motionEaseOut};
+  `,
+  playButton: css`
+    backdrop-filter: blur(14px);
+    background: ${token.colorBgElevated}cc;
+  `,
+  footer: css`
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 1;
+    padding: 44px 12px 10px;
+    background: linear-gradient(180deg, transparent 0%, ${token.colorBgContainer}ee 100%);
+  `,
+  progressTrack: css`
     cursor: pointer;
-    flex: 1;
+    height: 4px;
+    border-radius: 999px;
+    background: ${token.colorFillTertiary};
     overflow: hidden;
   `,
-  bar: css`
-    width: 3px;
-    border-radius: 2px;
+  progressFill: css`
+    height: 100%;
+    border-radius: inherit;
     background: ${token.colorPrimary};
-    opacity: 0.5;
-    transition: opacity 0.15s;
-    &.active {
-      opacity: 1;
-    }
-    &.played {
-      opacity: 0.8;
-    }
   `,
-  progress: css`
+  time: css`
     font-size: 12px;
     color: ${token.colorTextSecondary};
-    min-width: 72px;
-    text-align: right;
     font-variant-numeric: tabular-nums;
   `,
   title: css`
@@ -64,24 +102,19 @@ interface MusicPlayerProps {
   onDownload?: () => void;
 }
 
-const BAR_COUNT = 40;
-
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
 };
 
-const MusicPlayer = memo<MusicPlayerProps>(({ audioUrl, title, onDownload }) => {
+const MusicPlayer = memo<MusicPlayerProps>(({ audioUrl, title, imageUrl, onDownload }) => {
   const { styles } = useStyles();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [bars] = useState(() =>
-    Array.from({ length: BAR_COUNT }, () => 0.15 + Math.random() * 0.85),
-  );
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -120,99 +153,101 @@ const MusicPlayer = memo<MusicPlayerProps>(({ audioUrl, title, onDownload }) => 
     }
   }, [playing]);
 
-  const toggleMute = useCallback(() => {
+  const toggleMute = useCallback((event?: React.MouseEvent) => {
+    event?.stopPropagation();
     const audio = audioRef.current;
     if (!audio) return;
     audio.muted = !muted;
     setMuted(!muted);
   }, [muted]);
 
-  const handleWaveformClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleProgressClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      event.stopPropagation();
       const audio = audioRef.current;
       if (!audio || !duration) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const ratio = x / rect.width;
-      audio.currentTime = ratio * duration;
+      const rect = event.currentTarget.getBoundingClientRect();
+      const ratio = (event.clientX - rect.left) / rect.width;
+      audio.currentTime = Math.max(0, Math.min(1, ratio)) * duration;
     },
     [duration],
   );
 
-  const handleDownload = useCallback(() => {
-    if (onDownload) {
-      onDownload();
-      return;
-    }
-    const a = document.createElement('a');
-    a.href = audioUrl;
-    a.download = `${title || 'track'}.mp3`;
-    a.click();
-  }, [audioUrl, title, onDownload]);
+  const handleDownload = useCallback(
+    (event?: React.MouseEvent) => {
+      event?.stopPropagation();
+      if (onDownload) {
+        onDownload();
+        return;
+      }
+      const anchor = document.createElement('a');
+      anchor.href = audioUrl;
+      anchor.download = `${title || 'accoustica-track'}.mp3`;
+      anchor.click();
+    },
+    [audioUrl, title, onDownload],
+  );
 
   const progress = duration > 0 ? currentTime / duration : 0;
 
   return (
-    <div className={styles.container}>
+    <div className={styles.album} role="button" tabIndex={0} onClick={togglePlay}>
       <audio ref={audioRef} preload="metadata" src={audioUrl} />
 
-      {title && (
-        <div className={styles.title} style={{ marginBottom: 10 }}>
-          {title}
-        </div>
+      {imageUrl ? (
+        <img alt={title || 'Accoustica album art'} className={styles.albumImage} src={imageUrl} />
+      ) : (
+        <div className={styles.fallback}>♪</div>
       )}
 
-      <Flexbox align="center" gap={8} horizontal>
-        {/* Play/Pause */}
+      <Flexbox className={`${styles.controls} audio-controls`} horizontal justify="space-between">
         <ActionIcon
           active={playing}
+          className={styles.playButton}
           icon={playing ? PauseIcon : PlayIcon}
-          size={{ blockSize: 32, fontSize: 16 }}
-          onClick={togglePlay}
+          size={{ blockSize: 44, fontSize: 24 }}
+          onClick={(event) => {
+            event.stopPropagation();
+            void togglePlay();
+          }}
         />
+        <Flexbox horizontal gap={6}>
+          <ActionIcon
+            className={styles.playButton}
+            icon={muted ? VolumeXIcon : Volume2Icon}
+            size={{ blockSize: 34, fontSize: 16 }}
+            onClick={toggleMute}
+          />
+          <ActionIcon
+            className={styles.playButton}
+            icon={DownloadIcon}
+            size={{ blockSize: 34, fontSize: 16 }}
+            onClick={handleDownload}
+          />
+          <ActionIcon
+            className={styles.playButton}
+            icon={Share2Icon}
+            size={{ blockSize: 34, fontSize: 16 }}
+            onClick={(event) => event.stopPropagation()}
+          />
+          <ActionIcon
+            className={styles.playButton}
+            icon={MoreVerticalIcon}
+            size={{ blockSize: 34, fontSize: 16 }}
+            onClick={(event) => event.stopPropagation()}
+          />
+        </Flexbox>
+      </Flexbox>
 
-        {/* Waveform */}
-        <div className={styles.waveform} onClick={handleWaveformClick}>
-          {bars.map((height, i) => {
-            const barProgress = i / BAR_COUNT;
-            const isActive = playing && Math.abs(barProgress - progress) < 0.05;
-            const isPlayed = barProgress <= progress;
-            return (
-              <div
-                key={i}
-                className={[
-                  styles.bar,
-                  isActive ? 'active' : '',
-                  isPlayed ? 'played' : '',
-                ].join(' ')}
-                style={{
-                  height: `${Math.max(4, height * 32)}px`,
-                  animationDelay: `${i * 30}ms`,
-                }}
-              />
-            );
-          })}
+      <Flexbox className={styles.footer} gap={8}>
+        {title && <Text className={styles.title}>{title}</Text>}
+        <div className={styles.progressTrack} onClick={handleProgressClick}>
+          <div className={styles.progressFill} style={{ width: `${progress * 100}%` }} />
         </div>
-
-        {/* Time */}
-        <div className={styles.progress}>
-          {formatTime(currentTime)}{duration > 0 ? ` / ${formatTime(duration)}` : ''}
-        </div>
-
-        {/* Mute */}
-        <ActionIcon
-          icon={muted ? VolumeXIcon : Volume2Icon}
-          size={{ blockSize: 28, fontSize: 14 }}
-          onClick={toggleMute}
-        />
-
-        {/* Download */}
-        <ActionIcon
-          icon={DownloadIcon}
-          size={{ blockSize: 28, fontSize: 14 }}
-          title="Download"
-          onClick={handleDownload}
-        />
+        <Flexbox horizontal justify="space-between">
+          <span className={styles.time}>{formatTime(currentTime)}</span>
+          <span className={styles.time}>{duration > 0 ? formatTime(duration) : '0:00'}</span>
+        </Flexbox>
       </Flexbox>
     </div>
   );
