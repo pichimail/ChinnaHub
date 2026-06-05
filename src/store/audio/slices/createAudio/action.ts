@@ -8,7 +8,6 @@ const n = setNamespace('createAudio');
 
 const POLL_MIN_MS = 2000;
 const POLL_MAX_MS = 5000;
-const EARLY_PLAY_AFTER_MS = 15_000;
 const MAX_POLL_ATTEMPTS = 60;
 
 const randomPollInterval = () =>
@@ -75,24 +74,27 @@ export const createCreateAudioSlice = (set: Setter, get: () => AudioStore) =>
 
     generateAudio: async () => {
       const state = get();
-      const { prompt, customMode, songTitle, stylePrompt, makeInstrumental } = state;
-      if (!prompt?.trim()) return;
+      const { prompt, lyrics, customMode, songTitle, stylePrompt, makeInstrumental, model, provider } = state;
+      const generationPrompt = customMode ? lyrics : prompt;
+      if (!generationPrompt?.trim()) return;
 
       set({ isGenerating: true, generationError: null }, false, n('start'));
 
       try {
         const result = await lambdaClient.audio.generateAudio.mutate({
-          prompt: prompt.trim(),
+          prompt: generationPrompt.trim(),
           customMode,
-          style: customMode ? stylePrompt : undefined,
-          title: customMode ? songTitle : undefined,
+          style: stylePrompt?.trim() || undefined,
+          title: songTitle?.trim() || undefined,
           makeInstrumental,
+          model,
+          provider,
         });
 
         const track: AudioTrack = {
           audioId: result.audioId,
           taskId: result.taskId,
-          prompt: prompt.trim(),
+          prompt: generationPrompt.trim(),
           status: 'pending',
           progress: 0,
           canPlayEarly: false,
@@ -108,7 +110,7 @@ export const createCreateAudioSlice = (set: Setter, get: () => AudioStore) =>
           n('created'),
         );
 
-        _startPolling(result.taskId, new Date(), 0, get, set);
+        _startPolling(result.taskId, 0, get, set);
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Failed to generate audio';
         set({ isGenerating: false, generationError: msg }, false, n('error'));
@@ -116,13 +118,7 @@ export const createCreateAudioSlice = (set: Setter, get: () => AudioStore) =>
     },
   }) as CreateAudioAction;
 
-function _startPolling(
-  taskId: string,
-  startTime: Date,
-  attempt: number,
-  get: () => AudioStore,
-  set: Setter,
-) {
+function _startPolling(taskId: string, attempt: number, get: () => AudioStore, set: Setter) {
   if (attempt >= MAX_POLL_ATTEMPTS) {
     set(
       (s) => ({
@@ -144,8 +140,6 @@ function _startPolling(
 
     try {
       const status = await lambdaClient.audio.getAudioStatus.query({ taskId });
-      const elapsed = Date.now() - startTime.getTime();
-      const canPlayEarly = elapsed >= EARLY_PLAY_AFTER_MS && !!status.audioUrl;
 
       set(
         (s) => ({
@@ -156,13 +150,15 @@ function _startPolling(
               status: status.status as AudioTrack['status'],
               audioUrl: status.audioUrl ?? s.audioTracks[taskId]?.audioUrl,
               imageUrl:
-                (status.metadata as any)?.imageUrl ?? s.audioTracks[taskId]?.imageUrl,
+                (status.metadata as any)?.imageUrl ??
+                (status.metadata as any)?.imageLargeUrl ??
+                s.audioTracks[taskId]?.imageUrl,
               title:
                 (status.metadata as any)?.title ?? s.audioTracks[taskId]?.title,
               duration:
                 (status.metadata as any)?.duration ?? s.audioTracks[taskId]?.duration,
               progress: status.progress,
-              canPlayEarly,
+              canPlayEarly: false,
               clips: (status as any).clips ?? [],
             },
           },
@@ -172,10 +168,10 @@ function _startPolling(
       );
 
       if (status.status !== 'completed' && status.status !== 'failed') {
-        _startPolling(taskId, startTime, attempt + 1, get, set);
+        _startPolling(taskId, attempt + 1, get, set);
       }
     } catch {
-      _startPolling(taskId, startTime, attempt + 1, get, set);
+      _startPolling(taskId, attempt + 1, get, set);
     }
   }, randomPollInterval());
 
