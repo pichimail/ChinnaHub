@@ -5,11 +5,13 @@ import { memo } from 'react';
 
 import CreateGenerationPage from '@/routes/(main)/(create)/features/CreateGenerationPage';
 
+import AudioBatchLoader from './features/AudioBatchLoader';
 import AlbumWorkspace from './features/AlbumWorkspace';
 import PromptInput from './features/PromptInput/Lean';
 
 const AudioWorkspace = memo(() => (
   <Flexbox gap={16} width="100%">
+    <AudioBatchLoader />
     <AlbumWorkspace />
   </Flexbox>
 ));
