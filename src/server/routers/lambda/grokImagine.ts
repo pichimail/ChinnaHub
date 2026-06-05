@@ -1,21 +1,29 @@
+import { randomBytes } from 'node:crypto';
+
 import { TRPCError } from '@trpc/server';
+import { and, eq } from 'drizzle-orm';
+import { after } from 'next/server';
 import { z } from 'zod';
 
+import { AsyncTaskModel } from '@/database/models/asyncTask';
+import { GenerationModel } from '@/database/models/generation';
+import { asyncTasks, generationBatches, generations, type NewGeneration, type NewGenerationBatch } from '@/database/schemas';
+import { getServerDB } from '@/database/server';
+import { appEnv } from '@/envs/app';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
+import { GenerationService } from '@/server/services/generation';
+import { VideoGenerationService } from '@/server/services/generation/video';
 import { enforceUserFeatureAccess, getManagedApiKey, getManagedEnvVar } from '@/server/services/admin/runtimeGovernance';
+import { AsyncTaskError, AsyncTaskErrorType, AsyncTaskStatus, AsyncTaskType } from '@/types/asyncTask';
+import { FileSource } from '@/types/files';
+import { sanitizeFileName } from '@/utils/sanitizeFileName';
 
 const KIE_API_BASE_URL = 'https://api.kie.ai/api/v1';
 const OPENROUTER_API_BASE_URL = 'https://openrouter.ai/api/v1';
 
-type GrokMode =
-  | 'text-to-image'
-  | 'image-to-image'
-  | 'image-to-video'
-  | 'text-to-video'
-  | 'extend'
-  | 'upscale'
-  | 'preview';
+type GrokMode = 'text-to-image' | 'image-to-image' | 'image-to-video' | 'text-to-video' | 'extend' | 'upscale' | 'preview';
+type MediaType = 'image' | 'video';
 
 const modelByMode: Record<GrokMode, string> = {
   extend: 'grok-imagine/extend',
@@ -84,17 +92,106 @@ const requestJson = async ({ apiKey, baseUrl, path, payload }: { apiKey: string;
   });
   const data = await parseJson(response);
   if (!response.ok) throw new TRPCError({ code: 'BAD_GATEWAY', message: `Provider error: ${response.status}`, cause: data });
-  return data;
+  return data as any;
 };
 
 const requestGetJson = async ({ apiKey, baseUrl, path }: { apiKey: string; baseUrl: string; path: string }) => {
-  const response = await fetch(`${baseUrl}${path}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-    method: 'GET',
-  });
+  const response = await fetch(`${baseUrl}${path}`, { headers: { Authorization: `Bearer ${apiKey}` }, method: 'GET' });
   const data = await parseJson(response);
   if (!response.ok) throw new TRPCError({ code: 'BAD_GATEWAY', message: `Provider error: ${response.status}`, cause: data });
-  return data;
+  return data as any;
+};
+
+const getTaskId = (data: any) => data?.data?.taskId || data?.taskId || data?.data?.id || data?.id || data?.data?.recordId;
+const getStatus = (data: any) => String(data?.data?.status || data?.status || '').toLowerCase();
+const getResultUrl = (data: any, mediaType: MediaType) => {
+  const d = data?.data || data;
+  const list = d?.resultUrls || d?.urls || d?.images || d?.videos || d?.output || d?.result;
+  const first = Array.isArray(list) ? list[0] : list;
+  if (typeof first === 'string') return first;
+  if (mediaType === 'video') return first?.videoUrl || first?.url || d?.videoUrl || d?.url;
+  return first?.imageUrl || first?.url || d?.imageUrl || d?.url;
+};
+
+const pollKieRecord = async (apiKey: string, taskId: string, mediaType: MediaType) => {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const data = await requestGetJson({ apiKey, baseUrl: KIE_API_BASE_URL, path: `/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}` });
+    const status = getStatus(data);
+    const url = getResultUrl(data, mediaType);
+    if (url || ['success', 'completed', 'complete', 'succeeded'].includes(status)) return { data, url };
+    if (['failed', 'fail', 'error'].includes(status)) throw new Error(data?.data?.error || data?.error || 'Kie task failed');
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+  throw new Error('Kie task timed out');
+};
+
+const persistKieResult = async ({ asyncTaskCreatedAt, asyncTaskId, generationId, mediaType, prompt, providerUrl, userId }: { asyncTaskCreatedAt: Date; asyncTaskId: string; generationId: string; mediaType: MediaType; prompt: string; providerUrl: string; userId: string }) => {
+  const db = await getServerDB();
+  const generationModel = new GenerationModel(db, userId);
+  const asyncTaskModel = new AsyncTaskModel(db, userId);
+
+  if (mediaType === 'image') {
+    const generationService = new GenerationService(db, userId);
+    const { image, thumbnailImage } = await generationService.transformImageForGeneration(providerUrl);
+    const { imageUrl, thumbnailImageUrl } = await generationService.uploadImageForGeneration(image, thumbnailImage);
+    await generationModel.createAssetAndFile(
+      generationId,
+      {
+        height: image.height,
+        originalUrl: providerUrl,
+        thumbnailUrl: thumbnailImageUrl,
+        type: 'image',
+        url: imageUrl,
+        width: image.width,
+      },
+      {
+        fileHash: image.hash,
+        fileType: image.mime,
+        metadata: { generationId, height: image.height, path: imageUrl, width: image.width },
+        name: `${sanitizeFileName(prompt, generationId)}.${image.extension}`,
+        size: image.size,
+        url: imageUrl,
+      },
+    );
+  } else {
+    const videoService = new VideoGenerationService(db, userId);
+    const result = await videoService.processVideoForGeneration(providerUrl);
+    await generationModel.createAssetAndFile(
+      generationId,
+      {
+        coverUrl: result.coverKey,
+        duration: result.duration,
+        height: result.height,
+        originalUrl: providerUrl,
+        thumbnailUrl: result.thumbnailKey,
+        type: 'video',
+        url: result.videoKey,
+        width: result.width,
+      },
+      {
+        fileHash: result.fileHash,
+        fileType: result.mimeType,
+        name: `${sanitizeFileName(prompt, generationId)}.mp4`,
+        size: result.fileSize,
+        url: result.videoKey,
+      },
+      FileSource.VideoGeneration,
+    );
+  }
+
+  await asyncTaskModel.update(asyncTaskId, {
+    duration: Date.now() - asyncTaskCreatedAt.getTime(),
+    status: AsyncTaskStatus.Success,
+  });
+};
+
+const persistKieFailure = async (asyncTaskId: string, userId: string, error: unknown) => {
+  const db = await getServerDB();
+  const asyncTaskModel = new AsyncTaskModel(db, userId);
+  await asyncTaskModel.update(asyncTaskId, {
+    error: new AsyncTaskError(AsyncTaskErrorType.ServerError, error instanceof Error ? error.message : 'Kie task failed'),
+    status: AsyncTaskStatus.Error,
+  });
 };
 
 export const grokImagineRouter = router({
@@ -102,31 +199,79 @@ export const grokImagineRouter = router({
     .input(
       z.object({
         callbackUrl: z.string().url().optional(),
+        generationTopicId: z.string().optional(),
         input: inputSchema,
+        mediaType: z.enum(['image', 'video']).optional(),
         mode: z.enum(['text-to-image', 'image-to-image', 'image-to-video', 'text-to-video', 'extend', 'upscale', 'preview']),
+        model: z.string().optional(),
+        provider: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const apiKey = await getKey(ctx.serverDB, 'kie');
-      return requestJson({
+      const mediaType: MediaType = input.mediaType || (input.mode.includes('video') || input.mode === 'extend' ? 'video' : 'image');
+      const callbackBaseUrl = process.env.WEBHOOK_PROXY_URL || appEnv.APP_URL;
+      const callbackUrl = input.callbackUrl || `${callbackBaseUrl}/api/webhooks/grok-imagine/${mediaType}`;
+      const prompt = input.input.prompt || input.mode;
+
+      if (!input.generationTopicId) {
+        return requestJson({
+          apiKey,
+          baseUrl: KIE_API_BASE_URL,
+          path: '/jobs/createTask',
+          payload: { callBackUrl: callbackUrl, input: input.input, model: modelByMode[input.mode] },
+        });
+      }
+
+      const webhookToken = randomBytes(32).toString('hex');
+      const taskType = mediaType === 'image' ? AsyncTaskType.ImageGeneration : AsyncTaskType.VideoGeneration;
+
+      const { asyncTaskCreatedAt, asyncTaskId, batch, generation } = await ctx.serverDB.transaction(async (tx) => {
+        const newBatch: NewGenerationBatch = {
+          config: input.input,
+          generationTopicId: input.generationTopicId!,
+          model: input.model || modelByMode[input.mode],
+          prompt,
+          provider: input.provider || (mediaType === 'image' ? 'chinnaimage' : 'chinnavideo'),
+          userId: ctx.userId,
+        };
+        const [createdBatch] = await tx.insert(generationBatches).values(newBatch).returning();
+        const newGeneration: NewGeneration = { generationBatchId: createdBatch.id, seed: null, userId: ctx.userId };
+        const [createdGeneration] = await tx.insert(generations).values(newGeneration).returning();
+        const [createdTask] = await tx
+          .insert(asyncTasks)
+          .values({ metadata: { webhookToken }, status: AsyncTaskStatus.Pending, type: taskType, userId: ctx.userId })
+          .returning();
+        await tx.update(generations).set({ asyncTaskId: createdTask.id }).where(and(eq(generations.id, createdGeneration.id), eq(generations.userId, ctx.userId)));
+        return { asyncTaskCreatedAt: createdTask.createdAt, asyncTaskId: createdTask.id, batch: createdBatch, generation: createdGeneration };
+      });
+
+      const created = await requestJson({
         apiKey,
         baseUrl: KIE_API_BASE_URL,
         path: '/jobs/createTask',
-        payload: {
-          callBackUrl: input.callbackUrl,
-          input: input.input,
-          model: modelByMode[input.mode],
-        },
+        payload: { callBackUrl: `${callbackUrl}?token=${webhookToken}`, input: input.input, model: modelByMode[input.mode] },
       });
+      const kieTaskId = getTaskId(created);
+      const asyncTaskModel = new AsyncTaskModel(ctx.serverDB, ctx.userId);
+      await asyncTaskModel.update(asyncTaskId, { inferenceId: kieTaskId, status: AsyncTaskStatus.Processing });
+
+      after(async () => {
+        try {
+          const { url } = await pollKieRecord(apiKey, kieTaskId, mediaType);
+          if (!url) throw new Error('Kie completed without a media URL');
+          await persistKieResult({ asyncTaskCreatedAt, asyncTaskId, generationId: generation.id, mediaType, prompt, providerUrl: url, userId: ctx.userId });
+        } catch (error) {
+          await persistKieFailure(asyncTaskId, ctx.userId, error);
+        }
+      });
+
+      return { data: { batch, generations: [{ ...generation, asyncTaskId }], providerTaskId: kieTaskId }, success: true };
     }),
 
   getKieTask: grokProcedure.input(z.object({ taskId: z.string() })).query(async ({ ctx, input }) => {
     const apiKey = await getKey(ctx.serverDB, 'kie');
-    return requestGetJson({
-      apiKey,
-      baseUrl: KIE_API_BASE_URL,
-      path: `/jobs/recordInfo?taskId=${encodeURIComponent(input.taskId)}`,
-    });
+    return requestGetJson({ apiKey, baseUrl: KIE_API_BASE_URL, path: `/jobs/recordInfo?taskId=${encodeURIComponent(input.taskId)}` });
   }),
 
   runOpenRouter: grokProcedure.input(z.object({ modality: z.enum(['image', 'video']), payload: z.record(z.string(), z.any()).default({}) })).mutation(async ({ ctx, input }) => {
