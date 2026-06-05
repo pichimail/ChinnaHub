@@ -3,8 +3,9 @@
 import { BRANDING_PROVIDER } from '@lobechat/business-const';
 import { CREDITS_PER_DOLLAR } from '@lobechat/const/currency';
 import { ModelIcon } from '@lobehub/icons';
-import { Flexbox, Popover, Text } from '@lobehub/ui';
+import { Flexbox, Icon, Popover, Text } from '@lobehub/ui';
 import { createStaticStyles, cx } from 'antd-style';
+import { Music2Icon, VideoIcon } from 'lucide-react';
 import type { AiModelForSelect } from 'model-bank';
 import numeral from 'numeral';
 import { memo, useMemo } from 'react';
@@ -47,31 +48,24 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
 }));
 
 export interface GenerationModelItemProps extends AiModelForSelect {
-  /**
-   * Which USD price fields to use: image uses approximatePricePerImage / pricePerImage; video uses approximatePricePerVideo / pricePerVideo.
-   * @default 'image'
-   */
-  priceKind?: 'image' | 'video';
-  /**
-   * Provider ID for determining price display format (when showPrice is true)
-   */
+  priceKind?: 'audio' | 'image' | 'video';
   providerId?: string;
-  /**
-   * Whether to show new model badge
-   * @default true
-   */
   showBadge?: boolean;
-  /**
-   * Whether to show popover on hover
-   * @default true
-   */
   showPopover?: boolean;
-  /**
-   * Whether to show price in popover (e.g. true for image, false for video)
-   * @default false
-   */
   showPrice?: boolean;
 }
+
+const getSafeModelIcon = (id: string, priceKind: GenerationModelItemProps['priceKind']) => {
+  if (id === 'chinnaaudio' || id === 'accoustica' || priceKind === 'audio') {
+    return <Icon icon={Music2Icon} size={20} />;
+  }
+
+  if (id === 'chinnavideo') {
+    return <Icon icon={VideoIcon} size={20} />;
+  }
+
+  return <ModelIcon model={id || 'gpt-4o'} size={20} />;
+};
 
 const GenerationModelItem = memo<GenerationModelItemProps>(
   ({
@@ -99,6 +93,8 @@ const GenerationModelItem = memo<GenerationModelItemProps>(
       const isVideo = priceKind === 'video';
       const exactUsd = isVideo ? pricePerVideo : pricePerImage;
       const approxUsd = isVideo ? approximatePricePerVideo : approximatePricePerImage;
+
+      if (priceKind === 'audio') return undefined;
 
       if (enableBusinessFeatures && providerId === BRANDING_PROVIDER) {
         if (typeof exactUsd === 'number') {
@@ -159,11 +155,14 @@ const GenerationModelItem = memo<GenerationModelItemProps>(
       );
     }, [description, priceLabel, isDarkMode]);
 
+    const id = model.id || '';
+    const displayName = model.displayName || id;
+
     const content = (
       <Flexbox horizontal align={'center'} gap={8} style={{ overflow: 'hidden' }}>
-        <ModelIcon model={model.id} size={20} />
-        <Text ellipsis title={model.displayName || model.id}>
-          {model.displayName || model.id}
+        {getSafeModelIcon(id, priceKind)}
+        <Text ellipsis title={displayName}>
+          {displayName}
         </Text>
         {showBadge && <NewModelBadge releasedAt={model.releasedAt} />}
       </Flexbox>
