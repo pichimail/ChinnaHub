@@ -11,9 +11,29 @@ export type GrokImagineMode =
 
 export type GrokImaginePayload = Record<string, unknown>;
 
+export interface GrokImagineTaskOptions {
+  callbackUrl?: string;
+  generationTopicId?: string;
+  mediaType?: 'image' | 'video';
+  model?: string;
+  provider?: string;
+}
+
 export const grokImagineService = {
-  createKieTask: (mode: GrokImagineMode, input: GrokImaginePayload, callbackUrl?: string) =>
-    lambdaClient.grokImagine.createKieTask.mutate({ callbackUrl, input, mode }),
+  createKieTask: (
+    mode: GrokImagineMode,
+    input: GrokImaginePayload,
+    options: GrokImagineTaskOptions = {},
+  ) =>
+    lambdaClient.grokImagine.createKieTask.mutate({
+      callbackUrl: options.callbackUrl,
+      generationTopicId: options.generationTopicId,
+      input,
+      mediaType: options.mediaType,
+      mode,
+      model: options.model,
+      provider: options.provider,
+    }),
   getKieTask: (taskId: string) => lambdaClient.grokImagine.getKieTask.query({ taskId }),
   runChinnaAutoImage: (payload: GrokImaginePayload) =>
     lambdaClient.grokImagine.runOpenRouter.mutate({ modality: 'image', payload }),
