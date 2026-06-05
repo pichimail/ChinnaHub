@@ -53,10 +53,7 @@ export class CreateVideoActionImpl {
       !parameters.imageUrl &&
       !parameters.imageUrls?.length
     ) {
-      message.warning({
-        content: t('generation.validation.endFrameRequiresStartFrame', { ns: 'video' }),
-        duration: 3,
-      });
+      message.warning({ content: t('generation.validation.endFrameRequiresStartFrame', { ns: 'video' }), duration: 3 });
       this.#set({ isCreating: false }, false, 'createVideo/endCreateVideo');
       return;
     }
@@ -82,24 +79,24 @@ export class CreateVideoActionImpl {
 
       if (isChinnaVideoModel(provider, model)) {
         const mode = resolveChinnaVideoMode(model, parameters as any);
-        if (mode === 'auto-video') await grokImagineService.runChinnaAutoVideo(parameters as any);
-        else await grokImagineService.createKieTask(mode as any, toKieInput(parameters as any));
+        if (mode === 'auto-video') {
+          await grokImagineService.runChinnaAutoVideo(parameters as any);
+        } else {
+          const result = await grokImagineService.createKieTask(mode as any, toKieInput(parameters as any), {
+            generationTopicId: finalTopicId!,
+            mediaType: 'video',
+            model,
+            provider,
+          });
+          const batch = (result as any)?.data?.batch;
+          if (batch) store.internal_dispatchGenerationBatch(finalTopicId!, batch, 'createVideo/dispatchChinnaBatch');
+        }
       } else {
-        await videoService.createVideo({
-          generationTopicId: finalTopicId!,
-          model,
-          params: parameters as any,
-          provider,
-        });
+        await videoService.createVideo({ generationTopicId: finalTopicId!, model, params: parameters as any, provider });
       }
 
       await this.#get().refreshGenerationBatches();
-
-      this.#set(
-        (state) => ({ parameters: { ...state.parameters, prompt: '' } }),
-        false,
-        'createVideo/clearPrompt',
-      );
+      this.#set((state) => ({ parameters: { ...state.parameters, prompt: '' } }), false, 'createVideo/clearPrompt');
     } catch (error) {
       handleGenerationPromptModerationError(error);
       handleLobeHubModelDeprecatedError(error);
@@ -125,12 +122,7 @@ export class CreateVideoActionImpl {
 
     try {
       await removeGenerationBatch(generationBatchId, activeGenerationTopicId);
-      await videoService.createVideo({
-        generationTopicId: activeGenerationTopicId,
-        model: batch.model,
-        params: batch.config as any,
-        provider: batch.provider,
-      });
+      await videoService.createVideo({ generationTopicId: activeGenerationTopicId, model: batch.model, params: batch.config as any, provider: batch.provider });
       await store.refreshGenerationBatches();
     } catch (error) {
       handleGenerationPromptModerationError(error);
