@@ -129,6 +129,8 @@ export class CreateAudioActionImpl {
             'createAudio/dispatchCreatedBatch',
           );
 
+          await store.refreshGenerationBatches();
+
           const generation = result.data.generations?.[0];
           if (generation?.task?.status === AsyncTaskStatus.Processing) {
             void this.pollAudioStatus({
@@ -206,6 +208,7 @@ export class CreateAudioActionImpl {
         }
 
         if (status.status === AsyncTaskStatus.Success || status.status === AsyncTaskStatus.Error) {
+          await this.#get().refreshGenerationBatches();
           return;
         }
       } catch (error) {
@@ -218,11 +221,14 @@ export class CreateAudioActionImpl {
         console.error('[CreateAudio] Audio polling failed:', error);
 
         if (consecutiveFailures >= AUDIO_POLL_MAX_FAILURES) {
+          await this.#get().refreshGenerationBatches();
           message.error(t('generation.pollingFailed', { ns: 'audio' }));
           return;
         }
       }
     }
+
+    await this.#get().refreshGenerationBatches();
   };
 }
 
