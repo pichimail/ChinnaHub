@@ -4,10 +4,12 @@ import { Flexbox } from '@lobehub/ui';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import GenerationMediaModeSegment from '@/routes/(main)/(create)/features/GenerationInput/GenerationMediaModeSegment';
+import GenerationMediaModeSegment, {
+  type GenerationMediaMode,
+} from '@/routes/(main)/(create)/features/GenerationInput/GenerationMediaModeSegment';
 
 interface PromptTitleProps {
-  mode: 'image' | 'video';
+  mode: GenerationMediaMode;
 }
 
 const PromptTitle = memo<PromptTitleProps>(({ mode }) => {
