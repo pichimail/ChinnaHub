@@ -35,6 +35,8 @@ export class AudioGenerationTopicActionImpl {
       false,
       'audioGenerationTopic/switchGenerationTopic',
     );
+
+    void this.#get().refreshGenerationBatches();
   };
 
   openNewGenerationTopic = (): void => {
@@ -122,7 +124,6 @@ export class AudioGenerationTopicActionImpl {
   };
 
   setTopicBatchLoaded = (topicId: string): void => {
-    // Mark topic as having loaded its batch data
     this.internal_updateGenerationTopicLoading(topicId, false);
   };
 }
