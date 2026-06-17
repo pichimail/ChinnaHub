@@ -26,9 +26,7 @@ export const isChinnaVideoModel = (provider?: string, model?: string) =>
 
 export const resolveChinnaImageMode = (model: string, params: Record<string, unknown>) => {
   if (model === 'x-ai/grok-imagine-image-quality') return 'auto-image';
-  if (model === 'grok-imagine/image-to-image' || Array.isArray(params.imageUrls) || params.imageUrl) {
-    return 'image-to-image';
-  }
+  if (model === 'grok-imagine/image-to-image' || Array.isArray(params.imageUrls) || params.imageUrl) return 'image-to-image';
   if (model === 'grok-imagine/upscale') return 'upscale';
   return 'text-to-image';
 };
@@ -36,20 +34,23 @@ export const resolveChinnaImageMode = (model: string, params: Record<string, unk
 export const resolveChinnaVideoMode = (model: string, params: Record<string, unknown>) => {
   if (model === 'x-ai/grok-imagine-video') return 'auto-video';
   if (model === 'grok-imagine/1-5-preview' || model === 'grok-imagine-video-1-5-preview') return 'preview';
-  if (model === 'grok-imagine/extend' || params.task_id || params.extend_at || params.extend_times) return 'extend';
   if (model === 'grok-imagine/upscale') return 'upscale';
-  if (model === 'grok-imagine/image-to-video' || params.imageUrl || params.image_urls) return 'image-to-video';
+  if (model === 'grok-imagine/extend' || params.task_id || params.taskId || params.extend_at || params.extendAt || params.extend_times || params.extendTimes) return 'extend';
+  if (model === 'grok-imagine/image-to-video' || params.imageUrl || params.image_urls || params.imageUrls) return 'image-to-video';
   return 'text-to-video';
 };
 
 export const toKieInput = (params: Record<string, any>) => ({
   aspect_ratio: params.aspect_ratio || params.aspectRatio,
   duration: params.duration,
-  extend_at: params.extend_at,
-  extend_times: params.extend_times,
+  enable_pro: params.enable_pro ?? params.enablePro,
+  extend_at: params.extend_at || params.extendAt,
+  extend_times: params.extend_times ?? params.extendTimes,
   image_urls: params.image_urls || params.imageUrls || (params.imageUrl ? [params.imageUrl] : undefined),
-  mode: params.mode,
+  mode: params.mode || 'normal',
   prompt: params.prompt,
   resolution: params.resolution,
   task_id: params.task_id || params.taskId,
 });
+
+export const expectedKieImageCount = (params: Record<string, any>) => (params.enable_pro || params.enablePro ? 5 : 6);
