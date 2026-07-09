@@ -1,0 +1,35 @@
+{
+  "name": "@pierre/theming",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./index.cjs",
+  "module": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "require": "./index.cjs"
+    },
+    "./themes": {
+      "types": "./themes.d.ts",
+      "import": "./themes.js",
+      "require": "./themes.cjs"
+    },
+    "./color": {
+      "types": "./color.d.ts",
+      "import": "./color.js",
+      "require": "./color.cjs"
+    },
+    "./colors": {
+      "types": "./color.d.ts",
+      "import": "./color.js",
+      "require": "./color.cjs"
+    },
+    "./*": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "require": "./index.cjs"
+    }
+  }
+}

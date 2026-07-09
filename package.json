@@ -545,10 +545,14 @@
       "fast-xml-parser": "5.4.2",
       "lexical": "0.42.0",
       "pdfjs-dist": "5.4.530",
-      "stylelint-config-clean-order": "7.0.0"
+      "stylelint-config-clean-order": "7.0.0",
+      "@pierre/theming": "file:./vendor/pierre-theming"
     },
     "patchedDependencies": {
       "@upstash/qstash": "patches/@upstash__qstash.patch"
     }
+  },
+  "resolutions": {
+    "@pierre/theming": "file:./vendor/pierre-theming"
   }
 }

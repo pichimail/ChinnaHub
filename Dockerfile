@@ -76,6 +76,7 @@ COPY patches ./patches
 # bring in desktop workspace manifest so pnpm can resolve it
 COPY apps/desktop/src/main/package.json ./apps/desktop/src/main/package.json
 
+COPY vendor ./vendor
 RUN set -e && \
     if [ "${USE_CN_MIRROR:-false}" = "true" ]; then \
         export SENTRYCLI_CDNURL="https://npmmirror.com/mirrors/sentry-cli"; \
@@ -86,7 +87,7 @@ RUN set -e && \
     npm i -g corepack@latest && \
     corepack enable && \
     corepack use $(sed -n 's/.*"packageManager": "\(.*\)".*/\1/p' package.json) && \
-    pnpm i && \
+    pnpm i --no-frozen-lockfile --config.lockfile=true && \
     mkdir -p /deps && \
     cd /deps && \
     echo '{"name":"deps","private":true}' > package.json && \

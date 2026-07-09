@@ -14,6 +14,7 @@ const RootLayout = ({ children }: { children: ReactNode }) => {
           <Analytics />
           {inVercel && <SpeedInsights />}
         </Suspense>
+              <script src="/chinnahub-kie6-ui.js" defer />
       </body>
     </html>
   );

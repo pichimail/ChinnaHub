@@ -19,6 +19,154 @@ import { AsyncTaskError, AsyncTaskErrorType, AsyncTaskStatus, AsyncTaskType } fr
 import { FileSource } from '@/types/files';
 import { sanitizeFileName } from '@/utils/sanitizeFileName';
 
+const chinnaResolveTextToImageMode = (input: any = {}, meta: any = {}) => {
+  const raw =
+    input?.uiMode ??
+    input?.mode ??
+    input?.generationMode ??
+    input?.config?.uiMode ??
+    meta?.uiMode ??
+    meta?.mode;
+
+  const quality =
+    raw === 'quality' ||
+    raw === 'Quality' ||
+    input?.enable_pro === true ||
+    input?.enablePro === true ||
+    input?.quality === true;
+
+  return {
+    uiMode: quality ? 'quality' : 'standard',
+    enablePro: quality,
+    expectedResultCount: quality ? 4 : 6,
+  };
+};
+
+const chinnaParseKieResultUrls = (payload: any): string[] => {
+  const out = new Set<string>();
+
+  const visit = (value: any) => {
+    if (!value) return;
+
+    if (typeof value === 'string') {
+      const v = value.trim();
+      if (/^https?:\/\//i.test(v)) {
+        out.add(v);
+        return;
+      }
+      try {
+        visit(JSON.parse(v));
+      } catch {
+        const matches = v.match(/https?:\/\/[^"'\s,\]]+/gi);
+        if (matches) matches.forEach((url) => out.add(url));
+      }
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+
+    if (typeof value === 'object') {
+      if (Array.isArray(value.resultUrls)) value.resultUrls.forEach(visit);
+      if (Array.isArray(value.urls)) value.urls.forEach(visit);
+      if (Array.isArray(value.images)) value.images.forEach(visit);
+      if (Array.isArray(value.output)) value.output.forEach(visit);
+      if (Array.isArray(value.result)) value.result.forEach(visit);
+
+      visit(value.resultJson);
+      visit(value.data);
+      visit(value.response);
+      visit(value.asset);
+      visit(value.url);
+      visit(value.imageUrl);
+    }
+  };
+
+  visit(payload);
+  return Array.from(out).filter(Boolean);
+};
+
+
+
+const chinnahubParseKieResultUrls = (payload: any): string[] => {
+  const out = new Set<string>();
+
+  const walk = (value: any) => {
+    if (!value) return;
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+
+      if (
+        (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+        (trimmed.startsWith('[') && trimmed.endsWith(']'))
+      ) {
+        try {
+          walk(JSON.parse(trimmed));
+        } catch {}
+      }
+
+      for (const match of trimmed.matchAll(/https?:\/\/[^\s"'<>\\]+/g)) {
+        const url = match[0].replace(/[),\]}]+$/, '');
+        if (/\.(png|jpe?g|webp|mp4|webm|mp3|wav|m4a)(\?|$)/i.test(url) || /aiquickdraw|tempfile|generated|cdn|image|video|audio/i.test(url)) {
+          out.add(url);
+        }
+      }
+
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+
+    if (typeof value === 'object') {
+      if (Array.isArray(value.resultUrls)) value.resultUrls.forEach((url: string) => out.add(url));
+      if (Array.isArray(value.allResultUrls)) value.allResultUrls.forEach((url: string) => out.add(url));
+      if (Array.isArray(value.urls)) value.urls.forEach((url: string) => out.add(url));
+
+      if (typeof value.resultJson === 'string') {
+        try {
+          const parsed = JSON.parse(value.resultJson);
+          if (Array.isArray(parsed.resultUrls)) parsed.resultUrls.forEach((url: string) => out.add(url));
+          walk(parsed);
+        } catch {}
+      }
+
+      if (value.data) walk(value.data);
+      Object.values(value).forEach(walk);
+    }
+  };
+
+  walk(payload);
+  return [...out];
+};
+
+const chinnahubSixImageAsset = (payload: any, fallbackUrl?: string) => {
+  const resultUrls = chinnahubParseKieResultUrls(payload);
+  const first = resultUrls[0] || fallbackUrl;
+
+  return {
+    resultUrls,
+    allResultUrls: resultUrls,
+    urls: resultUrls,
+    url: first,
+    imageUrl: first,
+    thumbnailUrl: first,
+    thumbUrl: first,
+    src: first,
+    resultUrl: first,
+    variantCount: resultUrls.length || (first ? 1 : 0),
+    expectedResultCount: chinnaResolveTextToImageMode(input).expectedResultCount,
+    status: first ? 'success' : 'processing',
+    state: first ? 'success' : 'processing',
+  };
+};
+
+
 const KIE_API_BASE_URL = 'https://api.kie.ai/api/v1';
 const OPENROUTER_API_BASE_URL = 'https://openrouter.ai/api/v1';
 
@@ -110,7 +258,7 @@ const getResultUrl = (data: any, mediaType: MediaType) => {
   const first = Array.isArray(list) ? list[0] : list;
   if (typeof first === 'string') return first;
   if (mediaType === 'video') return first?.videoUrl || first?.url || d?.videoUrl || d?.url;
-  return first?.imageUrl || first?.url || d?.imageUrl || d?.url;
+  return chinnahubParseKieResultUrls(d)[0] || first?.imageUrl || first?.url || d?.imageUrl || d?.url;
 };
 
 const pollKieRecord = async (apiKey: string, taskId: string, mediaType: MediaType) => {
@@ -147,7 +295,7 @@ const persistKieResult = async ({ asyncTaskCreatedAt, asyncTaskId, generationId,
       {
         fileHash: image.hash,
         fileType: image.mime,
-        metadata: { generationId, height: image.height, path: imageUrl, width: image.width },
+        metadata: { generationId, height: image.height, path: imageUrl, width: image.width, expectedResultCount: chinnaResolveTextToImageMode(input).expectedResultCount },
         name: `${sanitizeFileName(prompt, generationId)}.${image.extension}`,
         size: image.size,
         url: imageUrl,
@@ -164,6 +312,12 @@ const persistKieResult = async ({ asyncTaskCreatedAt, asyncTaskId, generationId,
         height: result.height,
         originalUrl: providerUrl,
         thumbnailUrl: result.thumbnailKey,
+        thumbUrl: result.thumbnailKey,
+        imageUrl: result.url || result.imageUrl || result.thumbnailKey,
+        resultUrls: chinnahubParseKieResultUrls(result),
+        allResultUrls: chinnahubParseKieResultUrls(result),
+        variantCount: chinnahubParseKieResultUrls(result).length || 1,
+        expectedResultCount: chinnaResolveTextToImageMode(input).expectedResultCount,
         type: 'video',
         url: result.videoKey,
         width: result.width,
